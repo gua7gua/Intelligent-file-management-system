@@ -1,0 +1,39 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam rectangle {
+  BackgroundColor #F7F9FC
+  BorderColor #526070
+  FontColor #111827
+}
+skinparam arrowColor #526070
+
+title 库房架位结构图
+
+rectangle "库房/房间\n如 401" as Room
+rectangle "机架\n01..N" as Rack
+rectangle "层\n01..M" as Layer
+rectangle "盒位\n01..K" as Slot
+rectangle "档案盒\n盒号、盒脊信息" as Box
+rectangle "档案条目\n档号、题名、载体状态" as Archive
+
+Room --> Rack
+Rack --> Layer
+Layer --> Slot
+Slot --> Box
+Box --> Archive
+
+note right of Slot
+  本期编码：
+  库房号-机架号-层号-盒位号
+  如 401-03-02-05
+end note
+
+note bottom of Archive
+  纯电子档案不占用架位；
+  纸质+电子和纯纸质档案
+  必须记录盒号与架位。
+end note
+
+@enduml

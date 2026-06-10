@@ -1,0 +1,88 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam component {
+  BackgroundColor #F7F9FC
+  BorderColor #526070
+  FontColor #111827
+}
+skinparam package {
+  BackgroundColor #FFFFFF
+  BorderColor #8A95A3
+}
+skinparam linetype ortho
+
+title 本期项目建设方案总体逻辑架构图
+
+package "标准规范体系" as StandardLayer {
+  component "元数据著录规范" as StdMeta
+  component "数字化加工规范" as StdScan
+  component "接口与共享规范" as StdApi
+  component "安全与运维制度" as StdOps
+}
+
+package "应用门户与业务系统" as AppLayer {
+  component "公众门户" as Pub
+  component "内部查阅者门户" as Internal
+  component "移交单位门户" as Transfer
+  component "管理后台" as Admin
+  component "馆领导审批" as Approval
+}
+
+package "应用支撑平台" as SupportLayer {
+  component "认证授权\nSa-Token" as Auth
+  component "AI 辅助服务\n字段补全/检索/研判" as AISupport
+  component "文件处理\nTika + Hash + ClamAV" as FileSupport
+  component "PDF/Excel 导出" as Export
+  component "任务调度与通知" as Task
+  component "日志审计" as Audit
+}
+
+package "信息资源与数据库" as DataLayer {
+  component "档案元数据" as Meta
+  component "移交/征集清单" as List
+  component "库房架位与借阅" as Warehouse
+  component "鉴定/销毁/审批" as Dispose
+  component "电子文件对象" as FileObj
+}
+
+package "基础设施与安全保障" as InfraLayer {
+  component "Nginx + Docker" as Infra
+  component "PostgreSQL 16+" as PG
+  component "MinIO 对象存储" as MinIO
+  component "备份恢复与四性检测" as Backup
+  component "等保二级安全控制" as Security
+}
+
+StandardLayer -down-> AppLayer : 规范约束
+AppLayer -down-> SupportLayer : 业务调用
+SupportLayer -down-> DataLayer : 数据读写
+DataLayer -down-> InfraLayer : 存储承载
+
+StdMeta -[hidden]right- StdScan
+StdScan -[hidden]right- StdApi
+StdApi -[hidden]right- StdOps
+
+Pub -[hidden]right- Internal
+Internal -[hidden]right- Transfer
+Transfer -[hidden]right- Admin
+Admin -[hidden]right- Approval
+
+Auth -[hidden]right- AISupport
+AISupport -[hidden]right- FileSupport
+FileSupport -[hidden]right- Export
+Export -[hidden]right- Task
+Task -[hidden]right- Audit
+
+Meta -[hidden]right- List
+List -[hidden]right- Warehouse
+Warehouse -[hidden]right- Dispose
+Dispose -[hidden]right- FileObj
+
+Infra -[hidden]right- PG
+PG -[hidden]right- MinIO
+MinIO -[hidden]right- Backup
+Backup -[hidden]right- Security
+
+@enduml

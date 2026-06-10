@@ -1,0 +1,41 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam activityBackgroundColor #F6F8FA
+skinparam activityBorderColor #526070
+skinparam activityDiamondBackgroundColor #FFFFFF
+skinparam activityDiamondBorderColor #555555
+
+title 密级与开放调整审批流程图
+
+start
+:后台管理员：线下取得形成单位授权凭证;
+:后台管理员：凭证作为档案入库并获得凭证档号;
+:后台管理员：在目标档案详情发起调整申请;
+:后台管理员：录入凭证档号、调整后值和理由;
+
+:系统：校验凭证档号存在、未销毁、可被审批查看;
+:系统：校验凭证与目标档案来源关系匹配;
+if (校验通过?) is (否) then
+  :系统：拒绝提交并提示原因;
+  stop
+else (是)
+  :系统：生成统一审批任务;
+endif
+
+:馆领导：审批工作台查看目标档案和凭证档案;
+if (审批结果?) is (退回) then
+  :馆领导：填写退回意见;
+  :系统：目标档案字段不变;
+  :系统：保留审批历史;
+  stop
+else (通过)
+  :馆领导：填写审批意见;
+endif
+
+:系统：更新密级或开放状态;
+:系统：写入调整前后值、凭证档号、审批历史;
+:系统：记录操作日志;
+stop
+@enduml

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公众首页 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .home-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 20px;
+    }
+
+    .hero-main {
+      display: grid;
+      align-content: center;
+      min-height: 360px;
+      padding: 34px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-kicker {
+      width: fit-content;
+      margin-bottom: 12px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      color: var(--primary-strong);
+      background: var(--primary-soft);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .hero-title {
+      max-width: 700px;
+      margin: 0;
+      font-size: 36px;
+      line-height: 1.18;
+      font-weight: 850;
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      max-width: 720px;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .quick-search {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      margin-top: 22px;
+    }
+
+    .quick-search input {
+      min-height: 42px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .archive-visual {
+      display: grid;
+      gap: 14px;
+      min-height: 360px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fbfcfd;
+      box-shadow: var(--shadow);
+    }
+
+    .shelf {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      align-items: end;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    .box-spine {
+      min-height: 104px;
+      border: 1px solid #c7d5df;
+      border-radius: 4px;
+      background: #edf5f5;
+    }
+
+    .box-spine:nth-child(2n) {
+      min-height: 132px;
+      background: #f7efe0;
+    }
+
+    .box-spine:nth-child(3n) {
+      min-height: 86px;
+      background: #eaf2fb;
+    }
+
+    .visual-note {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: var(--surface-muted);
+      color: var(--muted);
+    }
+
+    .stat-grid {
+      margin-bottom: 20px;
+    }
+
+    .split-section {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .category-row {
+      display: grid;
+      grid-template-columns: 96px minmax(0, 1fr) 72px;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .category-row:last-child {
+      border-bottom: 0;
+    }
+
+    .bar {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--surface-muted);
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: var(--primary);
+    }
+
+    .process-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .process-list li {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .step-no {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      border-radius: 50%;
+      color: #ffffff;
+      background: var(--primary);
+      font-weight: 800;
+    }
+
+    @media (max-width: 980px) {
+      .home-hero,
+      .split-section {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-title {
+        font-size: 30px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero-main {
+        padding: 22px;
+      }
+
+      .quick-search,
+      .category-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="public-shell">
+    <nav class="public-nav" aria-label="公众门户导航">
+      <a href="index.html" class="active">智能档案馆</a>
+      <div class="links">
+        <a href="search.html">公开检索</a>
+        <a href="collection.html">征集清单</a>
+        <a href="overview.html">公众概览</a>
+        <a href="../login.html">登录</a>
+        <a href="register.html">注册</a>
+      </div>
+    </nav>
+
+    <main class="public-content">
+      <section class="home-hero" aria-labelledby="home-title">
+        <div class="hero-main">
+          <div class="hero-kicker">公开档案服务</div>
+          <h1 class="hero-title" id="home-title">智能档案管理系统公众门户</h1>
+          <p class="hero-copy">面向社会公众开放非密、公开、未销毁的正式档案元数据检索，电子文件下载需登录公众账号并重新完成访问鉴权。</p>
+          <div class="hero-actions">
+            <a class="button" href="search.html"><span class="icon" aria-hidden="true">查</span>公开档案检索</a>
+            <a class="button secondary" href="collection.html"><span class="icon" aria-hidden="true">集</span>提交征集清单</a>
+            <a class="button ghost" href="overview.html">进入公众概览</a>
+          </div>
+          <form class="quick-search" id="quickSearch">
+            <label class="sr-only" for="quickKeyword">公开档案关键词</label>
+            <input id="quickKeyword" name="keyword" type="search" placeholder="输入题名、责任者或年度关键词">
+            <button class="button secondary" type="submit">检索</button>
+          </form>
+        </div>
+
+        <aside class="archive-visual" aria-label="公开馆藏概况">
+          <div class="shelf" aria-hidden="true">
+            <span class="box-spine"></span>
+            <span class="box-spine"></span>
+            <span class="box-spine"></span>
+            <span class="box-spine"></span>
+            <span class="box-spine"></span>
+            <span class="box-spine"></span>
+            <span class="box-spine"></span>
+          </div>
+          <div class="visual-note">
+            <strong>公开统计口径</strong>
+            <span>仅汇总正式入库、已上架或纯电子已归档、非密、公开、未销毁档案。</span>
+          </div>
+          <div class="notice">今日公开检索服务正常，下载操作需登录后记录访问日志。</div>
+        </aside>
+      </section>
+
+      <section class="grid four stat-grid" aria-label="公开馆藏统计">
+        <div class="metric">
+          <span class="label">公开档案总量</span>
+          <span class="value">12,486</span>
+          <span class="note">正式档案公开范围</span>
+        </div>
+        <div class="metric">
+          <span class="label">近 30 日新增公开</span>
+          <span class="value">326</span>
+          <span class="note">后台入库后进入范围</span>
+        </div>
+        <div class="metric">
+          <span class="label">可在线预览</span>
+          <span class="value">8,204</span>
+          <span class="note">有正式电子文件</span>
+        </div>
+        <div class="metric">
+          <span class="label">征集入库公开</span>
+          <span class="value">1,136</span>
+          <span class="note">协议确认后公开</span>
+        </div>
+      </section>
+
+      <section class="split-section">
+        <div class="card panel">
+          <h2 class="section-title">公开档案分类分布</h2>
+          <div class="category-row">
+            <strong>文书档案</strong>
+            <div class="bar" aria-label="文书档案占比 42%"><span style="width: 42%"></span></div>
+            <span class="muted">5,244 件</span>
+          </div>
+          <div class="category-row">
+            <strong>科技档案</strong>
+            <div class="bar" aria-label="科技档案占比 24%"><span style="width: 24%"></span></div>
+            <span class="muted">2,996 件</span>
+          </div>
+          <div class="category-row">
+            <strong>会计档案</strong>
+            <div class="bar" aria-label="会计档案占比 13%"><span style="width: 13%"></span></div>
+            <span class="muted">1,628 件</span>
+          </div>
+          <div class="category-row">
+            <strong>音像档案</strong>
+            <div class="bar" aria-label="音像档案占比 16%"><span style="width: 16%"></span></div>
+            <span class="muted">1,997 件</span>
+          </div>
+          <div class="category-row">
+            <strong>人事档案</strong>
+            <div class="bar" aria-label="人事档案占比 5%"><span style="width: 5%"></span></div>
+            <span class="muted">621 件</span>
+          </div>
+        </div>
+
+        <div class="card panel">
+          <h2 class="section-title">社会征集办理进度</h2>
+          <ol class="process-list">
+            <li><span class="step-no">1</span><span><strong>提交意向</strong><br><span class="muted">公众填写征集清单，拖拽文件只解析文件名。</span></span></li>
+            <li><span class="step-no">2</span><span><strong>联系判断</strong><br><span class="muted">后台管理员确认征集方向并约定到馆时间。</span></span></li>
+            <li><span class="step-no">3</span><span><strong>到馆接收</strong><br><span class="muted">前台验收实物和电子介质，校验在线协议记录。</span></span></li>
+            <li><span class="step-no">4</span><span><strong>入库公开</strong><br><span class="muted">后台入库、上架后才进入公开利用范围。</span></span></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="toolbar">
+        <div>
+          <h2 class="section-title">最近公开批次</h2>
+          <p class="page-subtitle">列表仅显示批次级公开统计，不展示未公开档案题名、档号、架位或电子文件。</p>
+        </div>
+        <a class="button ghost" href="search.html">查看全部</a>
+      </section>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>公开批次</th>
+              <th>来源</th>
+              <th>分类</th>
+              <th>公开数量</th>
+              <th>公开时间</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>2026 年 5 月公开开放批次</td>
+              <td>移交入库</td>
+              <td>文书档案</td>
+              <td>126</td>
+              <td>2026-05-28</td>
+              <td><span class="status success">可检索</span></td>
+            </tr>
+            <tr>
+              <td>城市建设影像征集批次</td>
+              <td>社会征集</td>
+              <td>音像档案</td>
+              <td>48</td>
+              <td>2026-05-21</td>
+              <td><span class="status success">可预览</span></td>
+            </tr>
+            <tr>
+              <td>年度工作报告开放批次</td>
+              <td>移交入库</td>
+              <td>文书档案</td>
+              <td>73</td>
+              <td>2026-05-10</td>
+              <td><span class="status info">元数据开放</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    document.getElementById('quickSearch').addEventListener('submit', function (event) {
+      event.preventDefault();
+      const keyword = document.getElementById('quickKeyword').value.trim();
+      const target = keyword ? 'search.html?keyword=' + encodeURIComponent(keyword) : 'search.html';
+      window.location.href = target;
+    });
+  </script>
+</body>
+</html>

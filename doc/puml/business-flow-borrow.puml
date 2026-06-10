@@ -1,0 +1,61 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam activityBackgroundColor #FFF7E6
+skinparam activityBorderColor #A56500
+skinparam activityDiamondBackgroundColor #FFFFFF
+skinparam activityDiamondBorderColor #555555
+skinparam swimlaneBorderColor #8A95A3
+skinparam swimlaneTitleBackgroundColor #F7F9FC
+
+title 纸质档案借阅流程图
+
+|内部查阅者|
+start
+:按权限检索档案;
+:查看档案详情;
+if (是否需要纸质原件?) is (否) then
+  :在线预览或下载电子文件;
+  stop
+else (是)
+  :提交借阅申请\n理由、时长、到馆时间;
+endif
+
+|后台管理员|
+:审核申请;
+:检查档案状态、盘点范围、是否已借出;
+if (可借出?) is (否) then
+  :填写拒绝理由;
+  :通知申请人;
+  stop
+else (是)
+  :审批通过;
+endif
+
+|内部查阅者|
+:导出借阅凭证;
+:所属单位盖章确认;
+:持凭证到馆取件;
+
+|前台/后台管理员|
+:核验凭证和身份;
+:系统向管理员展示架位;
+:取出实物并确认出库;
+:记录借出时间、应还时间、经办人;
+
+|内部查阅者|
+:使用档案;
+:到馆归还;
+
+|前台/后台管理员|
+:检查缺页、破损、涂改等情况;
+if (归还检查?) is (正常) then
+  :确认归还;
+  :档案状态恢复正常;
+else (异常)
+  :填写归还检查说明;
+  :进入异常处理记录;
+endif
+stop
+@enduml

@@ -1,0 +1,50 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam activityBackgroundColor #FFF0F0
+skinparam activityBorderColor #A33B3B
+skinparam activityDiamondBackgroundColor #FFFFFF
+skinparam activityDiamondBorderColor #555555
+
+title 档案鉴定与销毁流程图
+
+start
+:系统：检测保管期限即将到期档案;
+:系统：生成鉴定提醒;
+
+:后台管理员：创建鉴定批次;
+:后台管理员：按分类、年度、全宗选择范围;
+:后台管理员：逐件鉴定;
+if (仍有保存价值?) is (是) then
+  :后台管理员：延长保存并记录意见;
+  stop
+else (否)
+  :后台管理员：标记为待销毁;
+endif
+
+:系统：根据鉴定批次自动生成销毁清册;
+:系统：固定清册内档案元数据快照;
+
+:后台管理员：检查清册;
+:后台管理员：提交馆领导审批;
+
+:馆领导：查看清册和鉴定结论;
+if (审批结果?) is (退回) then
+  :馆领导：填写退回意见;
+  :后台管理员：修改或重新提交清册;
+  stop
+else (通过)
+  :馆领导：审批结果 = 已批准;
+endif
+
+:后台管理员：两名监销人现场核对并销毁;
+:后台管理员：填写销毁时间、方式、监销人;
+:后台管理员：上传现场照片;
+:后台管理员：最终确认销毁;
+
+:系统：档案状态 = 已销毁;
+:系统：电子文件按策略物理或逻辑删除;
+:系统：永久保留元数据、清册、审批、日志;
+stop
+@enduml

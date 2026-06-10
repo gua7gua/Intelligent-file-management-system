@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam rectangle {
+  BackgroundColor #F7F9FC
+  BorderColor #526070
+}
+skinparam arrowColor #526070
+
+title 项目实施组织架构图
+
+rectangle "项目领导小组\n馆领导、业务负责人、信息化负责人" as Lead
+rectangle "项目管理组\n建设单位项目负责人 + 承建方项目经理" as PMO
+rectangle "业务规划组\n档案馆业务骨干、移交单位代表" as Biz
+rectangle "技术实施组\n前端、后端、数据库、AI 对接、部署" as Tech
+rectangle "测试验收组\n功能测试、性能测试、安全测试、用户验收" as Test
+rectangle "后勤保障组\n场地、设备、文档和培训组织" as Support
+
+Lead --> PMO
+PMO --> Biz
+PMO --> Tech
+PMO --> Test
+PMO --> Support
+Biz ..> Tech : 需求确认与业务验证
+Tech ..> Test : 提测与问题修复
+Test ..> Lead : 阶段验收结果
+Support ..> Biz : 培训与资料保障
+
+@enduml

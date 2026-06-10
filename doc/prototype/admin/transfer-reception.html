@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>移交验收与电子文件上传 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .reception-layout {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+      height: calc(100vh - 286px);
+      min-height: 620px;
+    }
+
+    .batch-pane,
+    .detail-pane {
+      min-width: 0;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .batch-pane {
+      max-height: 100%;
+    }
+
+    .detail-pane > .card,
+    .detail-pane > details,
+    .detail-pane > section {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .batch-card {
+      display: grid;
+      gap: 8px;
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+      text-align: left;
+      transition: border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .batch-card:hover,
+    .batch-card.active {
+      border-color: #8abcbf;
+      background: #f2f8f8;
+    }
+
+    .batch-list {
+      display: grid;
+      gap: 10px;
+      padding-right: 4px;
+    }
+
+    .split-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 16px;
+      align-items: start;
+      min-width: 0;
+    }
+
+    .drop-zone {
+      display: grid;
+      min-height: 146px;
+      place-items: center;
+      padding: 20px;
+      border: 2px dashed #9bbdc0;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #f7fcfc;
+      text-align: center;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .collapsible summary {
+      display: flex;
+      min-height: 34px;
+      cursor: pointer;
+      list-style: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .collapsible summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .collapsible-body {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .match-grid {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .match-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .acceptance-table {
+      min-width: 980px;
+    }
+
+    .acceptance-table input,
+    .acceptance-table select {
+      width: 100%;
+      min-height: 34px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .receipt-preview {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 1px dashed #b8c5ce;
+      border-radius: var(--radius);
+      background: #f7fafc;
+    }
+
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .summary-row .mini {
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .summary-row strong {
+      display: block;
+      font-size: 21px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 30;
+      display: none;
+      width: min(380px, calc(100vw - 44px));
+      padding: 12px 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #ffffff;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1220px) {
+      .reception-layout,
+      .split-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .reception-layout {
+        height: auto;
+        min-height: 0;
+      }
+
+      .batch-pane,
+      .detail-pane {
+        max-height: none;
+        overflow: visible;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .grid.four,
+      .grid.three,
+      .summary-row {
+        grid-template-columns: 1fr;
+      }
+
+      .match-card {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link active" href="transfer-reception.html">移交验收 <span>当前</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div><strong>移交验收</strong><span class="muted"> 前台实物核验与电子文件上传</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option>后台管理员</option><option selected>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+
+      <main class="content">
+        <section>
+          <h1 class="page-title">移交验收与电子文件上传</h1>
+          <p class="page-subtitle">调取待移交清单，核对纸质原件、页数、数量和签章；上传 U 盘电子文件后按文件名匹配清单条目，异常必须人工确认或回退。</p>
+        </section>
+
+        <section class="grid four" style="margin-top: 18px;" aria-label="前台待办统计">
+          <div class="metric">
+            <span class="label">今日到馆清单</span>
+            <span class="value">4</span>
+            <span class="note">按预计移交日期筛选</span>
+          </div>
+          <div class="metric">
+            <span class="label">待验收条目</span>
+            <span class="value">63</span>
+            <span class="note">条目状态：待验收</span>
+          </div>
+          <div class="metric">
+            <span class="label">匹配异常</span>
+            <span class="value" id="metricAbnormal">2</span>
+            <span class="note">未匹配、重复、缺失或检查失败</span>
+          </div>
+          <div class="metric">
+            <span class="label">待导出回执</span>
+            <span class="value">1</span>
+            <span class="note">确认接收后导出 PDF</span>
+          </div>
+        </section>
+
+        <div class="toolbar">
+          <div class="tabs" aria-label="待验收清单筛选">
+            <button class="tab active" type="button" data-filter="pending">待移交</button>
+            <button class="tab" type="button" data-filter="today">今日到馆</button>
+            <button class="tab" type="button" data-filter="abnormal">存在异常</button>
+          </div>
+          <div class="actions">
+            <label class="field" style="min-width: 240px;">
+              <span class="sr-only">搜索清单</span>
+              <input type="search" id="batchSearch" placeholder="搜索清单号、单位、标题">
+            </label>
+          </div>
+        </div>
+
+        <section class="reception-layout">
+          <aside class="card panel batch-pane">
+            <h2 class="section-title">待验收清单</h2>
+            <div class="batch-list" id="batchList"></div>
+          </aside>
+
+          <div class="grid detail-pane">
+            <section class="card panel">
+              <div class="split-panel">
+                <div>
+                  <div class="detail-head">
+                    <h2 class="section-title" id="currentTitle">清单详情</h2>
+                    <p class="muted" id="currentMeta" style="margin-top: -6px;"></p>
+                  </div>
+                  <div class="summary-row" style="margin-top: 12px;">
+                    <div class="mini"><span class="muted">批次状态</span><strong id="batchStatus">待移交</strong></div>
+                    <div class="mini"><span class="muted">签字清单</span><strong>已核对</strong></div>
+                    <div class="mini"><span class="muted">预计移交</span><strong id="expectedDate">2026-06-24</strong></div>
+                  </div>
+                </div>
+                <div class="notice warning">
+                  前台只记录验收、暂存文件和回执。AI 补全、正式档号、盒号和架位由后台入库页面处理。
+                </div>
+              </div>
+            </section>
+
+            <details class="card panel collapsible">
+              <summary>
+                <span class="section-title">U 盘电子文件上传与匹配</span>
+                <span class="status info">点击展开</span>
+              </summary>
+              <div class="collapsible-body">
+                <div class="drop-zone" id="dropZone">
+                  <div>
+                    <strong>拖拽 U 盘文件或选择文件</strong>
+                    <p class="muted" style="margin: 6px 0 0;">上传后进入暂存路径，系统按清单中的档案文件名匹配，并执行格式、大小、哈希和安全检查。</p>
+                  </div>
+                  <label class="button secondary" for="filePicker">选择 U 盘文件</label>
+                  <input class="sr-only" id="filePicker" type="file" multiple>
+                </div>
+                <div class="match-grid" id="matchList"></div>
+              </div>
+            </details>
+
+            <section>
+              <div class="toolbar" style="margin-top: 0;">
+                <h2 class="section-title" style="margin: 0;">条目验收</h2>
+                <div class="actions">
+                  <button class="button secondary" type="button" id="acceptAllPaper">批量纸质验收通过</button>
+                  <button class="button" type="button" id="confirmReceive">确认接收</button>
+                </div>
+              </div>
+              <div class="table-wrap scroll-y">
+                <table class="acceptance-table">
+                  <thead>
+                    <tr>
+                      <th>序号</th>
+                      <th>档案标题</th>
+                      <th>载体</th>
+                      <th>清单文件名</th>
+                      <th>纸质核对</th>
+                      <th>文件匹配</th>
+                      <th>验收结论</th>
+                      <th>说明 / 回退原因</th>
+                    </tr>
+                  </thead>
+                  <tbody id="itemBody"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="card panel">
+              <div class="split-panel">
+                <div>
+                  <h2 class="section-title">接收回执预览</h2>
+                  <div class="receipt-preview" id="receiptPreview"></div>
+                </div>
+                <div class="actions" style="align-content: start;">
+                  <button class="button secondary" type="button" id="exportReceipt" disabled>导出接收回执</button>
+                  <a class="button ghost" href="pending-archive.html?source=transfer-reception">查看后台待入库入口</a>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const batches = [
+      {
+        id: "YJ-2026-0008",
+        title: "2025 年度会计凭证移交清单",
+        org: "克拉玛依市财政局",
+        dept: "财务部",
+        contact: "小张 0990-6123456",
+        expected: "2026-06-24",
+        status: "pending_transfer",
+        items: [
+          { no: "01", title: "2025 年 1 月会计凭证", carrier: "纸质+电子", filename: "2025-01-voucher.pdf", paper: "pending", match: "none", decision: "pending", note: "" },
+          { no: "02", title: "2025 年 2 月会计凭证", carrier: "纸质+电子", filename: "2025-02-voucher.pdf", paper: "pending", match: "none", decision: "pending", note: "" },
+          { no: "03", title: "2025 年 3 月会计凭证", carrier: "纸质+电子", filename: "2025-03-voucher.pdf", paper: "pending", match: "missing", decision: "pending", note: "" },
+          { no: "04", title: "2025 年档案移交说明", carrier: "纯纸质", filename: "", paper: "pending", match: "none", decision: "pending", note: "" }
+        ]
+      },
+      {
+        id: "YJ-2026-0007",
+        title: "2025 年度工资表电子档案",
+        org: "克拉玛依市财政局",
+        dept: "人事财务联合组",
+        contact: "小张 0990-6123456",
+        expected: "2026-06-09",
+        status: "pending_transfer",
+        items: [
+          { no: "01", title: "2025 年 1-6 月工资表", carrier: "纯电子", filename: "salary-2025-h1.xlsx", paper: "passed", match: "none", decision: "pending", note: "" },
+          { no: "02", title: "2025 年 7-12 月工资表", carrier: "纯电子", filename: "salary-2025-h2.xlsx", paper: "passed", match: "none", decision: "pending", note: "" }
+        ]
+      }
+    ];
+
+    let activeBatch = batches[0];
+    let activeFilter = "pending";
+    const batchList = document.getElementById("batchList");
+    const itemBody = document.getElementById("itemBody");
+    const matchList = document.getElementById("matchList");
+    const receiptPreview = document.getElementById("receiptPreview");
+    const toast = document.getElementById("toast");
+    const filePicker = document.getElementById("filePicker");
+    const dropZone = document.getElementById("dropZone");
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2800);
+    }
+
+    function statusBadge(label, type = "") {
+      return `<span class="status ${type}">${label}</span>`;
+    }
+
+    function matchBadge(match) {
+      const map = {
+        none: ["未上传", ""],
+        matched: ["匹配成功", "success"],
+        missing: ["清单缺文件", "warning"],
+        duplicate: ["重复匹配", "warning"],
+        failed: ["检查失败", "danger"],
+        extra: ["多余文件", "warning"]
+      };
+      const item = map[match] || [match, ""];
+      return statusBadge(item[0], item[1]);
+    }
+
+    function decisionBadge(decision) {
+      const map = {
+        pending: ["待验收", "info"],
+        accepted: ["已接收", "success"],
+        rejected: ["已回退", "danger"]
+      };
+      const item = map[decision] || [decision, ""];
+      return statusBadge(item[0], item[1]);
+    }
+
+    function renderBatches() {
+      const keyword = document.getElementById("batchSearch").value.trim().toLowerCase();
+      batchList.innerHTML = batches
+        .filter((batch) => {
+          const textMatch = !keyword || `${batch.id} ${batch.title} ${batch.org}`.toLowerCase().includes(keyword);
+          const hasAbnormal = batch.items.some((item) => ["missing", "duplicate", "failed"].includes(item.match));
+          const filterMatch =
+            activeFilter === "pending" ||
+            (activeFilter === "today" && batch.expected === "2026-06-09") ||
+            (activeFilter === "abnormal" && hasAbnormal);
+          return textMatch && filterMatch;
+        })
+        .map((batch) => `
+          <button class="batch-card ${batch.id === activeBatch.id ? "active" : ""}" type="button" data-batch="${batch.id}">
+            <strong>${batch.title}</strong>
+            <span class="mono">${batch.id}</span>
+            <span class="muted">${batch.org} / ${batch.dept}</span>
+            <span>${statusBadge("待移交", "info")} <span class="muted">${batch.items.length} 条</span></span>
+          </button>
+        `).join("") || '<div class="empty">当前筛选下没有待验收清单。</div>';
+    }
+
+    function renderHeader() {
+      document.getElementById("currentTitle").textContent = activeBatch.title;
+      document.getElementById("currentMeta").textContent = `${activeBatch.id} / ${activeBatch.org} / ${activeBatch.contact}`;
+      document.getElementById("expectedDate").textContent = activeBatch.expected;
+      const rejected = activeBatch.items.filter((item) => item.decision === "rejected").length;
+      const pending = activeBatch.items.filter((item) => item.decision === "pending").length;
+      document.getElementById("batchStatus").textContent = pending === 0 ? (rejected ? "部分接收" : "已接收") : "待移交";
+    }
+
+    function renderItems() {
+      itemBody.innerHTML = activeBatch.items.map((item, index) => `
+        <tr>
+          <td>${item.no}</td>
+          <td>${item.title}</td>
+          <td>${item.carrier}</td>
+          <td class="mono">${item.filename || "无电子文件"}</td>
+          <td>
+            <select data-field="paper" data-index="${index}">
+              <option value="pending" ${item.paper === "pending" ? "selected" : ""}>待核对</option>
+              <option value="passed" ${item.paper === "passed" ? "selected" : ""}>通过</option>
+              <option value="failed" ${item.paper === "failed" ? "selected" : ""}>异常</option>
+            </select>
+          </td>
+          <td>${matchBadge(item.match)}</td>
+          <td>
+            <select data-field="decision" data-index="${index}">
+              <option value="pending" ${item.decision === "pending" ? "selected" : ""}>待验收</option>
+              <option value="accepted" ${item.decision === "accepted" ? "selected" : ""}>接收</option>
+              <option value="rejected" ${item.decision === "rejected" ? "selected" : ""}>回退</option>
+            </select>
+          </td>
+          <td><input data-field="note" data-index="${index}" value="${item.note}" placeholder="验收说明或回退原因"></td>
+        </tr>
+      `).join("");
+    }
+
+    function renderMatches(uploaded = []) {
+      const files = uploaded.length ? uploaded : [
+        { name: "2025-01-voucher.pdf", result: "matched", check: "格式 PDF、哈希已记录、安全检查通过" },
+        { name: "2025-02-voucher.pdf", result: "matched", check: "格式 PDF、哈希已记录、安全检查通过" },
+        { name: "2025-03-voucher-copy.pdf", result: "extra", check: "文件名与清单不一致，需人工确认或回退" },
+        { name: "2025-02-voucher.pdf", result: "duplicate", check: "同名重复，需前台人工选择对应条目" }
+      ];
+      matchList.innerHTML = files.map((file) => `
+        <div class="match-card">
+          <div>
+            <strong>${file.name}</strong>
+            <div class="hint">${file.check}</div>
+          </div>
+          ${matchBadge(file.result)}
+        </div>
+      `).join("");
+      const abnormal = files.filter((file) => file.result !== "matched").length + activeBatch.items.filter((item) => item.match === "missing" || item.match === "failed").length;
+      document.getElementById("metricAbnormal").textContent = abnormal;
+    }
+
+    function renderReceipt() {
+      const accepted = activeBatch.items.filter((item) => item.decision === "accepted");
+      const rejected = activeBatch.items.filter((item) => item.decision === "rejected");
+      const pending = activeBatch.items.filter((item) => item.decision === "pending");
+      receiptPreview.innerHTML = `
+        <div>${statusBadge(`已接收 ${accepted.length} 条`, "success")} ${statusBadge(`回退 ${rejected.length} 条`, rejected.length ? "danger" : "")} ${statusBadge(`待处理 ${pending.length} 条`, pending.length ? "info" : "success")}</div>
+        <strong>回执内容</strong>
+        <span class="muted">已接收条目：${accepted.map((item) => item.no).join("、") || "暂无"}</span>
+        <span class="muted">回退条目：${rejected.map((item) => `${item.no}（${item.note || "未填写原因"}）`).join("；") || "暂无"}</span>
+      `;
+      document.getElementById("exportReceipt").disabled = pending.length > 0;
+    }
+
+    function readItems() {
+      document.querySelectorAll("[data-field]").forEach((control) => {
+        const item = activeBatch.items[Number(control.dataset.index)];
+        item[control.dataset.field] = control.value;
+      });
+    }
+
+    function renderAll() {
+      renderBatches();
+      renderHeader();
+      renderItems();
+      renderMatches();
+      renderReceipt();
+    }
+
+    document.getElementById("batchSearch").addEventListener("input", renderBatches);
+
+    document.querySelectorAll("[data-filter]").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll("[data-filter]").forEach((item) => item.classList.remove("active"));
+        tab.classList.add("active");
+        activeFilter = tab.dataset.filter;
+        renderBatches();
+      });
+    });
+
+    batchList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-batch]");
+      if (!button) return;
+      activeBatch = batches.find((batch) => batch.id === button.dataset.batch);
+      renderAll();
+    });
+
+    itemBody.addEventListener("change", () => {
+      readItems();
+      renderHeader();
+      renderReceipt();
+    });
+
+    itemBody.addEventListener("input", readItems);
+
+    document.getElementById("acceptAllPaper").addEventListener("click", () => {
+      activeBatch.items.forEach((item) => {
+        item.paper = "passed";
+        if (item.carrier === "纯纸质" || item.match === "matched") {
+          item.decision = "accepted";
+          item.note = item.note || "纸质核对通过";
+        }
+      });
+      renderItems();
+      renderHeader();
+      renderReceipt();
+      showToast("已批量标记纸质验收通过，电子匹配异常仍需人工处理。");
+    });
+
+    document.getElementById("confirmReceive").addEventListener("click", () => {
+      readItems();
+      const missingReason = activeBatch.items.find((item) => item.decision === "rejected" && !item.note.trim());
+      const pending = activeBatch.items.filter((item) => item.decision === "pending");
+      if (missingReason) {
+        showToast(`第 ${missingReason.no} 条回退前必须填写回退原因。`);
+        return;
+      }
+      if (pending.length) {
+        showToast(`仍有 ${pending.length} 条待验收，不能确认接收。`);
+        return;
+      }
+      const rejected = activeBatch.items.filter((item) => item.decision === "rejected").length;
+      renderHeader();
+      renderReceipt();
+      showToast(rejected ? "已确认部分接收，回退条目将写入回执。" : "已确认全部接收，条目进入后台待入库。");
+    });
+
+    document.getElementById("exportReceipt").addEventListener("click", () => {
+      showToast("接收回执 PDF 已生成，包含已接收条目和回退原因。");
+    });
+
+    function uploadedFiles(files) {
+      const list = Array.from(files).map((file) => {
+        const item = activeBatch.items.find((row) => row.filename === file.name);
+        if (item) {
+          item.match = "matched";
+          if (item.paper === "passed") {
+            item.decision = "accepted";
+            item.note = item.note || "纸质核对通过，电子文件匹配成功";
+          }
+        }
+        return {
+          name: file.name,
+          result: item ? "matched" : "extra",
+          check: item ? "格式、大小、哈希和安全检查通过，已写入暂存文件" : "清单无对应文件名，需人工确认或回退"
+        };
+      });
+      renderItems();
+      renderMatches(list);
+      renderReceipt();
+      showToast(`已暂存 ${list.length} 个电子文件，并按文件名匹配清单条目。`);
+    }
+
+    filePicker.addEventListener("change", () => uploadedFiles(filePicker.files));
+
+    ["dragenter", "dragover"].forEach((name) => {
+      dropZone.addEventListener(name, (event) => {
+        event.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((name) => {
+      dropZone.addEventListener(name, (event) => {
+        event.preventDefault();
+        dropZone.classList.remove("dragover");
+      });
+    });
+
+    dropZone.addEventListener("drop", (event) => uploadedFiles(event.dataTransfer.files));
+
+    renderAll();
+  </script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: light;
+  --bg: #f6f8fb;
+  --surface: #ffffff;
+  --surface-muted: #eef3f7;
+  --surface-strong: #dfe8ef;
+  --border: #d7e0e7;
+  --text: #17212b;
+  --muted: #5d6b78;
+  --muted-2: #7b8794;
+  --primary: #1f6f78;
+  --primary-strong: #15545b;
+  --primary-soft: #e6f3f4;
+  --accent: #b7791f;
+  --accent-soft: #fff4dd;
+  --success: #2f855a;
+  --success-soft: #e8f5ee;
+  --warning: #b7791f;
+  --warning-soft: #fff7e8;
+  --danger: #c2413a;
+  --danger-soft: #fdeceb;
+  --info: #2b6cb0;
+  --info-soft: #eaf2fb;
+  --shadow: 0 14px 34px rgba(23, 33, 43, 0.08);
+  --radius: 8px;
+  --radius-sm: 6px;
+  --font: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+}
+
+html {
+  min-height: 100%;
+  background: var(--bg);
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  color: var(--text);
+  background: var(--bg);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+summary {
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 3px solid rgba(31, 111, 120, 0.3);
+  outline-offset: 2px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: #2d3a45;
+  background: #f1f5f8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+td {
+  color: #26333e;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.page-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.page-subtitle {
+  max-width: 860px;
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.section-title {
+  margin: 0 0 14px;
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.mono {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+@media (max-width: 760px) {
+  body {
+    font-size: 14px;
+  }
+
+  th,
+  td {
+    padding: 9px;
+  }
+
+  .page-title {
+    font-size: 21px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

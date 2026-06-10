@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>档案保存 - 管理后台</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .preserve-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .backup-options {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .option-card {
+      position: relative;
+      display: grid;
+      gap: 8px;
+      min-height: 106px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    .option-card input {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 18px;
+      height: 18px;
+    }
+
+    .check-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .check-card {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    .event-summary {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .event-summary li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 30;
+      display: none;
+      max-width: 390px;
+      padding: 12px 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #f7fcfc;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1120px) {
+      .preserve-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .backup-options,
+      .check-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link active" href="preservation.html">档案保存 <span>当前</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><strong>档案保存</strong><span class="muted"> 备份任务与四性检测</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option selected>后台管理员</option><option>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+
+      <div class="content">
+        <div class="toolbar">
+          <div>
+            <h1 class="page-title">档案保存</h1>
+            <p class="page-subtitle">管理数据库备份、电子文件备份和四性检测记录，形成可审计的保存管理记录。</p>
+          </div>
+          <div class="actions">
+            <button class="button secondary" id="runBackup"><span class="icon">B</span>立即备份</button>
+            <button class="button" id="runCheck"><span class="icon">C</span>执行四性检测</button>
+          </div>
+        </div>
+
+        <section class="grid four" aria-label="保存概览">
+          <div class="metric">
+            <span class="label">最近数据库备份</span>
+            <span class="value">02:10</span>
+            <span class="note">backup_scope = database</span>
+          </div>
+          <div class="metric">
+            <span class="label">最近电子文件备份</span>
+            <span class="value">01:40</span>
+            <span class="note">backup_scope = files</span>
+          </div>
+          <div class="metric">
+            <span class="label">四性检测通过率</span>
+            <span class="value" id="passRate">98.7%</span>
+            <span class="note">archive_file 检测记录</span>
+          </div>
+          <div class="metric">
+            <span class="label">今日检测任务</span>
+            <span class="value" id="checkTasks">3</span>
+            <span class="note">file_check_records</span>
+          </div>
+        </section>
+
+        <div class="preserve-layout" style="margin-top:16px">
+          <section class="stack">
+            <div class="card panel">
+              <h2 class="section-title">备份范围</h2>
+              <div class="backup-options">
+                <label class="option-card">
+                  <input type="radio" name="backupScope" value="database" checked>
+                  <strong>数据库备份</strong>
+                  <span class="muted">PostgreSQL 元数据、清单、审批、日志</span>
+                  <span class="status">database</span>
+                </label>
+                <label class="option-card">
+                  <input type="radio" name="backupScope" value="files">
+                  <strong>电子文件备份</strong>
+                  <span class="muted">MinIO 正式电子文件、扫描件、附件</span>
+                  <span class="status info">files</span>
+                </label>
+                <label class="option-card">
+                  <input type="radio" name="backupScope" value="both">
+                  <strong>同时备份</strong>
+                  <span class="muted">数据库与电子文件任务统一记录</span>
+                  <span class="status success">both</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">备份任务</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>任务号</th>
+                      <th>范围</th>
+                      <th>状态</th>
+                      <th>路径</th>
+                      <th>大小</th>
+                      <th>校验哈希</th>
+                      <th>说明</th>
+                    </tr>
+                  </thead>
+                  <tbody id="backupRows">
+                    <tr>
+                      <td class="mono">BAK-188</td>
+                      <td>数据库</td>
+                      <td><span class="status success">成功</span></td>
+                      <td class="mono">/backup/db/20260609.dump</td>
+                      <td>8.4 GB</td>
+                      <td class="mono">9f2a...1c42</td>
+                      <td>月度例行备份</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">BAK-189</td>
+                      <td>电子文件</td>
+                      <td><span class="status success">成功</span></td>
+                      <td class="mono">minio://backup/archive-files/20260609</td>
+                      <td>642 GB</td>
+                      <td class="mono">71be...a009</td>
+                      <td>正式电子文件备份</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">BAK-190</td>
+                      <td>电子文件</td>
+                      <td><span class="status danger">失败</span></td>
+                      <td class="mono">minio://backup/archive-files/20260608</td>
+                      <td>-</td>
+                      <td>-</td>
+                      <td>对象存储连接超时，可重试</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">四性检测记录</h2>
+              <div class="check-grid">
+                <div class="check-card">
+                  <strong>完整性</strong>
+                  <span class="muted">校验 SHA-256 哈希</span>
+                  <span class="status success" id="integrityStatus">passed</span>
+                </div>
+                <div class="check-card">
+                  <strong>可用性</strong>
+                  <span class="muted">格式白名单与基础打开检测</span>
+                  <span class="status success" id="usabilityStatus">passed</span>
+                </div>
+                <div class="check-card">
+                  <strong>真实性</strong>
+                  <span class="muted">外部签名体系验签记录</span>
+                  <span class="status warning" id="authStatus">not_configured</span>
+                </div>
+                <div class="check-card">
+                  <strong>安全性</strong>
+                  <span class="muted">病毒扫描和格式限制</span>
+                  <span class="status success" id="securityStatus">passed</span>
+                </div>
+              </div>
+              <div class="notice" style="margin-top:12px">
+                四性检测写入 <span class="mono">file_check_records</span>，检测失败只形成记录和提示，不直接修改正式档案状态。
+              </div>
+            </div>
+          </section>
+
+          <aside class="stack">
+            <div class="card panel">
+              <h2 class="section-title">存储空间</h2>
+              <div class="timeline">
+                <li><span>MinIO</span><div>已用 742 GB / 1 TB，正式文件和备份分桶存储。</div></li>
+                <li><span>PostgreSQL</span><div>元数据 18.6 GB，审计日志 4.2 GB。</div></li>
+                <li><span>备份目录</span><div>保留最近 6 次例行备份，路径与哈希入库。</div></li>
+              </div>
+            </div>
+
+            <div class="notice warning">
+              <strong>保存边界</strong>
+              <div>本页面不做跨机房容灾编排，不自动恢复档案，也不替代鉴定、销毁或审批流程。</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const toast = document.getElementById('toast');
+    const backupRows = document.getElementById('backupRows');
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2800);
+    }
+
+    document.getElementById('runBackup').addEventListener('click', () => {
+      const scope = document.querySelector('input[name="backupScope"]:checked').value;
+      const row = document.createElement('tr');
+      row.innerHTML = '<td class="mono">BAK-191</td><td>' + scope + '</td><td><span class="status warning">执行中</span></td><td class="mono">等待生成</td><td>-</td><td>-</td><td>手动发起备份任务</td>';
+      backupRows.prepend(row);
+      showToast('已创建备份任务，范围：' + scope + '。');
+    });
+
+    document.getElementById('runCheck').addEventListener('click', () => {
+      document.getElementById('integrityStatus').textContent = 'passed';
+      document.getElementById('usabilityStatus').textContent = 'passed';
+      document.getElementById('authStatus').textContent = 'not_configured';
+      document.getElementById('securityStatus').textContent = 'passed';
+      document.getElementById('passRate').textContent = '98.9%';
+      showToast('四性检测记录已生成；真实性未配置时记录为 not_configured。');
+    });
+
+  </script>
+</body>
+</html>

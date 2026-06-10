@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公众概览 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .overview-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 18px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+      box-shadow: var(--shadow);
+    }
+
+    .overview-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 16px;
+      align-items: start;
+      margin-top: 16px;
+    }
+
+    .record-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .record-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .record-card h3 {
+      margin: 0 0 4px;
+      font-size: 15px;
+    }
+
+    .record-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .profile-lines {
+      display: grid;
+      gap: 10px;
+    }
+
+    .profile-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .profile-line:last-child {
+      border-bottom: 0;
+    }
+
+    .inline-edit {
+      display: none;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .inline-edit.active {
+      display: grid;
+    }
+
+    .toast {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    .toast.active {
+      display: block;
+    }
+
+    .download-note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .overview-head,
+      .overview-main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .record-card {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="public-shell">
+    <nav class="public-nav" aria-label="公众门户导航">
+      <a href="index.html">智能档案馆</a>
+      <div class="links">
+        <a href="search.html">公开检索</a>
+        <a href="collection.html">征集清单</a>
+        <a href="overview.html" class="active">公众概览</a>
+        <a href="../login.html">退出</a>
+      </div>
+    </nav>
+
+    <main class="public-content">
+      <div class="notice toast" id="toast" role="status"></div>
+
+      <section class="overview-head" aria-labelledby="pageTitle">
+        <div>
+          <h1 class="page-title" id="pageTitle">小周，欢迎回来</h1>
+          <p class="page-subtitle">这里仅展示公开馆藏统计和你本人的征集清单、下载记录。打开历史档案入口时仍会重新执行公开范围鉴权。</p>
+        </div>
+        <div class="actions">
+          <a class="button" href="search.html"><span class="icon" aria-hidden="true">查</span>公开检索</a>
+          <a class="button secondary" href="collection.html"><span class="icon" aria-hidden="true">新</span>新建征集清单</a>
+        </div>
+      </section>
+
+      <section class="grid four" aria-label="公众概览指标">
+        <div class="metric">
+          <span class="label">公开档案总量</span>
+          <span class="value">12,486</span>
+          <span class="note">非密公开未销毁</span>
+        </div>
+        <div class="metric">
+          <span class="label">最近公开</span>
+          <span class="value">326</span>
+          <span class="note">近 30 日</span>
+        </div>
+        <div class="metric">
+          <span class="label">我的待处理征集</span>
+          <span class="value">2</span>
+          <span class="note">待联系 + 待接收</span>
+        </div>
+        <div class="metric">
+          <span class="label">我的下载记录</span>
+          <span class="value">18</span>
+          <span class="note">需保留访问日志</span>
+        </div>
+      </section>
+
+      <section class="overview-main">
+        <div class="grid">
+          <div class="card panel">
+            <div class="toolbar">
+              <div>
+                <h2 class="section-title">我的征集清单</h2>
+                <p class="page-subtitle">已提交清单只读；拒绝或部分接收仅保留结果和原因。</p>
+              </div>
+              <div class="tabs" aria-label="征集清单筛选">
+                <button class="tab active" type="button" data-filter="all">全部</button>
+                <button class="tab" type="button" data-filter="pending">待处理</button>
+                <button class="tab" type="button" data-filter="done">已完成</button>
+              </div>
+            </div>
+
+            <ul class="record-list" id="collectionList">
+              <li class="record-card" data-group="pending">
+                <div>
+                  <h3>城市老照片捐赠意向</h3>
+                  <div class="record-meta">
+                    <span>清单号：COL-202606-008</span>
+                    <span>条目：12</span>
+                    <span>提交：2026-06-02</span>
+                  </div>
+                </div>
+                <div class="actions">
+                  <span class="status warning">待联系</span>
+                  <a class="button ghost" href="collection.html">查看</a>
+                </div>
+              </li>
+              <li class="record-card" data-group="pending">
+                <div>
+                  <h3>社区建设资料捐赠</h3>
+                  <div class="record-meta">
+                    <span>清单号：COL-202605-027</span>
+                    <span>条目：6</span>
+                    <span>到馆：2026-06-12 09:30</span>
+                  </div>
+                </div>
+                <div class="actions">
+                  <span class="status info">待接收</span>
+                  <a class="button ghost" href="collection.html">查看</a>
+                </div>
+              </li>
+              <li class="record-card" data-group="done">
+                <div>
+                  <h3>厂区变迁照片资料</h3>
+                  <div class="record-meta">
+                    <span>清单号：COL-202604-014</span>
+                    <span>接收：8 / 回退：2</span>
+                    <span>原因：重复影像</span>
+                  </div>
+                </div>
+                <div class="actions">
+                  <span class="status warning">部分接收</span>
+                  <button class="button ghost" type="button" data-readonly>只读</button>
+                </div>
+              </li>
+              <li class="record-card" data-group="done">
+                <div>
+                  <h3>个人票证资料</h3>
+                  <div class="record-meta">
+                    <span>清单号：COL-202603-019</span>
+                    <span>条目：4</span>
+                    <span>结果：不符合本期征集方向</span>
+                  </div>
+                </div>
+                <div class="actions">
+                  <span class="status danger">已拒绝</span>
+                  <button class="button ghost" type="button" data-readonly>只读</button>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="card panel">
+            <div class="toolbar">
+              <div>
+                <h2 class="section-title">我的下载记录</h2>
+                <p class="page-subtitle">每次重新查看或下载前仍需通过公开档案查询鉴权。</p>
+              </div>
+              <a class="button ghost" href="search.html">继续检索</a>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>下载时间</th>
+                    <th>档案标题</th>
+                    <th>档号</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>2026-06-06 14:26</td>
+                    <td>2024 年度公开工作报告</td>
+                    <td>WS-2024-0018</td>
+                    <td><span class="status success">仍可访问</span></td>
+                    <td><button class="button ghost" type="button" data-check="ok">重新查看</button></td>
+                  </tr>
+                  <tr>
+                    <td>2026-05-28 10:12</td>
+                    <td>城市更新公开照片汇编</td>
+                    <td>YX-2023-0412</td>
+                    <td><span class="status success">仍可访问</span></td>
+                    <td><button class="button ghost" type="button" data-check="ok">重新查看</button></td>
+                  </tr>
+                  <tr>
+                    <td>2026-04-12 16:40</td>
+                    <td>历史公开专题资料</td>
+                    <td>WS-2018-0230</td>
+                    <td><span class="status warning">需重新校验</span></td>
+                    <td><button class="button ghost" type="button" data-check="expired">重新查看</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <aside class="grid">
+          <div class="card panel">
+            <h2 class="section-title">个人信息</h2>
+            <div class="profile-lines">
+              <div class="profile-line"><span class="muted">姓名</span><strong>周明</strong></div>
+              <div class="profile-line"><span class="muted">账号</span><strong>138****5526</strong></div>
+              <div class="profile-line"><span class="muted">联系电话</span><strong id="phoneText">138-0000-5526</strong></div>
+              <div class="profile-line"><span class="muted">账号状态</span><span class="status success">正常</span></div>
+            </div>
+            <div class="actions" style="margin-top: 14px;">
+              <button class="button secondary" type="button" id="editPhone">修改联系电话</button>
+              <a class="button ghost" href="forgot-password.html">修改密码</a>
+            </div>
+            <form class="inline-edit" id="phoneForm">
+              <div class="field">
+                <label for="phoneInput">联系电话</label>
+                <input id="phoneInput" value="138-0000-5526">
+              </div>
+              <div class="actions">
+                <button class="button" type="submit">保存</button>
+                <button class="button ghost" type="button" id="cancelPhone">取消</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card panel">
+            <h2 class="section-title">访问边界</h2>
+            <div class="notice">公众概览仅展示公开统计和本人记录。已销毁、取消公开或鉴权失败的档案只保留操作记录，不继续打开正文。</div>
+            <p class="download-note">下载电子文件时，后端会复用公开档案查询鉴权并记录 `archive_access_logs`。</p>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const toast = document.getElementById('toast');
+
+    function showToast(message, type) {
+      toast.textContent = message;
+      toast.className = 'notice toast active' + (type ? ' ' + type : '');
+    }
+
+    document.querySelectorAll('.tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach((item) => item.classList.remove('active'));
+        tab.classList.add('active');
+        const filter = tab.dataset.filter;
+        document.querySelectorAll('#collectionList .record-card').forEach((item) => {
+          item.hidden = filter !== 'all' && item.dataset.group !== filter;
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-readonly]').forEach((button) => {
+      button.addEventListener('click', () => showToast('该征集清单已进入结果留存阶段，公众端只读。', 'warning'));
+    });
+
+    document.querySelectorAll('[data-check]').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (button.dataset.check === 'ok') {
+          showToast('重新鉴权通过，可跳转到公开档案详情。');
+        } else {
+          showToast('公开范围已变化，当前记录仅保留下载日志。', 'warning');
+        }
+      });
+    });
+
+    document.getElementById('editPhone').addEventListener('click', () => {
+      document.getElementById('phoneForm').classList.add('active');
+      document.getElementById('phoneInput').focus();
+    });
+
+    document.getElementById('cancelPhone').addEventListener('click', () => {
+      document.getElementById('phoneForm').classList.remove('active');
+    });
+
+    document.getElementById('phoneForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const nextPhone = document.getElementById('phoneInput').value.trim();
+      if (!nextPhone) {
+        showToast('联系电话不能为空。', 'danger');
+        return;
+      }
+      document.getElementById('phoneText').textContent = nextPhone;
+      document.getElementById('phoneForm').classList.remove('active');
+      showToast('联系电话已更新。');
+    });
+  </script>
+</body>
+</html>

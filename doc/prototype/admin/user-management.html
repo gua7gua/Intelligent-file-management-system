@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>用户管理 - 管理后台</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .user-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 390px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .role-check {
+      display: flex;
+      min-height: 44px;
+      align-items: center;
+      gap: 8px;
+      padding: 9px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+      font-weight: 700;
+    }
+
+    .role-check input {
+      width: 17px;
+      height: 17px;
+    }
+
+    .mini-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .mini-list li {
+      display: grid;
+      gap: 5px;
+      padding: 11px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    .role-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 30;
+      display: none;
+      max-width: 390px;
+      padding: 12px 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #f7fcfc;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1120px) {
+      .user-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .role-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link active" href="user-management.html">用户管理 <span>当前</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><strong>用户管理</strong><span class="muted"> 组织、全宗与角色管理</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option>后台管理员</option><option>前台管理员</option><option>馆领导</option><option selected>系统管理员</option></select></div>
+      </header>
+
+      <div class="content">
+        <div class="toolbar">
+          <div>
+            <h1 class="page-title">用户管理</h1>
+            <p class="page-subtitle">维护组织、全宗、账号和预设角色。系统管理员负责账号配置，不默认拥有档案正文和电子文件查看权限。</p>
+          </div>
+          <div class="actions">
+            <button class="button secondary" id="newUser"><span class="icon">+</span>新建用户</button>
+            <button class="button" id="saveUser"><span class="icon">S</span>保存用户</button>
+          </div>
+        </div>
+
+        <section class="grid four" aria-label="用户概览">
+          <div class="metric">
+            <span class="label">内部账号</span>
+            <span class="value" id="internalCount">126</span>
+            <span class="note">user_type = internal</span>
+          </div>
+          <div class="metric">
+            <span class="label">公众账号</span>
+            <span class="value">2,418</span>
+            <span class="note">user_type = public</span>
+          </div>
+          <div class="metric">
+            <span class="label">禁用账号</span>
+            <span class="value" id="disabledCount">7</span>
+            <span class="note">历史日志与业务记录保留</span>
+          </div>
+          <div class="metric">
+            <span class="label">系统管理员</span>
+            <span class="value">2</span>
+            <span class="note">sys_admin 角色</span>
+          </div>
+        </section>
+
+        <div class="user-layout" style="margin-top:16px">
+          <section class="stack">
+            <div class="card panel">
+              <div class="toolbar" style="margin-top:0">
+                <h2 class="section-title">账号列表</h2>
+                <div class="actions">
+                  <select aria-label="角色筛选">
+                    <option>全部角色</option>
+                    <option>后台管理员</option>
+                    <option>馆领导</option>
+                    <option>系统管理员</option>
+                  </select>
+                  <button class="button ghost" id="filterUsers"><span class="icon">F</span>筛选</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>登录名</th>
+                      <th>姓名</th>
+                      <th>单位/部门</th>
+                      <th>角色</th>
+                      <th>数据范围</th>
+                      <th>密级上限</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="userRows">
+                    <tr>
+                      <td class="mono">liuxiao</td>
+                      <td>小刘</td>
+                      <td>档案馆 / 业务科</td>
+                      <td><span class="status info">back_archivist</span></td>
+                      <td>all</td>
+                      <td>机密</td>
+                      <td><span class="status success" data-user-state>启用</span></td>
+                      <td>
+                        <div class="actions">
+                          <button class="button ghost" data-edit="liuxiao">编辑</button>
+                          <button class="button warning" data-reset="liuxiao">重置</button>
+                          <button class="button danger" data-disable>禁用</button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="mono">fanglead</td>
+                      <td>小方</td>
+                      <td>档案馆 / 馆领导</td>
+                      <td><span class="status warning">director</span></td>
+                      <td>all</td>
+                      <td>绝密</td>
+                      <td><span class="status success" data-user-state>启用</span></td>
+                      <td>
+                        <div class="actions">
+                          <button class="button ghost" data-edit="fanglead">编辑</button>
+                          <button class="button warning" data-reset="fanglead">重置</button>
+                          <button class="button danger" data-disable>禁用</button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="mono">zhangcw</td>
+                      <td>小张</td>
+                      <td>财务部 / 经办组</td>
+                      <td><span class="status">transfer_user</span></td>
+                      <td>own_org</td>
+                      <td>非密</td>
+                      <td><span class="status success" data-user-state>启用</span></td>
+                      <td>
+                        <div class="actions">
+                          <button class="button ghost" data-edit="zhangcw">编辑</button>
+                          <button class="button warning" data-reset="zhangcw">重置</button>
+                          <button class="button danger" data-disable>禁用</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="grid two">
+              <div class="card panel">
+                <h2 class="section-title">组织</h2>
+                <ul class="mini-list">
+                  <li>
+                    <strong>档案馆本馆</strong>
+                    <span class="muted">org_type = archive_org · 状态 active</span>
+                  </li>
+                  <li>
+                    <strong>财务部</strong>
+                    <span class="muted">org_type = public_institution · 默认联系人 小张</span>
+                  </li>
+                  <li>
+                    <strong>市科技中心</strong>
+                    <span class="muted">org_type = government · 默认联系人 王工</span>
+                  </li>
+                </ul>
+              </div>
+              <div class="card panel">
+                <h2 class="section-title">全宗</h2>
+                <ul class="mini-list">
+                  <li>
+                    <strong class="mono">F001 · 档案馆综合全宗</strong>
+                    <span class="muted">关联组织：档案馆本馆</span>
+                  </li>
+                  <li>
+                    <strong class="mono">F018 · 财务业务全宗</strong>
+                    <span class="muted">关联组织：财务部</span>
+                  </li>
+                  <li>
+                    <strong class="mono">F031 · 科技项目全宗</strong>
+                    <span class="muted">关联组织：市科技中心</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <aside class="stack">
+            <div class="card panel">
+              <h2 class="section-title">账号编辑</h2>
+              <div class="form-grid" style="grid-template-columns:1fr 1fr">
+                <div class="field">
+                  <label for="loginName">登录名</label>
+                  <input id="loginName" value="new_archivist">
+                </div>
+                <div class="field">
+                  <label for="realName">姓名</label>
+                  <input id="realName" value="新管理员">
+                </div>
+                <div class="field">
+                  <label for="userType">用户类型</label>
+                  <select id="userType">
+                    <option value="internal">internal</option>
+                    <option value="public">public</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="phone">联系电话</label>
+                  <input id="phone" value="13800000000">
+                </div>
+                <div class="field">
+                  <label for="org">所属单位</label>
+                  <select id="org">
+                    <option>档案馆本馆</option>
+                    <option>财务部</option>
+                    <option>市科技中心</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="dept">所属部门</label>
+                  <input id="dept" value="业务科">
+                </div>
+                <div class="field">
+                  <label for="scope">数据范围</label>
+                  <select id="scope">
+                    <option value="all">all</option>
+                    <option value="own_org">own_org</option>
+                    <option value="own_fonds">own_fonds</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="security">密级上限</label>
+                  <select id="security">
+                    <option>非密</option>
+                    <option>秘密</option>
+                    <option selected>机密</option>
+                    <option>绝密</option>
+                  </select>
+                </div>
+              </div>
+
+              <h3 class="section-title" style="margin-top:16px">预设角色</h3>
+              <div class="role-grid">
+                <label class="role-check"><input type="checkbox" value="front_archivist">前台管理员</label>
+                <label class="role-check"><input type="checkbox" value="back_archivist" checked>后台管理员</label>
+                <label class="role-check"><input type="checkbox" value="transfer_user">移交经办人</label>
+                <label class="role-check"><input type="checkbox" value="internal_reader">内部查阅者</label>
+                <label class="role-check"><input type="checkbox" value="director">馆领导</label>
+                <label class="role-check"><input type="checkbox" value="sys_admin">系统管理员</label>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">角色代码</h2>
+              <div class="role-tags">
+                <span class="status">front_archivist</span>
+                <span class="status">back_archivist</span>
+                <span class="status">transfer_user</span>
+                <span class="status">internal_reader</span>
+                <span class="status">public_user</span>
+                <span class="status">director</span>
+                <span class="status">sys_admin</span>
+              </div>
+            </div>
+
+            <div class="notice warning">
+              <strong>权限边界</strong>
+              <div>系统管理员维护账号和配置，不默认查看档案正文和电子文件；密级调整、开放调整、销毁审批仍由馆领导审批工作台办理。</div>
+            </div>
+
+            <div class="notice">
+              <strong>审计留痕</strong>
+              <div>用户禁用、密码重置、角色变更写入 <span class="mono">audit_logs</span>，历史审批、移交和操作记录保留原用户信息。</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const toast = document.getElementById('toast');
+    const userRows = document.getElementById('userRows');
+    let saved = false;
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2800);
+    }
+
+    function selectedRoles() {
+      return Array.from(document.querySelectorAll('.role-check input:checked')).map((item) => item.value);
+    }
+
+    document.getElementById('newUser').addEventListener('click', () => {
+      document.getElementById('loginName').value = '';
+      document.getElementById('realName').value = '';
+      document.querySelectorAll('.role-check input').forEach((item) => {
+        item.checked = item.value === 'internal_reader';
+      });
+      showToast('已进入新建用户状态。');
+    });
+
+    document.getElementById('saveUser').addEventListener('click', () => {
+      const login = document.getElementById('loginName').value.trim() || 'new_user';
+      const name = document.getElementById('realName').value.trim() || '新用户';
+      const roles = selectedRoles();
+      if (roles.length === 0) {
+        showToast('请至少选择一个预设角色。');
+        return;
+      }
+      if (saved) {
+        showToast('示例账号已保存，后续变更会写入审计日志。');
+        return;
+      }
+      saved = true;
+      const row = document.createElement('tr');
+      row.innerHTML = '<td class="mono">' + login + '</td><td>' + name + '</td><td>档案馆 / 业务科</td><td><span class="status info">' + roles[0] + '</span></td><td>' + document.getElementById('scope').value + '</td><td>' + document.getElementById('security').value + '</td><td><span class="status success" data-user-state>启用</span></td><td><button class="button ghost" data-edit="' + login + '">编辑</button></td>';
+      userRows.prepend(row);
+      document.getElementById('internalCount').textContent = '127';
+      showToast('用户已保存，角色关系写入 user_roles。');
+    });
+
+    document.getElementById('filterUsers').addEventListener('click', () => {
+      showToast('筛选已应用，实际权限仍以后端接口鉴权为准。');
+    });
+
+    userRows.addEventListener('click', (event) => {
+      const resetButton = event.target.closest('[data-reset]');
+      if (resetButton) {
+        showToast('已生成密码重置记录，需通知用户首次登录修改。');
+        return;
+      }
+
+      const editButton = event.target.closest('[data-edit]');
+      if (editButton) {
+        document.getElementById('loginName').value = editButton.dataset.edit;
+        showToast('已载入账号：' + editButton.dataset.edit);
+        return;
+      }
+
+      const disableButton = event.target.closest('[data-disable]');
+      if (disableButton) {
+        const state = disableButton.closest('tr').querySelector('[data-user-state]');
+        if (state.textContent === '禁用') {
+          showToast('该账号已禁用。');
+          return;
+        }
+        state.textContent = '禁用';
+        state.className = 'status danger';
+        document.getElementById('disabledCount').textContent = '8';
+        showToast('账号已禁用，历史业务记录保留。');
+      }
+    });
+  </script>
+</body>
+</html>

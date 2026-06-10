@@ -1,0 +1,73 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam component {
+  BackgroundColor #F7F9FC
+  BorderColor #526070
+  FontColor #111827
+}
+skinparam package {
+  BackgroundColor #FFFFFF
+  BorderColor #8A95A3
+}
+
+title 系统门户与功能模块总览图
+
+package "公众门户" {
+  component "公众首页" as PubHome
+  component "公开档案检索" as PubSearch
+  component "公众概览" as PubDesk
+  component "征集清单" as PubCollect
+  component "注册登录" as PubAuth
+}
+
+package "内部查阅者门户" {
+  component "工作台概览" as IntDesk
+  component "内部档案检索" as IntSearch
+  component "档案详情/预览" as IntPreview
+  component "借阅申请" as IntBorrow
+}
+
+package "移交单位门户" {
+  component "移交工作台" as TransferDesk
+  component "编制移交清单" as TransferList
+  component "清单导出打印" as TransferExport
+  component "移交状态查询" as TransferStatus
+}
+
+package "管理后台" {
+  component "后台概览" as AdminDesk
+  component "移交/征集验收" as Receive
+  component "AI 补全与入库" as ArchiveIn
+  component "档案管理/全宗管理" as ArchiveManage
+  component "库房/盘点/借阅审批" as Warehouse
+  component "编研/统计/研判" as Analysis
+  component "鉴定/销毁" as Dispose
+  component "开放/密级调整" as Security
+  component "档案保存/备份" as Preserve
+}
+
+package "审批与系统管理" {
+  component "馆领导审批工作台" as Approval
+  component "用户管理" as UserManage
+  component "系统配置" as SystemConfig
+  component "日志审计" as Audit
+}
+
+PubCollect --> Receive : 到馆接收
+TransferList --> Receive : 清单流转
+Receive --> ArchiveIn : 已接收条目
+ArchiveIn --> ArchiveManage
+ArchiveIn --> Warehouse : 纸质档案上架
+IntSearch --> IntBorrow
+IntBorrow --> Warehouse
+Dispose --> Approval
+Security --> Approval
+ArchiveManage --> Security
+UserManage --> SystemConfig
+Audit ..> Receive
+Audit ..> ArchiveIn
+Audit ..> Approval
+
+@enduml

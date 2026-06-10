@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>数据统计 - 管理后台</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .stats-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .chart {
+      display: grid;
+      gap: 12px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr) 58px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .bar-track {
+      height: 12px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e7edf2;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #1f6f78, #2f855a);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .segment {
+      display: grid;
+      gap: 7px;
+      min-height: 92px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .segment * {
+      min-width: 0;
+    }
+
+    .segment .status {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .segment strong {
+      font-size: 21px;
+      line-height: 1;
+    }
+
+    .source-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .source-list li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .clickable-metric {
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .clickable-metric:hover {
+      border-color: #b9d7d9;
+      box-shadow: 0 0 0 3px rgba(31, 111, 120, 0.08);
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 30;
+      display: none;
+      max-width: 380px;
+      padding: 12px 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #f7fcfc;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1120px) {
+      .stats-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .split {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link active" href="statistics.html">数据统计 <span>当前</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><strong>数据统计</strong><span class="muted"> 报表与统计视图</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option selected>后台管理员</option><option>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+
+      <div class="content">
+        <div class="toolbar">
+          <div>
+            <h1 class="page-title">数据统计</h1>
+            <p class="page-subtitle">馆藏、移交、征集、借阅、销毁和保存指标来自正式业务表，只读展示并支持带条件跳转。</p>
+          </div>
+          <div class="actions">
+            <select id="range" aria-label="统计时间范围">
+              <option value="month">本月</option>
+              <option value="quarter">本季度</option>
+              <option value="year">本年度</option>
+            </select>
+            <button class="button secondary" id="refreshStats"><span class="icon">R</span>刷新统计</button>
+            <button class="button" id="exportStats"><span class="icon">E</span>导出统计表</button>
+          </div>
+        </div>
+
+        <div class="notice">
+          统计口径：馆藏来自 <span class="mono">archives</span>，移交/征集来自 <span class="mono">intake_batches</span>，借阅来自 <span class="mono">borrow_requests</span>，销毁来自 <span class="mono">destruction_lists</span>，保存来自 <span class="mono">backup_tasks</span> 和 <span class="mono">file_check_records</span>。
+        </div>
+
+        <section class="grid four" style="margin-top:16px" aria-label="核心统计指标">
+          <button class="metric clickable-metric" data-target="archive-management.html?lifecycle_status=normal">
+            <span class="label">馆藏总量</span>
+            <span class="value">258,430</span>
+            <span class="note">正式档案，不含清单草稿</span>
+          </button>
+          <button class="metric clickable-metric" data-target="archive-management.html?archived_at=this_month">
+            <span class="label">本月新增档案</span>
+            <span class="value" id="monthAdd">1,286</span>
+            <span class="note">按正式入库时间统计</span>
+          </button>
+          <button class="metric clickable-metric" data-target="pending-archive.html?status=pending_archive">
+            <span class="label">待入库/待上架</span>
+            <span class="value">342</span>
+            <span class="note">已接收条目和 pending_shelf</span>
+          </button>
+          <button class="metric clickable-metric" data-target="destruction.html?status=pending_approval">
+            <span class="label">待审批销毁清册</span>
+            <span class="value">5</span>
+            <span class="note">来自 destruction_lists</span>
+          </button>
+        </section>
+
+        <div class="stats-layout" style="margin-top:16px">
+          <section class="stack">
+            <div class="card panel">
+              <h2 class="section-title">年度进馆趋势</h2>
+              <div class="chart">
+                <div class="bar-row"><span>2021</span><div class="bar-track"><div class="bar-fill" style="width:58%"></div></div><strong>21,480</strong></div>
+                <div class="bar-row"><span>2022</span><div class="bar-track"><div class="bar-fill" style="width:64%"></div></div><strong>23,710</strong></div>
+                <div class="bar-row"><span>2023</span><div class="bar-track"><div class="bar-fill" style="width:71%"></div></div><strong>27,936</strong></div>
+                <div class="bar-row"><span>2024</span><div class="bar-track"><div class="bar-fill" style="width:78%"></div></div><strong>31,240</strong></div>
+                <div class="bar-row"><span>2025</span><div class="bar-track"><div class="bar-fill" style="width:88%"></div></div><strong>35,506</strong></div>
+                <div class="bar-row"><span>2026</span><div class="bar-track"><div class="bar-fill" style="width:42%"></div></div><strong>12,860</strong></div>
+              </div>
+            </div>
+
+            <div class="grid two">
+              <div class="card panel">
+                <h2 class="section-title">档案门类分布</h2>
+                <div class="chart">
+                  <div class="bar-row"><span>文书</span><div class="bar-track"><div class="bar-fill" style="width:82%"></div></div><strong>46%</strong></div>
+                  <div class="bar-row"><span>科技</span><div class="bar-track"><div class="bar-fill" style="width:52%"></div></div><strong>22%</strong></div>
+                  <div class="bar-row"><span>会计</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><strong>16%</strong></div>
+                  <div class="bar-row"><span>音像</span><div class="bar-track"><div class="bar-fill" style="width:24%"></div></div><strong>9%</strong></div>
+                  <div class="bar-row"><span>人事</span><div class="bar-track"><div class="bar-fill" style="width:18%"></div></div><strong>7%</strong></div>
+                </div>
+              </div>
+
+              <div class="card panel">
+                <h2 class="section-title">纸电载体分布</h2>
+                <div class="split">
+                  <div class="segment">
+                    <span class="muted">纯电子</span>
+                    <strong>32%</strong>
+                    <span class="status success">electronic</span>
+                  </div>
+                  <div class="segment">
+                    <span class="muted">纸质+电子</span>
+                    <strong>48%</strong>
+                    <span class="status info">paper_electronic</span>
+                  </div>
+                  <div class="segment">
+                    <span class="muted">纯纸质</span>
+                    <strong>20%</strong>
+                    <span class="status warning">paper</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">业务汇总</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>业务域</th>
+                      <th>统计项</th>
+                      <th>本月数量</th>
+                      <th>来源表</th>
+                      <th>口径</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>移交</td>
+                      <td>已接收批次</td>
+                      <td>42</td>
+                      <td class="mono">intake_batches</td>
+                      <td><span class="status success">received / partially_received</span></td>
+                    </tr>
+                    <tr>
+                      <td>征集</td>
+                      <td>入库成果</td>
+                      <td>18</td>
+                      <td class="mono">archives</td>
+                      <td><span class="status">source_type = collection</span></td>
+                    </tr>
+                    <tr>
+                      <td>借阅</td>
+                      <td>待归还与逾期</td>
+                      <td>27</td>
+                      <td class="mono">borrow_requests</td>
+                      <td><span class="status warning">checked_out / overdue</span></td>
+                    </tr>
+                    <tr>
+                      <td>销毁</td>
+                      <td>已销毁清册</td>
+                      <td>2</td>
+                      <td class="mono">destruction_lists</td>
+                      <td><span class="status danger">destroyed</span></td>
+                    </tr>
+                    <tr>
+                      <td>保存</td>
+                      <td>四性检测失败</td>
+                      <td>6</td>
+                      <td class="mono">file_check_records</td>
+                      <td><span class="status danger">check_result = failed</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <aside class="stack">
+            <div class="card panel">
+              <h2 class="section-title">数据源状态</h2>
+              <ul class="source-list">
+                <li><span>正式档案主表</span><span class="status success">正常</span></li>
+                <li><span>移交/征集批次</span><span class="status success">正常</span></li>
+                <li><span>借阅申请</span><span class="status success">正常</span></li>
+                <li><span>销毁清册</span><span class="status success">正常</span></li>
+                <li><span>备份与检测</span><span class="status info">09:10 汇总</span></li>
+              </ul>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">领导关注指标</h2>
+              <div class="timeline">
+                <li><span>本月</span><div>馆藏新增 1,286 件，纸质相关待上架 96 件。</div></li>
+                <li><span>本季度</span><div>借阅申请 318 件，已归还 291 件，逾期 7 件。</div></li>
+                <li><span>年度</span><div>销毁审批 12 册，已销毁 9 册，清册永久留存。</div></li>
+              </div>
+            </div>
+
+            <div class="notice warning">
+              <strong>只读边界</strong>
+              <div>统计页不修改正式档案，不执行鉴定、销毁或审批；业务处理需跳转到对应页面并通过后端权限校验。</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const toast = document.getElementById('toast');
+    const monthAdd = document.getElementById('monthAdd');
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2800);
+    }
+
+    document.querySelectorAll('.clickable-metric').forEach((card) => {
+      card.addEventListener('click', () => {
+        showToast('模拟跳转：' + card.dataset.target);
+      });
+    });
+
+    document.getElementById('refreshStats').addEventListener('click', () => {
+      const range = document.getElementById('range').value;
+      monthAdd.textContent = range === 'year' ? '12,860' : range === 'quarter' ? '4,228' : '1,286';
+      showToast('统计已按当前时间范围刷新，数据仍来自正式业务表。');
+    });
+
+    document.getElementById('exportStats').addEventListener('click', () => {
+      showToast('已生成当前统计口径的导出任务。');
+    });
+  </script>
+</body>
+</html>

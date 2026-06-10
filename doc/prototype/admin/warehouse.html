@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>库房管理 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .hero-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .room-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .room-item {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    .room-item.active {
+      border-color: #8abcbf;
+      box-shadow: 0 0 0 3px rgba(31, 111, 120, 0.1);
+    }
+
+    .room-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .usage {
+      display: grid;
+      gap: 6px;
+    }
+
+    .usage-track {
+      height: 9px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e5edf2;
+    }
+
+    .usage-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--primary);
+    }
+
+    .usage-fill.warning {
+      background: var(--warning);
+    }
+
+    .usage-text {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .rule-strip {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      background: var(--primary-soft);
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 14px;
+    }
+
+    .location-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .rack-board {
+      display: grid;
+      gap: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .rack-row {
+      display: grid;
+      grid-template-columns: 74px minmax(0, 1fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .rack-label {
+      display: grid;
+      place-items: center;
+      min-height: 96px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: #34414d;
+      background: #f7fafc;
+      font-weight: 750;
+    }
+
+    .slot-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(70px, 1fr));
+      gap: 8px;
+    }
+
+    .slot {
+      display: grid;
+      min-height: 58px;
+      align-content: center;
+      gap: 3px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: #34414d;
+      background: #ffffff;
+      text-align: left;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+    }
+
+    .slot:hover,
+    .slot.active {
+      border-color: #8abcbf;
+      box-shadow: 0 4px 14px rgba(23, 33, 43, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .slot strong {
+      font-size: 12px;
+    }
+
+    .slot span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .slot.occupied {
+      border-color: #a9c9cc;
+      background: #f2fbfb;
+    }
+
+    .slot.disabled {
+      color: var(--muted);
+      background: #eef1f4;
+    }
+
+    .slot.alert {
+      border-color: #efd39d;
+      background: var(--warning-soft);
+    }
+
+    .detail-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .detail-list li {
+      display: grid;
+      grid-template-columns: 86px 1fr;
+      gap: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-list span:first-child {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(23, 33, 43, 0.38);
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(760px, 100%);
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      border-radius: var(--radius);
+      background: #ffffff;
+      box-shadow: var(--shadow);
+    }
+
+    .modal header,
+    .modal footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal footer {
+      border-top: 1px solid var(--border);
+      border-bottom: 0;
+    }
+
+    .modal .body {
+      padding: 18px;
+    }
+
+    .toast {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1180px) {
+      .summary-grid,
+      .workspace,
+      .location-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .filters,
+      .form-grid,
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .slot-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .rack-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link active" href="warehouse.html">库房管理 <span>当前</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><strong>库房管理</strong><span class="muted"> 库房架位与存储管理</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option selected>后台管理员</option><option>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+
+      <section class="content">
+        <div class="hero-line">
+          <div>
+            <h1 class="page-title">库房管理</h1>
+            <p class="page-subtitle">维护库房房间、机架、层、盒位和档案盒占用状态，管理员可见完整架位编码。</p>
+          </div>
+          <button class="button" type="button" id="openRoomModal">
+            <span class="icon" aria-hidden="true">+</span>
+            添加库房
+          </button>
+        </div>
+
+        <div class="notice toast" id="roomToast">库房 403 已创建，系统生成 160 个架位，编码前缀为 403。</div>
+
+        <div class="summary-grid">
+          <div class="metric">
+            <span class="label">启用库房</span>
+            <span class="value">3</span>
+            <span class="note">401、402、403</span>
+          </div>
+          <div class="metric">
+            <span class="label">总盒位</span>
+            <span class="value">640</span>
+            <span class="note">按房间规格自动计算</span>
+          </div>
+          <div class="metric">
+            <span class="label">已占用盒位</span>
+            <span class="value">438</span>
+            <span class="note">占用率 68.4%</span>
+          </div>
+          <div class="metric">
+            <span class="label">容量告警</span>
+            <span class="value">1</span>
+            <span class="note">402 库房达到 88%</span>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <section class="card panel">
+            <div class="toolbar" style="margin-top:0">
+              <h2 class="section-title">库房列表</h2>
+              <span class="status info">告警阈值 85%</span>
+            </div>
+            <div class="room-list">
+              <button class="room-item active" type="button" data-room="401">
+                <span class="room-head">
+                  <span>
+                    <strong>401 综合档案库房</strong><br>
+                    <span class="muted">8 个机架 · 5 层 · 每层 8 盒位</span>
+                  </span>
+                  <span class="status success">启用</span>
+                </span>
+                <span class="usage">
+                  <span class="usage-track"><span class="usage-fill" style="width:64%"></span></span>
+                  <span class="usage-text"><span>已用 205 / 320</span><span>64%</span></span>
+                </span>
+              </button>
+              <button class="room-item" type="button" data-room="402">
+                <span class="room-head">
+                  <span>
+                    <strong>402 会计档案库房</strong><br>
+                    <span class="muted">6 个机架 · 4 层 · 每层 8 盒位</span>
+                  </span>
+                  <span class="status warning">容量告警</span>
+                </span>
+                <span class="usage">
+                  <span class="usage-track"><span class="usage-fill warning" style="width:88%"></span></span>
+                  <span class="usage-text"><span>已用 169 / 192</span><span>88%</span></span>
+                </span>
+              </button>
+              <button class="room-item" type="button" data-room="403">
+                <span class="room-head">
+                  <span>
+                    <strong>403 科技档案库房</strong><br>
+                    <span class="muted">4 个机架 · 4 层 · 每层 8 盒位</span>
+                  </span>
+                  <span class="status success">启用</span>
+                </span>
+                <span class="usage">
+                  <span class="usage-track"><span class="usage-fill" style="width:40%"></span></span>
+                  <span class="usage-text"><span>已用 64 / 128</span><span>50%</span></span>
+                </span>
+              </button>
+            </div>
+          </section>
+
+          <section>
+            <div class="rule-strip">
+              <div>
+                <strong>架位编码：库房号-机架号-层号-盒位号</strong>
+                <div class="hint">示例：<span class="mono">401-03-02-05</span>。纯电子档案不占用架位，纸质+电子和纯纸质档案必须记录盒号与架位。</div>
+              </div>
+              <span class="status info">管理员可见</span>
+            </div>
+
+            <section class="card panel">
+              <div class="filters">
+                <div class="field">
+                  <label for="roomFilter">库房号</label>
+                  <select id="roomFilter">
+                    <option>401</option>
+                    <option>402</option>
+                    <option>403</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="rackFilter">机架</label>
+                  <select id="rackFilter">
+                    <option>全部机架</option>
+                    <option>01</option>
+                    <option>02</option>
+                    <option>03</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="statusFilter">架位状态</label>
+                  <select id="statusFilter">
+                    <option>全部状态</option>
+                    <option>空闲</option>
+                    <option>已占用</option>
+                    <option>停用</option>
+                  </select>
+                </div>
+                <button class="button secondary" type="button" id="applyFilter">
+                  <span class="icon" aria-hidden="true">#</span>
+                  筛选
+                </button>
+              </div>
+
+              <div class="location-layout">
+                <div class="rack-board" id="rackBoard">
+                  <div class="rack-row">
+                    <div class="rack-label">机架 01</div>
+                    <div class="slot-grid">
+                      <button class="slot occupied active" type="button" data-code="401-01-01-01" data-box="KJ-2026-001" data-status="已占用" data-title="克拉玛依工业园扩建批复">
+                        <strong>401-01-01-01</strong>
+                        <span>KJ-2026-001</span>
+                      </button>
+                      <button class="slot occupied" type="button" data-code="401-01-01-02" data-box="KJ-2026-002" data-status="已占用" data-title="油田道路施工图">
+                        <strong>401-01-01-02</strong>
+                        <span>KJ-2026-002</span>
+                      </button>
+                      <button class="slot" type="button" data-code="401-01-01-03" data-box="无" data-status="空闲" data-title="无盒内档案">
+                        <strong>401-01-01-03</strong>
+                        <span>空闲</span>
+                      </button>
+                      <button class="slot alert" type="button" data-code="401-01-01-04" data-box="WS-2025-044" data-status="已占用" data-title="年度项目审批材料">
+                        <strong>401-01-01-04</strong>
+                        <span>跨类待调整</span>
+                      </button>
+                      <button class="slot disabled" type="button" data-code="401-01-01-05" data-box="无" data-status="停用" data-title="维护停用">
+                        <strong>401-01-01-05</strong>
+                        <span>停用</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="rack-row">
+                    <div class="rack-label">机架 02</div>
+                    <div class="slot-grid">
+                      <button class="slot occupied" type="button" data-code="401-02-02-01" data-box="RS-2024-016" data-status="已占用" data-title="干部任免材料">
+                        <strong>401-02-02-01</strong>
+                        <span>RS-2024-016</span>
+                      </button>
+                      <button class="slot" type="button" data-code="401-02-02-02" data-box="无" data-status="空闲" data-title="无盒内档案">
+                        <strong>401-02-02-02</strong>
+                        <span>空闲</span>
+                      </button>
+                      <button class="slot occupied" type="button" data-code="401-02-02-03" data-box="KJ-2026-007" data-status="已占用" data-title="工程竣工验收材料">
+                        <strong>401-02-02-03</strong>
+                        <span>KJ-2026-007</span>
+                      </button>
+                      <button class="slot" type="button" data-code="401-02-02-04" data-box="无" data-status="空闲" data-title="无盒内档案">
+                        <strong>401-02-02-04</strong>
+                        <span>空闲</span>
+                      </button>
+                      <button class="slot occupied" type="button" data-code="401-02-02-05" data-box="YX-2023-011" data-status="已占用" data-title="宣传影像资料目录">
+                        <strong>401-02-02-05</strong>
+                        <span>YX-2023-011</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="rack-row">
+                    <div class="rack-label">机架 03</div>
+                    <div class="slot-grid">
+                      <button class="slot occupied" type="button" data-code="401-03-02-05" data-box="KJ-2025-018" data-status="已占用" data-title="采油一厂设备验收报告">
+                        <strong>401-03-02-05</strong>
+                        <span>KJ-2025-018</span>
+                      </button>
+                      <button class="slot" type="button" data-code="401-03-02-06" data-box="无" data-status="空闲" data-title="无盒内档案">
+                        <strong>401-03-02-06</strong>
+                        <span>空闲</span>
+                      </button>
+                      <button class="slot occupied" type="button" data-code="401-03-03-01" data-box="KJ-2025-019" data-status="已占用" data-title="管线改造竣工图">
+                        <strong>401-03-03-01</strong>
+                        <span>KJ-2025-019</span>
+                      </button>
+                      <button class="slot" type="button" data-code="401-03-03-02" data-box="无" data-status="空闲" data-title="无盒内档案">
+                        <strong>401-03-03-02</strong>
+                        <span>空闲</span>
+                      </button>
+                      <button class="slot disabled" type="button" data-code="401-03-03-03" data-box="无" data-status="停用" data-title="层板维修">
+                        <strong>401-03-03-03</strong>
+                        <span>停用</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <aside class="drawer" aria-live="polite">
+                  <h2 class="section-title">盒位详情</h2>
+                  <ul class="detail-list">
+                    <li><span>位置编码</span><strong class="mono" id="detailCode">401-01-01-01</strong></li>
+                    <li><span>架位状态</span><span id="detailStatus">已占用</span></li>
+                    <li><span>当前盒号</span><span class="mono" id="detailBox">KJ-2026-001</span></li>
+                    <li><span>盒脊信息</span><span id="detailTitle">克拉玛依工业园扩建批复</span></li>
+                    <li><span>盒内条目</span><span>12 件，纸质+电子 9 件，纯纸质 3 件</span></li>
+                  </ul>
+                  <div class="actions">
+                    <button class="button secondary" type="button" id="viewBoxItems">查看盒内档案</button>
+                    <button class="button ghost" type="button" id="disableSlot">停用架位</button>
+                  </div>
+                  <p class="hint" id="slotHint">已占用架位需迁出档案盒后才能停用。</p>
+                </aside>
+              </div>
+            </section>
+          </section>
+        </div>
+
+        <section class="card panel" style="margin-top:16px">
+          <div class="toolbar" style="margin-top:0">
+            <h2 class="section-title">最近占用盒位</h2>
+            <div class="actions">
+              <button class="button ghost" type="button" id="exportLocations">导出架位清单</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>库房号</th>
+                  <th>位置编码</th>
+                  <th>盒号</th>
+                  <th>分类</th>
+                  <th>全宗</th>
+                  <th>盒内件数</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>401</td>
+                  <td class="mono">401-03-02-05</td>
+                  <td>KJ-2025-018</td>
+                  <td>科技档案</td>
+                  <td>市档案馆全宗</td>
+                  <td>10 / 12</td>
+                  <td><span class="status success">正常</span></td>
+                </tr>
+                <tr>
+                  <td>402</td>
+                  <td class="mono">402-02-03-07</td>
+                  <td>KJ-2024-032</td>
+                  <td>会计档案</td>
+                  <td>财政局全宗</td>
+                  <td>12 / 12</td>
+                  <td><span class="status warning">满盒</span></td>
+                </tr>
+                <tr>
+                  <td>401</td>
+                  <td class="mono">401-01-01-04</td>
+                  <td>WS-2025-044</td>
+                  <td>文书档案</td>
+                  <td>住建局全宗</td>
+                  <td>8 / 12</td>
+                  <td><span class="status warning">跨类待调整</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="roomModal" role="dialog" aria-modal="true" aria-labelledby="roomModalTitle">
+    <div class="modal">
+      <header>
+        <h2 class="section-title" id="roomModalTitle">添加库房</h2>
+        <button class="button ghost" type="button" id="closeRoomModal">关闭</button>
+      </header>
+      <div class="body">
+        <div class="notice">库房提交后生成完整架位结构，编码由库房号、机架号、层号、盒位号组成。</div>
+        <div class="form-grid" style="margin-top:14px">
+          <div class="field">
+            <label for="roomNo">库房号</label>
+            <input id="roomNo" value="403" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="roomName">库房名称</label>
+            <input id="roomName" value="科技档案库房" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="rackCount">库房机架数量</label>
+            <input id="rackCount" type="number" value="4" min="1">
+          </div>
+          <div class="field">
+            <label for="layerCount">单机架层数</label>
+            <input id="layerCount" type="number" value="4" min="1">
+          </div>
+          <div class="field">
+            <label for="boxCount">每层最大盒数</label>
+            <input id="boxCount" type="number" value="10" min="1">
+          </div>
+          <div class="field">
+            <label for="threshold">告警阈值</label>
+            <select id="threshold">
+              <option>85%</option>
+              <option>90%</option>
+              <option>80%</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint" id="roomFormHint">预计生成 160 个盒位，示例编码：403-01-01-01。</p>
+      </div>
+      <footer>
+        <button class="button ghost" type="button" id="cancelRoom">取消</button>
+        <button class="button" type="button" id="submitRoom">
+          <span class="icon" aria-hidden="true">+</span>
+          生成架位
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    const roomModal = document.getElementById('roomModal');
+    const roomToast = document.getElementById('roomToast');
+    const openRoomModal = document.getElementById('openRoomModal');
+    const closeRoomModal = document.getElementById('closeRoomModal');
+    const cancelRoom = document.getElementById('cancelRoom');
+    const submitRoom = document.getElementById('submitRoom');
+    const roomFormHint = document.getElementById('roomFormHint');
+    const roomNo = document.getElementById('roomNo');
+    const rackCount = document.getElementById('rackCount');
+    const layerCount = document.getElementById('layerCount');
+    const boxCount = document.getElementById('boxCount');
+
+    function toggleRoomModal(show) {
+      roomModal.classList.toggle('open', show);
+    }
+
+    function updateCapacityHint() {
+      const total = Number(rackCount.value || 0) * Number(layerCount.value || 0) * Number(boxCount.value || 0);
+      roomFormHint.textContent = `预计生成 ${total} 个盒位，示例编码：${roomNo.value || '库房号'}-01-01-01。`;
+    }
+
+    openRoomModal.addEventListener('click', () => toggleRoomModal(true));
+    closeRoomModal.addEventListener('click', () => toggleRoomModal(false));
+    cancelRoom.addEventListener('click', () => toggleRoomModal(false));
+    [roomNo, rackCount, layerCount, boxCount].forEach((input) => input.addEventListener('input', updateCapacityHint));
+    submitRoom.addEventListener('click', () => {
+      updateCapacityHint();
+      toggleRoomModal(false);
+      roomToast.classList.add('show');
+    });
+
+    document.querySelectorAll('.room-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.room-item').forEach((room) => room.classList.remove('active'));
+        item.classList.add('active');
+        document.getElementById('roomFilter').value = item.dataset.room;
+      });
+    });
+
+    document.querySelectorAll('.slot').forEach((slot) => {
+      slot.addEventListener('click', () => {
+        document.querySelectorAll('.slot').forEach((item) => item.classList.remove('active'));
+        slot.classList.add('active');
+        document.getElementById('detailCode').textContent = slot.dataset.code;
+        document.getElementById('detailStatus').textContent = slot.dataset.status;
+        document.getElementById('detailBox').textContent = slot.dataset.box;
+        document.getElementById('detailTitle').textContent = slot.dataset.title;
+        document.getElementById('slotHint').textContent = slot.dataset.status === '空闲'
+          ? '空闲架位可停用，也可在上架时分配档案盒。'
+          : '已占用架位需迁出档案盒后才能停用。';
+      });
+    });
+
+    document.getElementById('applyFilter').addEventListener('click', () => {
+      const selectedRoom = document.getElementById('roomFilter').value;
+      document.querySelector('.rule-strip .mono').textContent = `${selectedRoom}-03-02-05`;
+      roomToast.textContent = `已按 ${selectedRoom} 库房、机架和架位状态筛选。`;
+      roomToast.classList.add('show');
+    });
+
+    document.getElementById('disableSlot').addEventListener('click', () => {
+      document.getElementById('slotHint').textContent = '当前架位已占用，停用操作被阻止。';
+    });
+
+    document.getElementById('viewBoxItems').addEventListener('click', () => {
+      const code = document.getElementById('detailCode').textContent;
+      roomToast.textContent = `已打开 ${code} 的盒内档案清单预览。`;
+      roomToast.classList.add('show');
+    });
+
+    document.getElementById('exportLocations').addEventListener('click', () => {
+      roomToast.textContent = '架位清单已导出，包含库房号、架位编码、盒号、占用状态和盒内件数。';
+      roomToast.classList.add('show');
+    });
+  </script>
+</body>
+</html>

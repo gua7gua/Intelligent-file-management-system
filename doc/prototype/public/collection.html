@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>征集清单 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .collection-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .drop-zone {
+      display: grid;
+      gap: 8px;
+      place-items: center;
+      min-height: 150px;
+      padding: 20px;
+      border: 2px dashed #adc0cc;
+      border-radius: var(--radius);
+      background: #f8fbfc;
+      text-align: center;
+      transition: border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .drop-zone.dragging {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .drop-zone strong {
+      font-size: 16px;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .item-table input,
+    .item-table select {
+      width: 100%;
+      min-width: 120px;
+      min-height: 34px;
+      padding: 7px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .item-table .wide {
+      min-width: 220px;
+    }
+
+    .side-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .status-board {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .status-board li {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-board li:last-child {
+      border-bottom: 0;
+    }
+
+    .profile-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .profile-line:last-child {
+      border-bottom: 0;
+    }
+
+    .result-box {
+      display: none;
+    }
+
+    .result-box.active {
+      display: block;
+    }
+
+    .locked input,
+    .locked select,
+    .locked textarea {
+      color: var(--muted);
+      background: #f3f6f8;
+    }
+
+    @media (max-width: 980px) {
+      .collection-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="public-shell">
+    <nav class="public-nav" aria-label="公众门户导航">
+      <a href="index.html">智能档案馆</a>
+      <div class="links">
+        <a href="search.html">公开检索</a>
+        <a href="collection.html" class="active">征集清单</a>
+        <a href="overview.html">公众概览</a>
+        <a href="../login.html">退出</a>
+      </div>
+    </nav>
+
+    <main class="public-content">
+      <div class="toolbar">
+        <div>
+          <h1 class="page-title">征集清单</h1>
+          <p class="page-subtitle">征集清单用于登记无偿捐赠意向。电子文件在公众端只解析文件名、扩展名和大小，不上传文件本体。</p>
+        </div>
+        <span class="status warning" id="batchStatus">草稿</span>
+      </div>
+
+      <div class="notice result-box" id="submitResult" role="status">
+        清单 COL-202606-031 已提交，状态为待联系。管理员联系判断前，公众端不可再编辑。
+      </div>
+
+      <section class="collection-layout">
+        <form class="grid" id="collectionForm">
+          <div class="card panel">
+            <h2 class="section-title">清单信息</h2>
+            <div class="form-grid">
+              <div class="field">
+                <label for="batchTitle">清单标题</label>
+                <input id="batchTitle" required value="城市老照片捐赠意向">
+              </div>
+              <div class="field">
+                <label for="donorName">捐赠人</label>
+                <input id="donorName" required value="周明">
+              </div>
+              <div class="field">
+                <label for="phone">联系电话</label>
+                <input id="phone" required value="138-0000-5526">
+              </div>
+            </div>
+            <div class="field" style="margin-top: 12px;">
+              <label for="description">捐赠说明</label>
+              <textarea id="description">老城区建设过程中的照片、票证和会议材料，愿意无偿捐赠并用于公开利用。</textarea>
+            </div>
+          </div>
+
+          <div class="card panel">
+            <h2 class="section-title">文件名解析</h2>
+            <label class="drop-zone" id="dropZone" for="filePicker">
+              <strong>拖拽或选择电子文件</strong>
+              <span class="muted">仅解析文件名、扩展名和大小；载体状态仍需在清单条目中选择或确认。</span>
+              <span class="button secondary" role="button">选择文件</span>
+            </label>
+            <input class="file-input" id="filePicker" type="file" multiple>
+          </div>
+
+          <div class="card panel">
+            <div class="toolbar">
+              <div>
+                <h2 class="section-title">清单条目</h2>
+                <p class="page-subtitle">每个清单最多 200 个条目；目标属性固定为永久、无密级、公开。</p>
+              </div>
+              <button class="button secondary" type="button" id="addRow">新增条目</button>
+            </div>
+            <div class="table-wrap">
+              <table class="item-table">
+                <thead>
+                  <tr>
+                    <th>档案标题</th>
+                    <th>页数</th>
+                    <th>载体状态</th>
+                    <th>电子文件格式</th>
+                    <th>档案文件名</th>
+                    <th>形成日期</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="itemBody">
+                  <tr>
+                    <td><input class="wide" value="老城区街景照片"></td>
+                    <td><input type="number" min="1" value="24"></td>
+                    <td>
+                      <select>
+                        <option>纸质+电子</option>
+                        <option>纯电子</option>
+                        <option>纯纸质</option>
+                      </select>
+                    </td>
+                    <td><input value="jpg"></td>
+                    <td><input class="wide" value="老城区街景照片.jpg"></td>
+                    <td><input type="date" value="2012-05-18"></td>
+                    <td><span class="status">草稿</span></td>
+                    <td><button class="button ghost" type="button" data-remove>删除</button></td>
+                  </tr>
+                  <tr>
+                    <td><input class="wide" value="社区建设会议纪要"></td>
+                    <td><input type="number" min="1" value="8"></td>
+                    <td>
+                      <select>
+                        <option>纯纸质</option>
+                        <option>纸质+电子</option>
+                        <option>纯电子</option>
+                      </select>
+                    </td>
+                    <td><input value=""></td>
+                    <td><input class="wide" value=""></td>
+                    <td><input type="date" value="2009-11-02"></td>
+                    <td><span class="status">草稿</span></td>
+                    <td><button class="button ghost" type="button" data-remove>删除</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card panel">
+            <h2 class="section-title">捐赠协议</h2>
+            <div class="notice">
+              协议文案由系统配置 <span class="mono">collection.agreement_text</span> 维护。捐赠人声明材料来源合法、权属清晰，同意无偿捐赠，并允许档案馆按规定公开利用。
+            </div>
+            <label class="field" style="margin-top: 12px;">
+              <span>
+                <input id="agreementAccepted" type="checkbox">
+                我已阅读并同意在线捐赠协议
+              </span>
+            </label>
+          </div>
+
+          <div class="actions">
+            <button class="button secondary" type="button" id="saveDraft">保存草稿</button>
+            <button class="button" type="submit">提交捐赠意向</button>
+            <a class="button ghost" href="overview.html">返回概览</a>
+          </div>
+        </form>
+
+        <aside class="side-stack">
+          <div class="card panel">
+            <h2 class="section-title">目标属性</h2>
+            <div class="grid">
+              <div class="notice">永久保管期限、非密、公开。公开生效必须在管理员联系、到馆接收、在线协议校验、正式入库和上架之后。</div>
+              <div class="profile-line"><span class="muted">来源标识</span><strong>征集</strong></div>
+              <div class="profile-line"><span class="muted">协议要求</span><strong>提交时在线同意</strong></div>
+              <div class="profile-line"><span class="muted">文件本体</span><strong>到馆接收</strong></div>
+            </div>
+          </div>
+
+          <div class="card panel">
+            <h2 class="section-title">当前限制</h2>
+            <ul class="status-board">
+              <li><span>待处理清单</span><strong>2 / 5</strong></li>
+              <li><span>当前条目</span><strong id="itemCount">2 / 200</strong></li>
+              <li><span>提交后编辑</span><strong>不可编辑</strong></li>
+            </ul>
+          </div>
+
+          <div class="card panel">
+            <h2 class="section-title">状态流转</h2>
+            <ol class="timeline">
+              <li><span class="muted">当前</span><span>草稿</span></li>
+              <li><span class="muted">提交</span><span>待联系</span></li>
+              <li><span class="muted">约定到馆</span><span>待接收</span></li>
+              <li><span class="muted">验收</span><span>已接收 / 部分接收 / 已拒绝</span></li>
+            </ol>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const body = document.getElementById('itemBody');
+    const count = document.getElementById('itemCount');
+    const form = document.getElementById('collectionForm');
+    const batchStatus = document.getElementById('batchStatus');
+    const result = document.getElementById('submitResult');
+    const dropZone = document.getElementById('dropZone');
+    const filePicker = document.getElementById('filePicker');
+
+    function updateCount() {
+      count.textContent = body.querySelectorAll('tr').length + ' / 200';
+    }
+
+    function filenameTitle(name) {
+      return name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+    }
+
+    function extension(name) {
+      const parts = name.split('.');
+      return parts.length > 1 ? parts.pop().toLowerCase() : '';
+    }
+
+    function addRow(data) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input class="wide" value="${data.title || ''}"></td>
+        <td><input type="number" min="1" value="${data.pages || 1}"></td>
+        <td>
+          <select>
+            <option${data.carrier === '纯电子' ? ' selected' : ''}>纯电子</option>
+            <option${data.carrier === '纸质+电子' ? ' selected' : ''}>纸质+电子</option>
+            <option${data.carrier === '纯纸质' ? ' selected' : ''}>纯纸质</option>
+          </select>
+        </td>
+        <td><input value="${data.ext || ''}"></td>
+        <td><input class="wide" value="${data.filename || ''}"></td>
+        <td><input type="date" value="${data.date || ''}"></td>
+        <td><span class="status">草稿</span></td>
+        <td><button class="button ghost" type="button" data-remove>删除</button></td>
+      `;
+      body.appendChild(tr);
+      updateCount();
+    }
+
+    function parseFiles(files) {
+      Array.from(files).forEach((file) => {
+        addRow({
+          title: filenameTitle(file.name),
+          filename: file.name,
+          ext: extension(file.name),
+          carrier: '纯电子',
+          pages: 1
+        });
+      });
+    }
+
+    document.getElementById('addRow').addEventListener('click', () => {
+      addRow({ carrier: '纸质+电子' });
+    });
+
+    body.addEventListener('click', (event) => {
+      if (event.target.matches('[data-remove]')) {
+        event.target.closest('tr').remove();
+        updateCount();
+      }
+    });
+
+    filePicker.addEventListener('change', () => parseFiles(filePicker.files));
+
+    ['dragenter', 'dragover'].forEach((eventName) => {
+      dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropZone.classList.add('dragging');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach((eventName) => {
+      dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropZone.classList.remove('dragging');
+      });
+    });
+
+    dropZone.addEventListener('drop', (event) => parseFiles(event.dataTransfer.files));
+
+    document.getElementById('saveDraft').addEventListener('click', () => {
+      result.textContent = '草稿已保存，尚未进入后台联系流程。';
+      result.classList.add('active');
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (!body.querySelector('tr')) {
+        result.textContent = '请至少填写一个征集条目。';
+        result.classList.add('active');
+        result.classList.add('danger');
+        return;
+      }
+      if (!document.getElementById('agreementAccepted').checked) {
+        result.textContent = '提交前必须勾选同意在线捐赠协议。';
+        result.classList.add('active');
+        result.classList.add('danger');
+        return;
+      }
+      result.className = 'notice result-box active';
+      result.textContent = '清单 BAT-031 已提交，状态为待联系；系统已记录在线协议同意时间。管理员联系判断前，公众端不可再编辑。';
+      batchStatus.textContent = '待联系';
+      batchStatus.className = 'status warning';
+      form.classList.add('locked');
+      form.querySelectorAll('input, select, textarea, button').forEach((control) => {
+        control.disabled = true;
+      });
+    });
+
+    updateCount();
+  </script>
+</body>
+</html>

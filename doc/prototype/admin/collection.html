@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>征集管理与接收 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .work-layout {
+      display: grid;
+      grid-template-columns: minmax(420px, 0.95fr) minmax(0, 1.05fr);
+      gap: 16px;
+      align-items: stretch;
+      height: calc(100vh - 256px);
+      min-height: 560px;
+    }
+
+    .scroll-pane {
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .detail-pane {
+      padding-right: 4px;
+    }
+
+    .batch-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .batch-item {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .batch-item.active {
+      border-color: #9cc7ca;
+      background: #f6fbfb;
+      box-shadow: 0 0 0 3px rgba(31, 111, 120, 0.08);
+    }
+
+    .batch-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .batch-title {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .meta-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .info-tile {
+      padding: 11px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .info-tile span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .info-tile strong {
+      display: block;
+      margin-top: 4px;
+      overflow-wrap: anywhere;
+    }
+
+    .review-table select,
+    .review-table input {
+      width: 100%;
+      min-width: 120px;
+      min-height: 34px;
+      padding: 7px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .drop-zone {
+      display: grid;
+      min-height: 132px;
+      place-items: center;
+      padding: 18px;
+      border: 2px dashed #9bbdc0;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #f7fcfc;
+      text-align: center;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .match-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .match-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .collapsible summary {
+      display: flex;
+      min-height: 34px;
+      cursor: pointer;
+      list-style: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .collapsible summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .collapsible-body {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .upload-block {
+      margin-top: 14px;
+      padding: 12px 0 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .flow-note {
+      display: grid;
+      gap: 9px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .flow-note li {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .flow-no {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      border-radius: 50%;
+      color: #ffffff;
+      background: var(--primary);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .toast {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    .toast.active {
+      display: block;
+    }
+
+    @media (max-width: 1120px) {
+      .work-layout,
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .work-layout {
+        height: auto;
+        min-height: 0;
+      }
+
+      .scroll-pane {
+        overflow: visible;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link active" href="collection.html">征集管理与接收 <span>当前</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div><strong>征集管理与接收</strong><span class="muted"> 后台联系判断与前台到馆验收</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option>后台管理员</option><option selected>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+
+      <main class="content">
+        <div class="notice toast" id="toast" role="status"></div>
+
+        <section class="grid four" aria-label="征集待办统计">
+          <div class="metric">
+            <span class="label">待联系</span>
+            <span class="value">9</span>
+            <span class="note">后台判断征集方向</span>
+          </div>
+          <div class="metric">
+            <span class="label">待接收</span>
+            <span class="value">6</span>
+            <span class="note">已约定到馆</span>
+          </div>
+          <div class="metric">
+            <span class="label">今日到馆</span>
+            <span class="value">3</span>
+            <span class="note">需前台验收</span>
+          </div>
+          <div class="metric">
+            <span class="label">协议记录异常</span>
+            <span class="value">0</span>
+            <span class="note">提交时在线同意</span>
+          </div>
+        </section>
+
+        <section class="work-layout" style="margin-top: 16px;">
+          <div class="card panel scroll-pane batch-pane">
+            <div class="toolbar">
+              <div>
+                <h2 class="section-title">征集批次</h2>
+                <p class="page-subtitle">清单来源为社会征集，提交后公众端只读。</p>
+              </div>
+              <div class="tabs" aria-label="批次状态筛选">
+                <button class="tab active" type="button" data-filter="all">全部</button>
+                <button class="tab" type="button" data-filter="contact">待联系</button>
+                <button class="tab" type="button" data-filter="receive">待接收</button>
+              </div>
+            </div>
+
+            <ul class="batch-list" id="batchList">
+              <li class="batch-item active" data-group="contact" data-batch="old-photo">
+                <div class="batch-top">
+                  <h3 class="batch-title">城市老照片捐赠意向</h3>
+                  <span class="status warning">待联系</span>
+                </div>
+                <div class="meta-line">
+                  <span>COL-202606-008</span>
+                  <span>捐赠人：周明</span>
+                  <span>条目：12</span>
+                  <span>提交：2026-06-02</span>
+                </div>
+              </li>
+              <li class="batch-item" data-group="receive" data-batch="community">
+                <div class="batch-top">
+                  <h3 class="batch-title">社区建设资料捐赠</h3>
+                  <span class="status info">待接收</span>
+                </div>
+                <div class="meta-line">
+                  <span>COL-202605-027</span>
+                  <span>捐赠人：陈岚</span>
+                  <span>条目：6</span>
+                  <span>到馆：2026-06-12 09:30</span>
+                </div>
+              </li>
+              <li class="batch-item" data-group="receive" data-batch="factory">
+                <div class="batch-top">
+                  <h3 class="batch-title">厂区变迁照片资料</h3>
+                  <span class="status info">待接收</span>
+                </div>
+                <div class="meta-line">
+                  <span>COL-202604-014</span>
+                  <span>捐赠人：林越</span>
+                  <span>条目：10</span>
+                  <span>到馆：2026-06-09 15:00</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="grid scroll-pane detail-pane">
+            <div class="card panel">
+              <div class="toolbar">
+                <div>
+                  <h2 class="section-title" id="detailTitle">城市老照片捐赠意向</h2>
+                  <p class="page-subtitle" id="detailSubtitle">COL-202606-008 · 周明 · 当前待后台联系判断</p>
+                </div>
+                <span class="status warning" id="detailStatus">待联系</span>
+              </div>
+
+              <div class="detail-grid">
+                <div class="info-tile"><span>联系电话</span><strong id="contactPhone">138-0000-5526</strong></div>
+                <div class="info-tile"><span>来源标识</span><strong>征集</strong></div>
+                <div class="info-tile"><span>目标属性</span><strong>永久 / 非密 / 公开</strong></div>
+                <div class="info-tile"><span>公开生效</span><strong>正式入库并满足利用条件后</strong></div>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">联系判断</h2>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="scheduledAt">约定到馆时间</label>
+                  <input id="scheduledAt" type="datetime-local" value="2026-06-12T09:30">
+                </div>
+                <div class="field">
+                  <label for="contactResult">联系结果</label>
+                  <select id="contactResult">
+                    <option>符合征集方向</option>
+                    <option>需补充说明</option>
+                    <option>不符合征集方向</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="rejectReason">拒绝或备注</label>
+                  <input id="rejectReason" placeholder="拒绝时必填">
+                </div>
+              </div>
+              <div class="actions" style="margin-top: 12px;">
+                <button class="button" type="button" id="scheduleBtn">约定到馆</button>
+                <button class="button danger" type="button" id="rejectBtn">拒绝征集</button>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">到馆接收</h2>
+              <div class="form-grid">
+                <div class="info-tile"><span>在线协议</span><strong id="agreementAcceptedAt">已同意 · 2026-06-02 14:18</strong></div>
+                <div class="info-tile"><span>协议文案</span><strong>collection.agreement_text</strong></div>
+                <div class="field">
+                  <label for="receiptNo">回执编号</label>
+                  <input id="receiptNo" value="系统完成接收后生成">
+                </div>
+              </div>
+
+              <details class="collapsible upload-block">
+                <summary>
+                  <span class="section-title">U 盘电子文件上传与匹配</span>
+                  <span class="status info">点击展开</span>
+                </summary>
+                <div class="collapsible-body">
+                  <div class="drop-zone" id="collectionDropZone">
+                    <div>
+                      <strong>拖拽捐赠电子文件或选择文件</strong>
+                      <p class="muted" style="margin: 6px 0 0;">上传后写入暂存路径，按清单文件名匹配；回退条目会删除暂存对象并保留记录。</p>
+                    </div>
+                    <label class="button secondary" for="collectionFilePicker">选择 U 盘文件</label>
+                    <input class="sr-only" id="collectionFilePicker" type="file" multiple>
+                  </div>
+                  <div class="match-grid" id="collectionMatchList">
+                    <div class="match-card">
+                      <div><strong>old-street-01.jpg</strong><div class="hint">匹配“老城区街景照片”，格式和安全检查通过</div></div>
+                      <span class="status success">匹配成功</span>
+                    </div>
+                    <div class="match-card">
+                      <div><strong>duplicate-video.mp4</strong><div class="hint">与已入库影像疑似重复，前台回退时删除暂存对象</div></div>
+                      <span class="status warning">重复提示</span>
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <div class="table-wrap scroll-y" style="margin-top: 14px;">
+                <table class="review-table">
+                  <thead>
+                    <tr>
+                      <th>条目</th>
+                      <th>载体</th>
+                      <th>验收结果</th>
+                      <th>回退原因</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>老城区街景照片</td>
+                      <td>纸质+电子</td>
+                      <td>
+                        <select>
+                          <option>已接收</option>
+                          <option>已回退</option>
+                        </select>
+                      </td>
+                      <td><input placeholder="回退时填写"></td>
+                    </tr>
+                    <tr>
+                      <td>社区建设会议纪要</td>
+                      <td>纯纸质</td>
+                      <td>
+                        <select>
+                          <option>已接收</option>
+                          <option>已回退</option>
+                        </select>
+                      </td>
+                      <td><input placeholder="回退时填写"></td>
+                    </tr>
+                    <tr>
+                      <td>重复影像资料</td>
+                      <td>纯电子</td>
+                      <td>
+                        <select>
+                          <option>已回退</option>
+                          <option>已接收</option>
+                        </select>
+                      </td>
+                      <td><input value="与已入库影像重复"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="actions" style="margin-top: 12px;">
+                <button class="button" type="button" id="receiveBtn">完成接收</button>
+                <button class="button secondary" type="button" id="receiptBtn">导出回执</button>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">流程位置</h2>
+              <ol class="flow-note">
+                <li><span class="flow-no">1</span><span><strong>公众提交</strong><br><span class="muted">清单进入待联系，公众端只读。</span></span></li>
+                <li><span class="flow-no">2</span><span><strong>后台联系</strong><br><span class="muted">符合征集方向后约定到馆，或填写理由拒绝。</span></span></li>
+                <li><span class="flow-no">3</span><span><strong>前台接收</strong><br><span class="muted">核对实物和电子介质，校验在线协议记录并导出回执。</span></span></li>
+                <li><span class="flow-no">4</span><span><strong>后续入库</strong><br><span class="muted">已接收条目进入 AI 补全、人工核对、装盒、入库、上架。</span></span></li>
+              </ol>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const toast = document.getElementById('toast');
+    const detailTitle = document.getElementById('detailTitle');
+    const detailSubtitle = document.getElementById('detailSubtitle');
+    const detailStatus = document.getElementById('detailStatus');
+    const phone = document.getElementById('contactPhone');
+    const collectionFilePicker = document.getElementById('collectionFilePicker');
+    const collectionDropZone = document.getElementById('collectionDropZone');
+    const collectionMatchList = document.getElementById('collectionMatchList');
+
+    const batches = {
+      'old-photo': {
+        title: '城市老照片捐赠意向',
+        subtitle: 'COL-202606-008 · 周明 · 当前待后台联系判断',
+        status: '待联系',
+        statusClass: 'status warning',
+        phone: '138-0000-5526'
+      },
+      community: {
+        title: '社区建设资料捐赠',
+        subtitle: 'COL-202605-027 · 陈岚 · 当前待前台到馆接收',
+        status: '待接收',
+        statusClass: 'status info',
+        phone: '139-0000-7811'
+      },
+      factory: {
+        title: '厂区变迁照片资料',
+        subtitle: 'COL-202604-014 · 林越 · 今日到馆验收',
+        status: '待接收',
+        statusClass: 'status info',
+        phone: '137-0000-3490'
+      }
+    };
+
+    function showToast(message, type) {
+      toast.textContent = message;
+      toast.className = 'notice toast active' + (type ? ' ' + type : '');
+    }
+
+    document.querySelectorAll('.tab').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach((item) => item.classList.remove('active'));
+        tab.classList.add('active');
+        const filter = tab.dataset.filter;
+        document.querySelectorAll('.batch-item').forEach((item) => {
+          item.hidden = filter !== 'all' && item.dataset.group !== filter;
+        });
+      });
+    });
+
+    document.querySelectorAll('.batch-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.batch-item').forEach((row) => row.classList.remove('active'));
+        item.classList.add('active');
+        const data = batches[item.dataset.batch];
+        detailTitle.textContent = data.title;
+        detailSubtitle.textContent = data.subtitle;
+        detailStatus.textContent = data.status;
+        detailStatus.className = data.statusClass;
+        phone.textContent = data.phone;
+      });
+    });
+
+    document.getElementById('scheduleBtn').addEventListener('click', () => {
+      const scheduled = document.getElementById('scheduledAt').value;
+      if (!scheduled) {
+        showToast('请填写约定到馆时间。', 'danger');
+        return;
+      }
+      detailStatus.textContent = '待接收';
+      detailStatus.className = 'status info';
+      showToast('已记录联系结果，批次状态流转为待接收。');
+    });
+
+    document.getElementById('rejectBtn').addEventListener('click', () => {
+      const reason = document.getElementById('rejectReason').value.trim();
+      if (!reason) {
+        showToast('拒绝征集必须填写原因。', 'danger');
+        return;
+      }
+      detailStatus.textContent = '已拒绝';
+      detailStatus.className = 'status danger';
+      showToast('已拒绝该征集批次，公众端仅保留结果和原因。', 'warning');
+    });
+
+    document.getElementById('receiveBtn').addEventListener('click', () => {
+      const agreement = document.getElementById('agreementAcceptedAt').textContent;
+      if (!agreement.includes('已同意')) {
+        showToast('完成接收前必须存在提交时的在线协议同意记录。', 'danger');
+        return;
+      }
+      detailStatus.textContent = '部分接收';
+      detailStatus.className = 'status warning';
+      document.getElementById('receiptNo').value = 'REC-202606-031';
+      showToast('已完成接收，接收条目进入待入库，回退条目写入回执。');
+    });
+
+    document.getElementById('receiptBtn').addEventListener('click', () => {
+      const receiptNo = document.getElementById('receiptNo').value;
+      if (!receiptNo.startsWith('REC-')) {
+        showToast('请先完成接收后再导出回执。', 'warning');
+        return;
+      }
+      showToast('接收回执已生成，包含已接收条目和回退原因。');
+    });
+
+    function renderCollectionFiles(files) {
+      const list = Array.from(files);
+      if (!list.length) return;
+      collectionMatchList.innerHTML = list.map((file) => {
+        const lower = file.name.toLowerCase();
+        const matched = lower.includes('old') || lower.includes('street') || lower.includes('photo') || lower.includes('社区');
+        const duplicate = lower.includes('duplicate') || lower.includes('copy');
+        const status = duplicate ? '<span class="status warning">重复提示</span>' : matched ? '<span class="status success">匹配成功</span>' : '<span class="status warning">清单外文件</span>';
+        const hint = duplicate
+          ? '与已入库影像疑似重复，接收前需人工确认或回退'
+          : matched
+            ? '按清单文件名匹配，格式和安全检查通过'
+            : '清单无对应文件名，可人工补充说明或回退';
+        return `<div class="match-card"><div><strong>${file.name}</strong><div class="hint">${hint}</div></div>${status}</div>`;
+      }).join('');
+      showToast(`已暂存 ${list.length} 个征集电子文件，并生成匹配结果。`);
+    }
+
+    collectionFilePicker.addEventListener('change', () => renderCollectionFiles(collectionFilePicker.files));
+
+    ['dragenter', 'dragover'].forEach((eventName) => {
+      collectionDropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        collectionDropZone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach((eventName) => {
+      collectionDropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        collectionDropZone.classList.remove('dragover');
+      });
+    });
+
+    collectionDropZone.addEventListener('drop', (event) => renderCollectionFiles(event.dataTransfer.files));
+  </script>
+</body>
+</html>

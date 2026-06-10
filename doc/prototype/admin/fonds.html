@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>全宗管理 - 管理后台</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .fonds-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 390px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .fonds-row {
+      cursor: pointer;
+    }
+
+    .fonds-row.selected td {
+      background: #f7fcfc;
+    }
+
+    .detail-kv {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 8px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-kv span {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .bar-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .bar-item {
+      display: grid;
+      gap: 6px;
+    }
+
+    .bar-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .bar-track {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: var(--surface-muted);
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--primary);
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 30;
+      display: none;
+      max-width: 410px;
+      padding: 12px 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #f7fcfc;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1120px) {
+      .fonds-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link active" href="fonds.html">全宗管理 <span>当前</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><strong>全宗管理</strong><span class="muted"> 全宗、组织与归属关系维护</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option selected>后台管理员</option><option>系统管理员</option><option>前台管理员</option><option>馆领导</option></select></div>
+      </header>
+
+      <div class="content">
+        <div class="toolbar">
+          <div>
+            <h1 class="page-title">全宗管理</h1>
+            <p class="page-subtitle">维护全宗号、全宗名称和所属组织。全宗由后台入库阶段写入正式档案归属，移交单位编制清单时不选择全宗。</p>
+          </div>
+          <div class="actions">
+            <button class="button secondary" type="button" id="newFonds"><span class="icon">+</span>新建全宗</button>
+            <a class="button ghost" href="user-management.html"><span class="icon">O</span>组织维护</a>
+          </div>
+        </div>
+
+        <section class="grid four" aria-label="全宗概览">
+          <div class="metric">
+            <span class="label">全宗总数</span>
+            <span class="value" id="totalMetric">4</span>
+            <span class="note">fonds</span>
+          </div>
+          <div class="metric">
+            <span class="label">启用全宗</span>
+            <span class="value" id="activeMetric">3</span>
+            <span class="note">可被入库选择</span>
+          </div>
+          <div class="metric">
+            <span class="label">归档档案</span>
+            <span class="value" id="archiveMetric">846</span>
+            <span class="note">archives.fonds_id</span>
+          </div>
+          <div class="metric">
+            <span class="label">档案盒</span>
+            <span class="value" id="boxMetric">92</span>
+            <span class="note">archive_boxes.fonds_id</span>
+          </div>
+        </section>
+
+        <div class="fonds-layout" style="margin-top:16px">
+          <section class="stack">
+            <div class="card panel">
+              <h2 class="section-title">筛选条件</h2>
+              <div class="form-grid">
+                <div class="field"><label for="keyword">关键词</label><input id="keyword" placeholder="全宗号、全宗名称、单位"></div>
+                <div class="field"><label for="orgFilter">所属单位</label><select id="orgFilter"><option value="">全部单位</option><option>市教育局</option><option>财务部</option><option>住建局</option><option>档案馆本馆</option></select></div>
+                <div class="field"><label for="relationFilter">关联状态</label><select id="relationFilter"><option value="">全部</option><option value="linked">有归档数据</option><option value="empty">无关联数据</option><option value="disabled">已停用</option></select></div>
+              </div>
+              <div class="actions" style="margin-top:12px">
+                <button class="button" type="button" id="filterBtn"><span class="icon">F</span>查询</button>
+                <button class="button ghost" type="button" id="resetBtn">重置</button>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <div class="toolbar" style="margin-top:0">
+                <h2 class="section-title">全宗列表</h2>
+                <span class="hint">全宗号创建后不可修改</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>全宗号</th>
+                      <th>全宗名称</th>
+                      <th>所属单位</th>
+                      <th>归档档案</th>
+                      <th>档案盒</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fondsRows"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="grid two">
+              <div class="card panel">
+                <h2 class="section-title">门类分布</h2>
+                <ul class="bar-list" id="categoryBars"></ul>
+              </div>
+              <div class="card panel">
+                <h2 class="section-title">最近入库记录</h2>
+                <ul class="timeline" id="recentList"></ul>
+              </div>
+            </div>
+
+            <div class="notice">
+              全宗与移交清单不直接关联。小张提交清单时不选择全宗；小刘在后台确认正式档案入库时选择全宗，纯电子档案同样必须归属全宗。
+            </div>
+          </section>
+
+          <aside class="drawer" aria-label="全宗详情">
+            <h2 class="section-title" id="drawerTitle">编辑全宗</h2>
+            <div class="detail-kv"><span>当前状态</span><strong id="statusText">启用</strong></div>
+            <div class="detail-kv"><span>关联数据</span><strong id="relationText">312 件档案 / 34 个档案盒</strong></div>
+
+            <div class="field">
+              <label for="fondsNo">全宗号</label>
+              <input id="fondsNo" value="F-001" readonly>
+              <span class="hint" id="noHint">创建后不可修改；新建时需手动输入并校验唯一。</span>
+            </div>
+            <div class="field">
+              <label for="fondsName">全宗名称</label>
+              <input id="fondsName" value="市教育局全宗">
+            </div>
+            <div class="field">
+              <label for="orgSelect">所属单位</label>
+              <select id="orgSelect">
+                <option>市教育局</option>
+                <option>财务部</option>
+                <option>住建局</option>
+                <option>档案馆本馆</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="description">全宗说明</label>
+              <textarea id="description">市教育局历年行政管理、教育规划、项目建设与公开报告档案。</textarea>
+            </div>
+
+            <div class="notice warning" id="ruleNotice">
+              全宗号只读。修改全宗名称、所属单位或说明后，保存记录写入 audit_logs。
+            </div>
+
+            <div class="actions">
+              <button class="button" type="button" id="saveFonds"><span class="icon">S</span>保存全宗</button>
+              <button class="button ghost" type="button" id="cancelEdit">取消</button>
+              <button class="button danger" type="button" id="deleteOrDisable">停用</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const fonds = [
+      { no: 'F-001', name: '市教育局全宗', org: '市教育局', archives: 312, boxes: 34, status: '启用', description: '市教育局历年行政管理、教育规划、项目建设与公开报告档案。', categories: [['文书档案', 146], ['科技档案', 88], ['会计档案', 54], ['音像档案', 24]], recent: [['2026-05-28', '2025 年度公开工作报告'], ['2026-05-12', '学校建设项目验收材料'], ['2026-04-30', '教育经费决算资料']] },
+      { no: 'F-002', name: '财务部全宗', org: '财务部', archives: 428, boxes: 47, status: '启用', description: '财务部会计凭证、预算决算、资产采购与审计相关档案。', categories: [['会计档案', 301], ['文书档案', 92], ['科技档案', 35]], recent: [['2026-06-02', '2025 年度会计凭证'], ['2026-05-19', '设备采购验收材料'], ['2026-05-06', '预算调整审批资料']] },
+      { no: 'F-003', name: '住建局全宗', org: '住建局', archives: 106, boxes: 11, status: '启用', description: '住建局项目审批、工程验收和城市建设管理档案。', categories: [['科技档案', 64], ['文书档案', 38], ['音像档案', 4]], recent: [['2026-05-21', '老旧小区改造项目资料'], ['2026-04-16', '道路施工验收报告']] },
+      { no: 'F-004', name: '档案馆本馆全宗', org: '档案馆本馆', archives: 0, boxes: 0, status: '停用', description: '本馆内部管理资料示例全宗，当前停用且无关联档案。', categories: [['文书档案', 0]], recent: [] }
+    ];
+
+    const organizations = ['市教育局', '财务部', '住建局', '档案馆本馆'];
+    let selectedIndex = 0;
+    let creating = false;
+
+    const toast = document.getElementById('toast');
+
+    function show(message, danger = false) {
+      toast.textContent = message;
+      toast.className = danger ? 'toast show notice danger' : 'toast show';
+      window.clearTimeout(show.timer);
+      show.timer = window.setTimeout(() => toast.className = 'toast', 3200);
+    }
+
+    function renderRows(list = fonds) {
+      fondsRows.innerHTML = list.map((item, index) => {
+        const realIndex = fonds.indexOf(item);
+        const linked = item.archives > 0 || item.boxes > 0;
+        const statusClass = item.status === '启用' ? 'success' : 'warning';
+        return `<tr class="fonds-row ${realIndex === selectedIndex ? 'selected' : ''}" data-index="${realIndex}">
+          <td class="mono">${item.no}</td>
+          <td>${item.name}</td>
+          <td>${item.org}</td>
+          <td>${item.archives}</td>
+          <td>${item.boxes}</td>
+          <td><span class="status ${statusClass}">${item.status}</span></td>
+          <td><div class="actions"><button class="button ghost" type="button" data-edit="${realIndex}">编辑</button><button class="button ${linked ? 'warning' : 'danger'}" type="button" data-remove="${realIndex}">${linked ? '停用' : '删除'}</button></div></td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderDetail(index) {
+      const item = fonds[index];
+      selectedIndex = index;
+      creating = false;
+      drawerTitle.textContent = '编辑全宗';
+      statusText.textContent = item.status;
+      relationText.textContent = `${item.archives} 件档案 / ${item.boxes} 个档案盒`;
+      fondsNo.value = item.no;
+      fondsNo.readOnly = true;
+      fondsName.value = item.name;
+      orgSelect.value = item.org;
+      description.value = item.description;
+      deleteOrDisable.textContent = item.archives > 0 || item.boxes > 0 ? '停用' : '删除';
+      ruleNotice.textContent = '全宗号只读。修改全宗名称、所属单位或说明后，保存记录写入 audit_logs。';
+      renderBars(item);
+      renderRecent(item);
+      renderRows();
+    }
+
+    function renderBars(item) {
+      const max = Math.max(...item.categories.map(row => row[1]), 1);
+      categoryBars.innerHTML = item.categories.map(([name, value]) => `<li class="bar-item"><div class="bar-head"><span>${name}</span><span>${value} 件</span></div><div class="bar-track"><div class="bar-fill" style="width:${Math.max(value / max * 100, value ? 8 : 0)}%"></div></div></li>`).join('');
+    }
+
+    function renderRecent(item) {
+      recentList.innerHTML = item.recent.length ? item.recent.map(([date, title]) => `<li><span class="mono">${date}</span><strong>${title}</strong></li>`).join('') : '<li><span class="mono">暂无</span><strong>当前全宗无入库记录</strong></li>';
+    }
+
+    function startCreate() {
+      creating = true;
+      drawerTitle.textContent = '新建全宗';
+      statusText.textContent = '待保存';
+      relationText.textContent = '0 件档案 / 0 个档案盒';
+      fondsNo.value = '';
+      fondsNo.readOnly = false;
+      fondsName.value = '';
+      orgSelect.value = '';
+      description.value = '';
+      deleteOrDisable.textContent = '取消新建';
+      ruleNotice.textContent = '新建全宗需手动填写全宗号，并选择已启用的所属单位。';
+      categoryBars.innerHTML = '<li class="bar-item"><div class="bar-head"><span>保存后统计</span><span>0 件</span></div><div class="bar-track"><div class="bar-fill" style="width:0"></div></div></li>';
+      recentList.innerHTML = '<li><span class="mono">待保存</span><strong>保存后可被入库页面选择</strong></li>';
+      document.querySelectorAll('.fonds-row').forEach(row => row.classList.remove('selected'));
+    }
+
+    function validate() {
+      const no = fondsNo.value.trim();
+      const name = fondsName.value.trim();
+      const org = orgSelect.value.trim();
+      if (!no) return '请填写全宗号。';
+      if (!name) return '请填写全宗名称。';
+      if (!org) return '请选择所属单位。';
+      if (!organizations.includes(org)) return '所属单位不存在，请先到用户管理维护组织。';
+      const duplicate = fonds.some((item, index) => item.no === no && (creating || index !== selectedIndex));
+      if (duplicate) return '全宗号已存在，请沿用档案馆唯一编号体系重新填写。';
+      return '';
+    }
+
+    function save() {
+      const error = validate();
+      if (error) {
+        show(error, true);
+        return;
+      }
+      if (creating) {
+        fonds.push({ no: fondsNo.value.trim(), name: fondsName.value.trim(), org: orgSelect.value, archives: 0, boxes: 0, status: '启用', description: description.value.trim(), categories: [['文书档案', 0], ['科技档案', 0], ['会计档案', 0]], recent: [] });
+        selectedIndex = fonds.length - 1;
+        show('全宗已新建，可在待入库与上架页面选择该全宗。');
+      } else {
+        Object.assign(fonds[selectedIndex], { name: fondsName.value.trim(), org: orgSelect.value, description: description.value.trim() });
+        show('全宗已保存，名称、所属单位和说明变更写入 audit_logs。');
+      }
+      totalMetric.textContent = fonds.length;
+      activeMetric.textContent = fonds.filter(item => item.status === '启用').length;
+      renderDetail(selectedIndex);
+    }
+
+    function removeOrDisable(index) {
+      const item = fonds[index];
+      if (creating) {
+        renderDetail(selectedIndex);
+        show('已取消新建全宗。');
+        return;
+      }
+      if (item.archives > 0 || item.boxes > 0) {
+        item.status = '停用';
+        show('该全宗已有归档档案或档案盒，不能删除，已模拟标记为停用。');
+      } else {
+        fonds.splice(index, 1);
+        selectedIndex = 0;
+        show('无关联数据的全宗已模拟删除。');
+      }
+      totalMetric.textContent = fonds.length;
+      activeMetric.textContent = fonds.filter(row => row.status === '启用').length;
+      renderDetail(Math.min(selectedIndex, fonds.length - 1));
+    }
+
+    function filterList() {
+      const key = keyword.value.trim();
+      const org = orgFilter.value;
+      const relation = relationFilter.value;
+      const filtered = fonds.filter(item => {
+        const hitKey = !key || item.no.includes(key) || item.name.includes(key) || item.org.includes(key);
+        const hitOrg = !org || item.org === org;
+        const hitRelation = !relation || (relation === 'linked' && (item.archives > 0 || item.boxes > 0)) || (relation === 'empty' && item.archives === 0 && item.boxes === 0) || (relation === 'disabled' && item.status === '停用');
+        return hitKey && hitOrg && hitRelation;
+      });
+      renderRows(filtered);
+      show(`已按条件筛选出 ${filtered.length} 个全宗。`);
+    }
+
+    fondsRows.addEventListener('click', event => {
+      const editButton = event.target.closest('[data-edit]');
+      const removeButton = event.target.closest('[data-remove]');
+      const row = event.target.closest('.fonds-row');
+      if (editButton) {
+        renderDetail(Number(editButton.dataset.edit));
+        show('已加载全宗详情。');
+      } else if (removeButton) {
+        removeOrDisable(Number(removeButton.dataset.remove));
+      } else if (row) {
+        renderDetail(Number(row.dataset.index));
+      }
+    });
+
+    newFonds.addEventListener('click', startCreate);
+    saveFonds.addEventListener('click', save);
+    cancelEdit.addEventListener('click', () => { renderDetail(selectedIndex); show('已取消本次编辑。'); });
+    deleteOrDisable.addEventListener('click', () => removeOrDisable(selectedIndex));
+    filterBtn.addEventListener('click', filterList);
+    resetBtn.addEventListener('click', () => { keyword.value = ''; orgFilter.value = ''; relationFilter.value = ''; renderRows(); show('筛选条件已重置。'); });
+
+    orgSelect.insertAdjacentHTML('afterbegin', '<option value="">请选择所属单位</option>');
+    renderRows();
+    renderDetail(0);
+  </script>
+</body>
+</html>

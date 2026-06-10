@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工作台概览 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .record-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .record-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .record-card h3 {
+      margin: 0 0 4px;
+      font-size: 15px;
+    }
+
+    .meta-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .authority-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .authority-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .authority-line:last-child {
+      border-bottom: 0;
+    }
+
+    .toast {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    .toast.active {
+      display: block;
+    }
+
+    @media (max-width: 1080px) {
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .record-card {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <strong>智能档案管理系统</strong>
+        <span>内部查阅者门户</span>
+      </div>
+      <nav class="nav-section" aria-label="内部门户导航">
+        <div class="nav-title">个人工作台</div>
+        <a class="nav-link active" href="overview.html">工作台概览</a>
+        <a class="nav-link" href="search.html">档案检索利用</a>
+        <div class="nav-title">利用记录</div>
+        <a class="nav-link" href="overview.html#borrow">我的借阅申请</a>
+        <a class="nav-link" href="overview.html#downloads">我的下载记录</a>
+      </nav>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div><strong>工作台概览</strong><span class="muted"> 查阅、借阅与下载记录</span></div>
+        <div class="role"><span>小李</span><span class="status info">内部查阅者</span><span class="status success">密级上限：秘密</span></div>
+      </header>
+
+      <main class="content">
+        <div class="notice toast" id="toast" role="status"></div>
+
+        <section class="grid four" aria-label="个人利用指标">
+          <div class="metric">
+            <span class="label">最近查阅</span>
+            <span class="value">14</span>
+            <span class="note">近 30 日元数据访问</span>
+          </div>
+          <div class="metric">
+            <span class="label">待审批申请</span>
+            <span class="value">2</span>
+            <span class="note">等待管理员审核</span>
+          </div>
+          <div class="metric">
+            <span class="label">已批准待取件</span>
+            <span class="value">1</span>
+            <span class="note">可导出借阅凭证</span>
+          </div>
+          <div class="metric">
+            <span class="label">下载记录</span>
+            <span class="value">23</span>
+            <span class="note">每次下载均记录日志</span>
+          </div>
+        </section>
+
+        <section class="dashboard-layout" style="margin-top: 16px;">
+          <div class="grid">
+            <div class="card panel">
+              <div class="toolbar">
+                <div>
+                  <h2 class="section-title">我的最近查阅</h2>
+                  <p class="page-subtitle">再次打开详情时，后端仍会按当前权限重新过滤。</p>
+                </div>
+                <a class="button" href="search.html"><span class="icon" aria-hidden="true">查</span>进入检索</a>
+              </div>
+
+              <ul class="record-list">
+                <li class="record-card">
+                  <div>
+                    <h3>智慧城市项目年度技术报告</h3>
+                    <div class="meta-line">
+                      <span>档号：KJ-2025-0188</span>
+                      <span>分类：科技档案</span>
+                      <span>密级：秘密</span>
+                      <span>2026-06-07 11:20</span>
+                    </div>
+                  </div>
+                  <div class="actions">
+                    <span class="status success">可重新鉴权</span>
+                    <button class="button ghost" type="button" data-open="ok">继续查看</button>
+                  </div>
+                </li>
+                <li class="record-card">
+                  <div>
+                    <h3>信息化建设会议纪要</h3>
+                    <div class="meta-line">
+                      <span>档号：WS-2024-0912</span>
+                      <span>分类：文书档案</span>
+                      <span>密级：非密</span>
+                      <span>2026-06-05 16:42</span>
+                    </div>
+                  </div>
+                  <div class="actions">
+                    <span class="status success">可预览</span>
+                    <button class="button ghost" type="button" data-open="ok">继续查看</button>
+                  </div>
+                </li>
+                <li class="record-card">
+                  <div>
+                    <h3>历史专项资料汇编</h3>
+                    <div class="meta-line">
+                      <span>档号：WS-2019-0440</span>
+                      <span>分类：文书档案</span>
+                      <span>状态：权限变化</span>
+                      <span>2026-05-22 09:10</span>
+                    </div>
+                  </div>
+                  <div class="actions">
+                    <span class="status warning">仅保留记录</span>
+                    <button class="button ghost" type="button" data-open="denied">继续查看</button>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div class="card panel" id="borrow">
+              <div class="toolbar">
+                <div>
+                  <h2 class="section-title">我的借阅申请</h2>
+                  <p class="page-subtitle">借阅凭证不是出库记录，到馆核验并确认出库后档案才变为借出。</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>申请号</th>
+                      <th>档案题名</th>
+                      <th>申请时间</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>BR-202606-021</td>
+                      <td>智慧城市项目年度技术报告</td>
+                      <td>2026-06-07</td>
+                      <td><span class="status warning">待审批</span></td>
+                      <td><button class="button ghost" type="button" data-apply="pending">查看申请</button></td>
+                    </tr>
+                    <tr>
+                      <td>BR-202606-018</td>
+                      <td>工程建设验收材料</td>
+                      <td>2026-06-04</td>
+                      <td><span class="status success">已批准</span></td>
+                      <td><button class="button secondary" type="button" data-voucher>导出凭证</button></td>
+                    </tr>
+                    <tr>
+                      <td>BR-202605-033</td>
+                      <td>设备采购合同</td>
+                      <td>2026-05-21</td>
+                      <td><span class="status info">已归还</span></td>
+                      <td><button class="button ghost" type="button" data-apply="returned">查看申请</button></td>
+                    </tr>
+                    <tr>
+                      <td>BR-202605-017</td>
+                      <td>盘点范围内资料</td>
+                      <td>2026-05-12</td>
+                      <td><span class="status danger">已拒绝</span></td>
+                      <td><button class="button ghost" type="button" data-apply="rejected">查看原因</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <aside class="grid">
+            <div class="card panel">
+              <h2 class="section-title">我的权限范围</h2>
+              <div class="authority-grid">
+                <div class="authority-line"><span class="muted">角色</span><strong>内部查阅者</strong></div>
+                <div class="authority-line"><span class="muted">所属单位</span><strong>技术部</strong></div>
+                <div class="authority-line"><span class="muted">密级上限</span><strong>秘密</strong></div>
+                <div class="authority-line"><span class="muted">可见范围</span><strong>本单位授权全宗</strong></div>
+              </div>
+            </div>
+
+            <div class="card panel" id="downloads">
+              <h2 class="section-title">我的下载记录</h2>
+              <ol class="timeline">
+                <li><span class="muted">06-07</span><span>智慧城市项目年度技术报告</span></li>
+                <li><span class="muted">06-03</span><span>信息化建设会议纪要</span></li>
+                <li><span class="muted">05-28</span><span>公开技术标准汇编</span></li>
+              </ol>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">利用边界</h2>
+              <div class="notice">内部查阅不展示具体库房架位。电子预览和下载复用同一套后端鉴权，纸质原件统一走借阅申请。</div>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const toast = document.getElementById('toast');
+
+    function showToast(message, type) {
+      toast.textContent = message;
+      toast.className = 'notice toast active' + (type ? ' ' + type : '');
+    }
+
+    document.querySelectorAll('[data-open]').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (button.dataset.open === 'ok') {
+          showToast('重新鉴权通过，可进入档案详情和预览。');
+        } else {
+          showToast('当前权限不再覆盖该档案，工作台仅保留历史操作记录。', 'warning');
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-voucher]').forEach((button) => {
+      button.addEventListener('click', () => {
+        showToast('借阅凭证已生成。凭证需单位盖章，到馆核验后才可确认出库。');
+      });
+    });
+
+    document.querySelectorAll('[data-apply]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const status = button.dataset.apply;
+        if (status === 'pending') {
+          showToast('申请仍在待审批状态，不能导出凭证。', 'warning');
+        } else if (status === 'rejected') {
+          showToast('拒绝原因：目标档案处于盘点范围，暂不支持借阅。', 'danger');
+        } else {
+          showToast('该申请已归还，记录只读。');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam activityBackgroundColor #EEF5FF
+skinparam activityBorderColor #2F5F98
+skinparam activityDiamondBackgroundColor #FFFFFF
+skinparam activityDiamondBorderColor #555555
+skinparam swimlaneBorderColor #8A95A3
+skinparam swimlaneTitleBackgroundColor #F7F9FC
+
+title 系统总体数据流程图
+
+|外部来源|
+start
+:移交单位在线编制清单\n只记录字段和文件名;
+:社会公众提交征集清单\n只登记捐赠意向;
+:线下携带纸质原件、电子介质\n和签字盖章凭证到馆;
+
+|前台接收|
+:调取移交/征集清单;
+:逐项验收纸质原件、数量、页数和凭证;
+:统一上传电子文件;
+:按文件名匹配清单条目;
+:执行格式、哈希、病毒扫描等四性检查;
+if (验收结果?) is (全部通过) then
+  :清单状态 = 已接收;
+elseif (部分通过) then
+  :清单状态 = 部分接收\n回退条目写入回执;
+else (不通过)
+  :清单状态 = 已回退或已拒绝;
+  stop
+endif
+
+|后台入库|
+:AI 基于整批清单字段补全\n题名、责任者、形成日期、分类、标签;
+:后端白名单过滤\n管理员人工确认或修正;
+:确认入库并生成正式档号;
+if (载体状态?) is (纯电子) then
+  :暂存电子文件转正式路径;
+  :档案进入检索利用范围;
+elseif (纸质+电子) then
+  :电子文件归档并建立纸电关联;
+  :填写盒号、架位并装盒;
+  :确认上架后进入检索和借阅范围;
+else (纯纸质)
+  :填写盒号、架位并装盒;
+  :确认上架后进入检索和借阅范围;
+endif
+
+|数据存储|
+:PostgreSQL 存储\n档案元数据、清单、审批、借阅、日志;
+:MinIO 存储\n电子文件、扫描件、回执、现场照片、备份;
+:ClamAV 扫描结果与文件哈希入库;
+
+|利用与处置|
+:内部用户按密级和数据范围检索;
+:公众仅检索非密、公开、未销毁档案;
+:纸质借阅申请、审批、出库、归还;
+:鉴定到期档案并生成销毁清册;
+:馆领导审批密级、开放、销毁事项;
+:销毁后保留元数据、清册、审批和日志;
+
+|运行支撑|
+:统计分析和 AI 数据研判;
+:备份和四性检测;
+stop
+@enduml

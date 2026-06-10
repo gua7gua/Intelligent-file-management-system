@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>数据研判 - 管理后台</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .task-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .task-cell {
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    .task-cell span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .task-cell strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 20px;
+    }
+
+    .progress {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e7edf2;
+    }
+
+    .progress span {
+      display: block;
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #1f6f78, #2f855a);
+      transition: width 0.4s ease;
+    }
+
+    .queue {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .queue li {
+      padding: 11px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    .analysis-row.active {
+      background: #f2f8f8;
+    }
+
+    .detail-line {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr);
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-line span {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .field-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 30;
+      display: none;
+      max-width: 390px;
+      padding: 12px 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #f7fcfc;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1120px) {
+      .analysis-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 880px) {
+      .task-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      .task-strip {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link active" href="data-analysis.html">数据研判 <span>当前</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><strong>数据研判</strong><span class="muted"> 规则扫描与 AI 辅助分析</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option selected>后台管理员</option><option>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+
+      <div class="content">
+        <div class="toolbar">
+          <div>
+            <h1 class="page-title">数据研判</h1>
+            <p class="page-subtitle">扫描正式档案元数据，生成缺失字段、分类冲突和标签建议；采纳后进入待处理清单，不在本页直接改库。</p>
+          </div>
+          <div class="actions">
+            <button class="button secondary" id="startScan"><span class="icon">S</span>开始扫描</button>
+            <button class="button" id="makeQueue"><span class="icon">Q</span>生成待补充清单</button>
+          </div>
+        </div>
+
+        <div class="notice warning">
+          AI 输出必须经过 JSON 提取、字段白名单、枚举、权限和状态校验。密级、保管期限、公开状态、允许数字化、档号、架位、销毁状态不在本页直接覆盖。
+        </div>
+
+        <div class="analysis-grid" style="margin-top:16px">
+          <section class="stack">
+            <div class="card panel">
+              <h2 class="section-title">扫描控制</h2>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="scope">扫描范围</label>
+                  <select id="scope">
+                    <option>正式档案：本年度新增</option>
+                    <option>正式档案：全部正常状态</option>
+                    <option>正式档案：科技档案</option>
+                    <option>正式档案：文书档案</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="type">任务类型</label>
+                  <select id="type">
+                    <option>mixed：缺失字段 + 分类冲突</option>
+                    <option>missing_fields：缺失字段</option>
+                    <option>category_conflict：分类冲突</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="batchSize">每批数量</label>
+                  <select id="batchSize">
+                    <option>20 条</option>
+                    <option>10 条</option>
+                    <option>5 条</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <div class="toolbar" style="margin-top:0">
+                <h2 class="section-title">任务状态</h2>
+                <span class="status" id="taskStatus">未开始</span>
+              </div>
+              <div class="task-strip">
+                <div class="task-cell"><span>任务号</span><strong class="mono" id="taskNo">待生成</strong></div>
+                <div class="task-cell"><span>扫描档案</span><strong id="scanCount">0</strong></div>
+                <div class="task-cell"><span>候选建议</span><strong id="issueCount">0</strong></div>
+                <div class="task-cell"><span>已采纳</span><strong id="adoptedCount">0</strong></div>
+              </div>
+              <div class="progress" style="margin-top:14px" aria-label="扫描进度"><span id="progressBar"></span></div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">异常建议列表</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>档号</th>
+                      <th>题名</th>
+                      <th>问题类型</th>
+                      <th>问题描述</th>
+                      <th>建议动作</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="analysis-row active" data-index="0" data-state="pending">
+                      <td class="mono">WS-2025-0106</td>
+                      <td>年度科技成果统计汇总</td>
+                      <td><span class="status warning">分类疑似冲突</span></td>
+                      <td>题名包含科技成果，当前分类为文书档案。</td>
+                      <td>建议人工核对是否调整为科技档案。</td>
+                      <td><span class="status" data-role="state">待处理</span></td>
+                      <td><button class="button ghost" type="button" data-action="detail">详情</button></td>
+                    </tr>
+                    <tr class="analysis-row" data-index="1" data-state="pending">
+                      <td class="mono">KJ-2024-0221</td>
+                      <td>重点实验室运行记录</td>
+                      <td><span class="status info">字段缺失</span></td>
+                      <td>摘要字段为空，标签为空。</td>
+                      <td>生成待补充清单，由档案管理页面人工补录。</td>
+                      <td><span class="status" data-role="state">待处理</span></td>
+                      <td><button class="button ghost" type="button" data-action="detail">详情</button></td>
+                    </tr>
+                    <tr class="analysis-row" data-index="2" data-state="pending">
+                      <td class="mono">KJ-2023-0042</td>
+                      <td>科技成果登记汇总表</td>
+                      <td><span class="status info">标签建议</span></td>
+                      <td>题名与摘要包含成果登记，缺少“成果登记”标签。</td>
+                      <td>建议加入待核对标签，不自动写入标签关系。</td>
+                      <td><span class="status" data-role="state">待处理</span></td>
+                      <td><button class="button ghost" type="button" data-action="detail">详情</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <aside class="stack">
+            <div class="card panel">
+              <h2 class="section-title">条目详情</h2>
+              <div class="detail-line"><span>档号</span><strong id="detailNo">WS-2025-0106</strong></div>
+              <div class="detail-line"><span>题名</span><strong id="detailTitle">年度科技成果统计汇总</strong></div>
+              <div class="detail-line"><span>问题</span><strong id="detailIssue">题名包含科技成果，当前分类为文书档案。</strong></div>
+              <div class="detail-line"><span>建议</span><strong id="detailSuggestion">建议人工核对是否调整为科技档案。</strong></div>
+              <div class="actions" style="margin-top:12px">
+                <button class="button secondary" type="button" id="adoptBtn">采纳</button>
+                <button class="button ghost" type="button" id="rejectBtn">不采纳</button>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">AI JSON 建议</h2>
+              <div class="ai-box">
+                <pre id="jsonBox">&lt;JSON&gt;
+{
+  "ruleType": "dataAnalysis",
+  "anomalies": []
+}
+&lt;/JSON&gt;</pre>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">字段边界</h2>
+              <div class="field-tags">
+                <span class="status success">可建议：title</span>
+                <span class="status success">可建议：responsible</span>
+                <span class="status success">可建议：formedDate</span>
+                <span class="status success">可建议：category</span>
+                <span class="status success">可建议：tags</span>
+                <span class="status success">可建议：summary</span>
+                <span class="status danger">禁止直接改密级</span>
+                <span class="status danger">禁止直接改保管期限</span>
+                <span class="status danger">禁止直接改公开状态</span>
+                <span class="status danger">禁止直接改档号/架位</span>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">待处理队列</h2>
+              <ul class="queue" id="queue">
+                <li class="muted">暂无已采纳建议。</li>
+              </ul>
+            </div>
+
+            <div class="notice">
+              <strong>处理边界</strong>
+              <div>采纳或不采纳只更新 <span class="mono">analysis_items.status</span>；正式档案字段仍需在档案管理页面由人工确认并记录变更日志。</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const toast = document.getElementById('toast');
+    const taskStatus = document.getElementById('taskStatus');
+    const taskNo = document.getElementById('taskNo');
+    const scanCount = document.getElementById('scanCount');
+    const issueCount = document.getElementById('issueCount');
+    const adoptedCount = document.getElementById('adoptedCount');
+    const progressBar = document.getElementById('progressBar');
+    const jsonBox = document.getElementById('jsonBox');
+    const queue = document.getElementById('queue');
+    const rows = Array.from(document.querySelectorAll('.analysis-row'));
+    let adopted = 0;
+    let activeRow = rows[0];
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function renderQueue(text) {
+      if (queue.firstElementChild && queue.firstElementChild.classList.contains('muted')) {
+        queue.innerHTML = '';
+      }
+      const item = document.createElement('li');
+      item.textContent = text;
+      queue.appendChild(item);
+    }
+
+    function setActiveRow(row) {
+      rows.forEach((item) => item.classList.remove('active'));
+      activeRow = row;
+      row.classList.add('active');
+      document.getElementById('detailNo').textContent = row.children[0].textContent;
+      document.getElementById('detailTitle').textContent = row.children[1].textContent;
+      document.getElementById('detailIssue').textContent = row.children[3].textContent;
+      document.getElementById('detailSuggestion').textContent = row.children[4].textContent;
+    }
+
+    function setDecision(decision) {
+      const state = activeRow.querySelector('[data-role="state"]');
+      const archiveNo = activeRow.children[0].textContent;
+      const title = activeRow.children[1].textContent;
+
+      if (decision === 'adopted') {
+        if (activeRow.dataset.state !== 'adopted') {
+          adopted += 1;
+          adoptedCount.textContent = String(adopted);
+          renderQueue(archiveNo + ' · ' + title + '：加入待处理清单');
+        }
+        activeRow.dataset.state = 'adopted';
+        state.textContent = '已采纳';
+        state.className = 'status success';
+        showToast('建议已采纳，仅更新 analysis_items.status=adopted。');
+        return;
+      }
+
+      if (activeRow.dataset.state === 'adopted') {
+        adopted = Math.max(0, adopted - 1);
+        adoptedCount.textContent = String(adopted);
+      }
+      activeRow.dataset.state = 'rejected';
+      state.textContent = '已不采纳';
+      state.className = 'status';
+      showToast('建议已不采纳，仅更新 analysis_items.status=rejected。');
+    }
+
+    document.getElementById('startScan').addEventListener('click', () => {
+      taskStatus.textContent = '执行中';
+      taskStatus.className = 'status warning';
+      taskNo.textContent = 'AN-2026-0609-001';
+      progressBar.style.width = '45%';
+      showToast('规则扫描已启动，AI 只接收元数据上下文。');
+
+      window.setTimeout(() => {
+        taskStatus.textContent = '已完成';
+        taskStatus.className = 'status success';
+        scanCount.textContent = '20';
+        issueCount.textContent = '3';
+        progressBar.style.width = '100%';
+        jsonBox.textContent = '<JSON>\\n{\\n  "ruleType": "dataAnalysis",\\n  "anomalies": [\\n    {"archiveId": "WS-2025-0106", "issueType": "category_mismatch", "issue": "题名与分类疑似不一致", "suggestion": "人工核对分类"},\\n    {"archiveId": "KJ-2024-0221", "issueType": "metadata_missing", "issue": "摘要和标签缺失", "suggestion": "生成待补充清单"}\\n  ]\\n}\\n</JSON>';
+        showToast('扫描完成，已生成候选建议，未修改正式档案。');
+      }, 700);
+    });
+
+    document.querySelectorAll('[data-action="detail"]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const row = button.closest('tr');
+        setActiveRow(row);
+      });
+    });
+
+    document.getElementById('adoptBtn').addEventListener('click', () => setDecision('adopted'));
+    document.getElementById('rejectBtn').addEventListener('click', () => setDecision('rejected'));
+
+    document.getElementById('makeQueue').addEventListener('click', () => {
+      if (adopted === 0) {
+        showToast('请先采纳至少一条建议。');
+        return;
+      }
+      showToast('已生成待补充清单，后续在档案管理页面人工处理。');
+    });
+  </script>
+</body>
+</html>

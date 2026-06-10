@@ -1,0 +1,61 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam activityBackgroundColor #EEF5FF
+skinparam activityBorderColor #2F5F98
+skinparam activityDiamondBackgroundColor #FFFFFF
+skinparam activityDiamondBorderColor #555555
+skinparam swimlaneBorderColor #8A95A3
+skinparam swimlaneTitleBackgroundColor #F7F9FC
+
+title 业务部门移交与档案接收流程图
+
+|移交单位经办人|
+start
+:整理本单位档案;
+:在线编制移交清单;
+:拖拽文件仅解析文件名、扩展名、大小;
+:提交清单并导出打印;
+:携带纸质原件、U 盘和签字清单到馆;
+
+|前台管理员|
+:调取清单;
+:核对纸质原件、页数、数量、签章;
+:上传 U 盘电子文件;
+:系统按文件名匹配清单条目;
+if (匹配和四性检查?) is (通过) then
+  :暂存电子文件并关联条目;
+elseif (部分异常) then
+  :异常条目回退并填写原因;
+else (失败)
+  :整批回退或终止接收;
+  stop
+endif
+:导出接收回执\n已接收条目 + 回退原因;
+
+|后台管理员|
+:打开已接收/部分接收清单;
+:点击 AI 补全入库字段;
+:后端剥离受保护字段;
+:人工确认或修正候选值;
+if (载体状态?) is (纯电子) then
+  :确认入库并生成档号;
+  :电子文件从暂存路径转正式路径;
+  :档案进入检索利用范围;
+elseif (纸质+电子) then
+  :确认电子文件归档;
+  :填写盒号、盒脊、架位;
+  :确认入库，状态为已入库未上架;
+  :实物上架后点击已上架;
+else (纯纸质)
+  :填写盒号、盒脊、架位;
+  :确认入库，状态为已入库未上架;
+  :实物上架后点击已上架;
+endif
+
+|系统|
+:生成正式档案、档号、文件记录和操作日志;
+:更新清单状态为已入库或已上架;
+stop
+@enduml

@@ -1,0 +1,63 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #F6F8FA
+  BorderColor #5B6B7D
+  FontColor #111827
+}
+skinparam rectangle {
+  BorderColor #5B6B7D
+}
+left to right direction
+
+title 系统总体用例图
+
+actor "移交单位经办人" as TransferUser
+actor "社会公众" as PublicUser
+actor "内部查阅者" as InternalUser
+actor "前台管理员" as FrontAdmin
+actor "后台管理员" as BackAdmin
+actor "馆领导" as Director
+actor "系统管理员" as SysAdmin
+
+rectangle "智能档案管理系统" {
+  usecase "编制/导出移交清单" as UCTransfer
+  usecase "提交征集清单" as UCCollectPublic
+  usecase "前台验收与电子文件上传" as UCReceive
+  usecase "AI 补全与确认入库" as UCAiArchive
+  usecase "装盒、分配架位、上架" as UCShelve
+  usecase "档案整理与全宗管理" as UCManage
+  usecase "内部检索与在线预览" as UCInternalSearch
+  usecase "公开档案检索与下载" as UCPublicSearch
+  usecase "纸质档案借阅" as UCBorrow
+  usecase "盘点、鉴定、销毁" as UCDispose
+  usecase "密级/开放调整审批" as UCApproval
+  usecase "统计、研判、保存备份" as UCDataOps
+  usecase "用户、配置、日志审计" as UCSystem
+}
+
+TransferUser --> UCTransfer
+PublicUser --> UCCollectPublic
+PublicUser --> UCPublicSearch
+InternalUser --> UCInternalSearch
+InternalUser --> UCBorrow
+FrontAdmin --> UCReceive
+FrontAdmin --> UCBorrow
+BackAdmin --> UCAiArchive
+BackAdmin --> UCShelve
+BackAdmin --> UCManage
+BackAdmin --> UCDispose
+BackAdmin --> UCDataOps
+Director --> UCApproval
+SysAdmin --> UCSystem
+
+UCReceive --> UCAiArchive : 已接收条目
+UCAiArchive --> UCShelve : 纸质相关档案
+UCBorrow --> UCReceive : 到馆取件/归还核验
+UCDispose --> UCApproval : 销毁清册审批
+UCManage --> UCApproval : 密级/开放调整
+
+@enduml

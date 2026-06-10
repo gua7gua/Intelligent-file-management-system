@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>借阅审批 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .borrow-layout { display: grid; grid-template-columns: 360px minmax(0,1fr); gap:16px; align-items:start; }
+    .request-card { display:grid; gap:7px; width:100%; padding:12px; border:1px solid var(--border); border-radius:var(--radius); background:#fff; text-align:left; }
+    .request-card.active { border-color:#8abcbf; background:#f2f8f8; }
+    .check-list { display:grid; gap:8px; }
+    .check-list div { display:flex; justify-content:space-between; gap:12px; padding:9px; border:1px solid var(--border); border-radius:var(--radius-sm); background:#fff; }
+    .steps { display:grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap:10px; }
+    .step { padding:12px; border:1px solid var(--border); border-radius:var(--radius); background:#fff; }
+    .toast { display:none; margin:12px 0; }
+    .toast.active { display:block; }
+    @media (max-width: 1080px) { .borrow-layout, .steps { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link active" href="borrow-approval.html">借阅审批 <span>当前</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <div><strong>借阅审批</strong><span class="muted"> 借阅审核、到馆核验与出库归还</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option selected>后台管理员</option><option>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+      <main class="content">
+        <section>
+          <h1 class="page-title">借阅审批</h1>
+          <p class="page-subtitle">纸质借阅必须走审批。审批通过后只允许申请人导出凭证；到馆核验并确认出库后，档案才变为借出。</p>
+        </section>
+        <div id="toast" class="notice toast" role="status"></div>
+        <section class="grid four" style="margin-top:16px;">
+          <div class="metric"><span class="label">待审批</span><span class="value">6</span><span class="note">borrow_requests.applied</span></div>
+          <div class="metric"><span class="label">已批准未出库</span><span class="value">4</span><span class="note">等待凭证核验</span></div>
+          <div class="metric"><span class="label">借出中</span><span class="value">18</span><span class="note">archives.loan_status=on_loan</span></div>
+          <div class="metric"><span class="label">逾期/异常</span><span class="value">2</span><span class="note">需归还处理</span></div>
+        </section>
+        <section class="steps" style="margin-top:16px;">
+          <div class="step"><strong>1. 提交申请</strong><br><span class="muted">内部查阅者填写理由、时长、到馆时间。</span></div>
+          <div class="step"><strong>2. 后台审批</strong><br><span class="muted">检查档案状态、盘点范围和是否借出。</span></div>
+          <div class="step"><strong>3. 凭证核验</strong><br><span class="muted">单位盖章凭证到馆核验。</span></div>
+          <div class="step"><strong>4. 出库归还</strong><br><span class="muted">确认出库后借出，归还检查后恢复正常。</span></div>
+        </section>
+        <section class="borrow-layout" style="margin-top:16px;">
+          <aside class="card panel">
+            <div class="tabs" aria-label="借阅状态筛选">
+              <button class="tab active" type="button" data-filter="applied">待审批</button>
+              <button class="tab" type="button" data-filter="approved">已批准</button>
+              <button class="tab" type="button" data-filter="checked_out">借出中</button>
+              <button class="tab" type="button" data-filter="returned">归还处理</button>
+            </div>
+            <div class="grid" style="margin-top:12px;" id="requestList"></div>
+          </aside>
+          <section class="grid">
+            <div class="card panel">
+              <h2 class="section-title" id="reqTitle">智慧城市平台建设报告</h2>
+              <div class="form-grid">
+                <div class="field"><label>申请号</label><input id="reqNo" value="JY-2026-0017" disabled></div>
+                <div class="field"><label>借阅人</label><input id="borrower" value="小李 / 技术部" disabled></div>
+                <div class="field"><label>预计到馆</label><input id="visit" value="2026-06-12 09:30" disabled></div>
+                <div class="field"><label>借阅时长</label><input id="days" value="7 天" disabled></div>
+                <div class="field"><label>档号</label><input id="archiveNo" value="KJ-2024-0096" disabled></div>
+                <div class="field"><label>管理员可见架位</label><input id="location" value="401-03-02-05" disabled></div>
+              </div>
+              <div class="field" style="margin-top:12px;"><label>借阅理由</label><textarea id="reason" disabled>用于本单位智慧城市项目复盘，需核对纸质原件签章。</textarea></div>
+            </div>
+            <div class="grid two">
+              <div class="card panel">
+                <h2 class="section-title">可借检查</h2>
+                <div class="check-list">
+                  <div><span>载体状态</span><strong id="checkCarrier">纸质+电子，可申请纸质借阅</strong></div>
+                  <div><span>生命周期</span><strong id="checkLife">正常</strong></div>
+                  <div><span>借阅状态</span><strong id="checkLoan">可借</strong></div>
+                  <div><span>盘点范围</span><strong id="checkInventory">未命中进行中盘点</strong></div>
+                </div>
+                <div class="field" style="margin-top:12px;"><label for="rejectReason">拒绝/退回原因</label><textarea id="rejectReason" placeholder="不可借时填写原因"></textarea></div>
+                <div class="actions"><button class="button" type="button" id="approveBtn">审批通过</button><button class="button danger" type="button" id="rejectBtn">审批拒绝</button></div>
+              </div>
+              <div class="card panel">
+                <h2 class="section-title">凭证、出库与归还</h2>
+                <div class="notice warning">借阅凭证包含单位意见盖章区和已归还盖章区，不等于出库记录。</div>
+                <div class="field"><label for="voucher">凭证号</label><input id="voucher" value="PZ-JY-2026-0017"></div>
+                <div class="field"><label for="returnCheck">归还检查结果</label><select id="returnCheck"><option>正常</option><option>缺页</option><option>破损</option><option>涂改</option><option>其他</option></select></div>
+                <div class="field"><label for="returnNote">归还检查说明</label><textarea id="returnNote" placeholder="异常归还时必填"></textarea></div>
+                <div class="actions"><button class="button secondary" type="button" id="voucherBtn">导出凭证</button><button class="button" type="button" id="checkoutBtn">确认出库</button><button class="button ghost" type="button" id="returnBtn">确认归还</button></div>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script>
+    const requests = [
+      {no:'JY-2026-0017', title:'智慧城市平台建设报告', status:'applied', borrower:'小李 / 技术部', location:'401-03-02-05', archiveNo:'KJ-2024-0096', ok:true},
+      {no:'JY-2026-0018', title:'401 库房科技档案盘点范围内材料', status:'applied', borrower:'小赵 / 工程部', location:'401-04-01-02', archiveNo:'KJ-2024-0120', ok:false},
+      {no:'JY-2026-0013', title:'工程建设验收材料', status:'approved', borrower:'王磊 / 工程部', location:'402-02-03-07', archiveNo:'KJ-2024-0320', ok:true},
+      {no:'JY-2026-0009', title:'设备维修记录汇编', status:'checked_out', borrower:'陈欣 / 设备科', location:'401-02-04-03', archiveNo:'KJ-2023-0008', ok:true}
+    ];
+    let current = requests[0];
+    let requestFilter = 'applied';
+    const toast = document.getElementById('toast');
+    function show(message, type='') { toast.textContent = message; toast.className = 'notice toast active ' + type; }
+    function badge(status) { return status === 'applied' ? '<span class="status warning">待审批</span>' : status === 'approved' ? '<span class="status info">已批准</span>' : status === 'checked_out' ? '<span class="status warning">借出</span>' : status === 'rejected' ? '<span class="status danger">已拒绝</span>' : '<span class="status success">已归还</span>'; }
+    function renderList() {
+      const rows = requests
+        .map((r, i) => ({ ...r, i }))
+        .filter((r) => requestFilter === 'returned' ? ['returned', 'rejected'].includes(r.status) : r.status === requestFilter);
+      requestList.innerHTML = rows.map((r)=>`<button class="request-card ${r.no===current.no?'active':''}" type="button" data-i="${r.i}"><strong>${r.title}</strong><span class="mono">${r.no}</span><span>${badge(r.status)} <span class="muted">${r.borrower}</span></span></button>`).join('') || '<div class="empty">当前状态下没有借阅申请。</div>';
+    }
+    function setCurrent(r) {
+      current = r; reqTitle.textContent = r.title; reqNo.value = r.no; borrower.value = r.borrower; archiveNo.value = r.archiveNo; location.value = r.location;
+      checkInventory.textContent = r.ok ? '未命中进行中盘点' : '命中进行中盘点范围';
+      checkLoan.textContent = r.status === 'checked_out' ? '已借出' : '可借';
+      renderList();
+    }
+    requestList.addEventListener('click', e => { const b=e.target.closest('[data-i]'); if (b) setCurrent(requests[b.dataset.i]); });
+    document.querySelectorAll('[data-filter]').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('[data-filter]').forEach((item) => item.classList.remove('active'));
+        tab.classList.add('active');
+        requestFilter = tab.dataset.filter;
+        renderList();
+      });
+    });
+    approveBtn.addEventListener('click', () => { if (!current.ok) { show('目标档案命中进行中盘点范围，不可审批通过。', 'danger'); return; } current.status='approved'; renderList(); show('审批已通过，申请人可导出借阅凭证；档案状态尚未变为借出。'); });
+    rejectBtn.addEventListener('click', () => { if (!rejectReason.value.trim()) { show('审批拒绝必须填写原因。', 'danger'); return; } current.status='rejected'; renderList(); show('已拒绝借阅申请并保留原因。'); });
+    voucherBtn.addEventListener('click', () => { if (current.status !== 'approved') { show('只有审批通过后才能导出凭证。', 'warning'); return; } show('借阅凭证已导出，等待到馆核验和单位盖章。'); });
+    checkoutBtn.addEventListener('click', () => { if (current.status !== 'approved') { show('请先审批通过并核验凭证。', 'warning'); return; } current.status='checked_out'; renderList(); show('已确认出库，记录借出时间、应还时间和经办人，档案状态变为借出。'); });
+    returnBtn.addEventListener('click', () => { if (current.status !== 'checked_out') { show('只有已出库档案可确认归还。', 'warning'); return; } if (returnCheck.value !== '正常' && !returnNote.value.trim()) { show('异常归还必须填写检查说明。', 'danger'); return; } current.status='returned'; renderList(); show('归还检查已记录，档案借阅状态恢复可借。'); });
+    renderList();
+  </script>
+</body>
+</html>

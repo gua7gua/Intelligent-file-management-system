@@ -1,0 +1,34 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam rectangle {
+  BackgroundColor #F7F9FC
+  BorderColor #526070
+  FontColor #111827
+}
+skinparam arrowColor #526070
+
+title 克拉玛依市档案馆业务组织结构图
+
+rectangle "克拉玛依市档案馆" as Archive
+rectangle "馆领导\n重大事项审批\n项目统筹" as Director
+rectangle "档案业务科\n接收、整理、鉴定、销毁、编研" as Business
+rectangle "库房管理岗\n装盒、上架、盘点、借阅出库" as Warehouse
+rectangle "信息化管理岗\n用户、配置、备份、日志审计" as IT
+rectangle "公众服务窗口\n查档接待、征集接收、回执打印" as Service
+rectangle "下属移交单位\n移交清单编制、线下交接" as TransferUnits
+rectangle "社会公众\n公开档案利用、捐赠意向提交" as PublicUsers
+
+Archive --> Director
+Archive --> Business
+Archive --> Warehouse
+Archive --> IT
+Archive --> Service
+Business ..> TransferUnits : 业务指导与档案接收
+Service ..> PublicUsers : 公开利用与征集服务
+Warehouse ..> Business : 实体保管与利用支撑
+IT ..> Business : 系统运行支撑
+IT ..> Service : 门户与账号支撑
+
+@enduml

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>统一登录页 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="common/css/base.css">
+  <link rel="stylesheet" href="common/css/components.css">
+  <link rel="stylesheet" href="common/css/shell.css">
+  <style>
+    .portal-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .portal-item {
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .portal-item strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .auth-card h1 {
+      margin: 0 0 8px;
+      font-size: 25px;
+    }
+
+    .login-status {
+      min-height: 44px;
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+  <main class="auth-shell">
+    <section class="auth-aside" aria-label="系统门户说明">
+      <div>
+        <p class="status info">统一认证入口</p>
+        <h1 class="page-title" style="color:#fff;margin-top:14px;">智能档案管理系统</h1>
+        <p style="max-width:560px;color:rgba(255,255,255,.82);">登录后按角色进入公众门户、内部查阅者门户、移交单位门户或管理后台。菜单展示只用于体验分流，接口权限由后端统一校验。</p>
+      </div>
+      <div class="portal-list">
+        <div class="portal-item"><strong>移交单位门户</strong><span>编制移交清单、导出打印、查看验收与入库进度。</span></div>
+        <div class="portal-item"><strong>公众门户</strong><span>检索公开档案、提交征集清单、查看本人下载记录。</span></div>
+        <div class="portal-item"><strong>内部查阅者门户</strong><span>按密级和数据范围检索档案、预览下载、申请纸质借阅。</span></div>
+        <div class="portal-item"><strong>管理后台</strong><span>验收、AI 补全入库、上架、借阅审批、鉴定销毁和系统配置。</span></div>
+      </div>
+    </section>
+
+    <section class="auth-card" aria-label="登录表单">
+      <h1>统一登录</h1>
+      <p class="muted">请选择本次登录角色，原型将展示对应门户跳转意图。</p>
+
+      <form id="loginForm" class="grid" style="gap:14px;margin-top:20px;">
+        <div class="field">
+          <label for="account">账号 / 手机号 / 工号</label>
+          <input id="account" name="account" autocomplete="username" value="liuxiao" required>
+        </div>
+        <div class="field">
+          <label for="password">密码</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" value="Archive@2026" required>
+        </div>
+        <div class="field">
+          <label for="role">登录角色</label>
+          <select id="role" name="role">
+            <option value="front_archivist">档案管理员（前台）</option>
+            <option value="back_archivist" selected>档案管理员（后台）</option>
+            <option value="transfer_user">移交单位经办人</option>
+            <option value="internal_reader">内部查阅者</option>
+            <option value="public_user">社会公众</option>
+            <option value="director">馆领导</option>
+            <option value="sys_admin">系统管理员</option>
+          </select>
+          <span class="hint">一人多角色时，后端仍按当前会话角色和数据范围校验。</span>
+        </div>
+        <div class="notice" id="targetBox">登录后将进入：<strong>admin/overview.html</strong></div>
+        <div class="actions">
+          <button class="button" type="submit"><span class="icon">→</span>登录</button>
+          <a class="button ghost" href="public/index.html">公众首页</a>
+        </div>
+      </form>
+
+      <div class="toolbar" style="margin-bottom:0;">
+        <a href="public/register.html" class="button secondary">公众注册</a>
+        <a href="public/forgot-password.html" class="button ghost">忘记密码</a>
+      </div>
+      <div id="loginStatus" class="login-status" aria-live="polite"></div>
+      <p class="hint">公众注册与找回密码只服务社会公众账号；内部账号、角色、状态由系统管理员在用户管理中维护。</p>
+    </section>
+  </main>
+
+  <script>
+    const roleTargets = {
+      front_archivist: "admin/overview.html",
+      back_archivist: "admin/overview.html",
+      transfer_user: "transfer/overview.html",
+      internal_reader: "internal/overview.html",
+      public_user: "public/overview.html",
+      director: "admin/approval.html",
+      sys_admin: "admin/user-management.html"
+    };
+
+    const role = document.querySelector("#role");
+    const targetBox = document.querySelector("#targetBox");
+    const statusBox = document.querySelector("#loginStatus");
+
+    role.addEventListener("change", () => {
+      targetBox.innerHTML = `登录后将进入：<strong>${roleTargets[role.value]}</strong>`;
+    });
+
+    document.querySelector("#loginForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const account = document.querySelector("#account").value.trim();
+      const password = document.querySelector("#password").value.trim();
+      if (!account || !password) {
+        statusBox.innerHTML = '<div class="notice danger">请填写账号和密码后再登录。</div>';
+        return;
+      }
+      statusBox.innerHTML = '<div class="notice">正在校验账号、角色和账号状态...</div>';
+      window.setTimeout(() => {
+        statusBox.innerHTML = `<div class="notice">登录成功。原型跳转目标：<a href="${roleTargets[role.value]}"><strong>${roleTargets[role.value]}</strong></a></div>`;
+      }, 450);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理概览 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .todo-list { display: grid; gap: 10px; }
+    .todo { display:flex; justify-content:space-between; gap:12px; align-items:center; padding:12px; border:1px solid var(--border); border-radius:var(--radius); background:#fff; }
+    .log-row { display:grid; grid-template-columns: 120px 120px minmax(0,1fr) 150px; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+    @media (max-width: 760px) { .todo { align-items:flex-start; flex-direction:column; } .log-row { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link active" href="overview.html">管理概览 <span>当前</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <div><strong>管理概览</strong><span class="muted"> 今日工作入口</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option>后台管理员</option><option>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+      <main class="content">
+        <section>
+          <h1 class="page-title">管理概览</h1>
+          <p class="page-subtitle">按当前角色展示待办和入口。概览页只做提醒与跳转，不直接审批、销毁或批量修改档案。</p>
+        </section>
+        <div class="notice" id="roleNotice" style="margin-top:16px;">当前示例角色：后台管理员。实际入口和统计由后端按角色、密级和数据范围过滤。</div>
+        <section class="grid four" style="margin-top:16px;">
+          <a class="metric" href="archive-management.html"><span class="label">馆藏总量</span><span class="value">248,920</span><span class="note">正式档案 archives</span></a>
+          <a class="metric" href="archive-management.html?month=current"><span class="label">本月新增</span><span class="value">1,286</span><span class="note">入库完成记录</span></a>
+          <a class="metric" href="pending-archive.html"><span class="label">待入库条目</span><span class="value">37</span><span class="note">已接收/部分接收</span></a>
+          <a class="metric" href="approval.html"><span class="label">待审批</span><span class="value">9</span><span class="note">借阅、开放、密级、销毁</span></a>
+          <a class="metric" href="destruction.html"><span class="label">待销毁清册</span><span class="value">2</span><span class="note">馆领导已批准</span></a>
+          <a class="metric" href="appraisal.html"><span class="label">到期提醒</span><span class="value">64</span><span class="note">进入鉴定范围</span></a>
+          <a class="metric" href="preservation.html"><span class="label">存储使用率</span><span class="value">86%</span><span class="note">超过 85% 告警线</span></a>
+          <a class="metric" href="borrow-approval.html"><span class="label">新借阅申请</span><span class="value">6</span><span class="note">待后台审核</span></a>
+        </section>
+        <section class="grid two" style="margin-top:16px;">
+          <div class="card panel">
+            <h2 class="section-title">待办提醒</h2>
+            <div class="todo-list">
+              <a class="todo" href="transfer-reception.html?status=pending_transfer"><span><strong>待验收移交清单</strong><br><span class="muted">前台核对实物、上传 U 盘文件、导出回执</span></span><span class="status warning">12 批</span></a>
+              <a class="todo" href="pending-archive.html?status=accepted"><span><strong>待 AI 补全与入库</strong><br><span class="muted">已接收条目等待后台确认字段</span></span><span class="status info">37 条</span></a>
+              <a class="todo" href="pending-archive.html?status=pending_shelf"><span><strong>待上架纸质档案</strong><br><span class="muted">已入库未上架，不向查阅者开放</span></span><span class="status warning">11 件</span></a>
+              <a class="todo" href="preservation.html"><span><strong>存储空间告警</strong><br><span class="muted">MinIO 使用率超过系统配置阈值</span></span><span class="status danger">86%</span></a>
+            </div>
+          </div>
+          <div class="card panel">
+            <h2 class="section-title">最近操作日志</h2>
+            <div class="log-row"><strong>小陈</strong><span>移交验收</span><span>导出 YJ-2026-0008 接收回执</span><span class="muted">09:42</span></div>
+            <div class="log-row"><strong>小刘</strong><span>待入库</span><span>确认 KJ-2025-0102 入库</span><span class="muted">10:18</span></div>
+            <div class="log-row"><strong>小方</strong><span>审批</span><span>批准销毁清册 XH-2026-0003</span><span class="muted">11:07</span></div>
+            <div class="log-row"><strong>系统</strong><span>保存</span><span>完成电子文件备份任务 BK-2026-0610</span><span class="muted">12:00</span></div>
+            <p class="hint">日志审计只查询和导出，不允许页面删除或修改日志。</p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script>
+    roleSelect.addEventListener('change', () => {
+      roleNotice.textContent = `当前示例角色：${roleSelect.value}。前端入口仅模拟展示，后端接口仍按角色、密级和数据范围鉴权。`;
+    });
+  </script>
+</body>
+</html>

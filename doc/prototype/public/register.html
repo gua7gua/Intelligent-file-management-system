@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公众注册页 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .register-layout {
+      display: grid;
+      grid-template-columns: minmax(280px, .9fr) minmax(360px, 1.1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .check-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #f9fbfc;
+    }
+
+    .check-row input {
+      width: 18px;
+      height: 18px;
+      margin-top: 3px;
+    }
+
+    @media (max-width: 900px) {
+      .register-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="public-shell">
+    <nav class="public-nav" aria-label="公众门户导航">
+      <a href="index.html">智能档案馆</a>
+      <div class="links">
+        <a href="index.html">公众首页</a>
+        <a href="search.html">公开检索</a>
+        <a class="active" href="register.html">注册</a>
+        <a href="../login.html">登录</a>
+      </div>
+    </nav>
+
+    <main class="public-content">
+      <div class="register-layout">
+        <section class="card panel">
+          <p class="status info">社会公众账号</p>
+          <h1 class="page-title" style="margin-top:12px;">创建公众账号</h1>
+          <p class="page-subtitle">注册后可下载公开电子文件、提交征集清单、查看本人下载记录和征集状态。</p>
+          <div class="flow-strip" style="grid-template-columns:1fr;">
+            <div class="flow-step"><strong>公开检索</strong>仅检索非密、公开、未销毁的正式档案。</div>
+            <div class="flow-step"><strong>征集清单</strong>只登记捐赠意向和文件名，不上传文件本体。</div>
+            <div class="flow-step"><strong>内部账号</strong>由系统管理员维护，不在公众注册页创建。</div>
+          </div>
+        </section>
+
+        <section class="card panel">
+          <h2 class="section-title">注册信息</h2>
+          <form id="registerForm" class="grid" style="gap:13px;">
+            <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));">
+              <div class="field">
+                <label for="realName">姓名</label>
+                <input id="realName" value="小周" required>
+              </div>
+              <div class="field">
+                <label for="phone">手机号</label>
+                <input id="phone" value="13800000001" inputmode="tel" required>
+              </div>
+            </div>
+            <div class="form-grid" style="grid-template-columns:1fr auto;">
+              <div class="field">
+                <label for="code">短信验证码</label>
+                <input id="code" value="246810" inputmode="numeric" required>
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <button id="sendCode" class="button secondary" type="button">发送验证码</button>
+              </div>
+            </div>
+            <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));">
+              <div class="field">
+                <label for="password">设置密码</label>
+                <input id="password" type="password" value="Public@2026" required>
+              </div>
+              <div class="field">
+                <label for="confirmPassword">确认密码</label>
+                <input id="confirmPassword" type="password" value="Public@2026" required>
+              </div>
+            </div>
+            <label class="check-row">
+              <input id="agree" type="checkbox" checked>
+              <span>我确认公众账号仅用于公开档案检索、下载和征集意向提交；下载电子文件需重新经过后端鉴权并记录日志。</span>
+            </label>
+            <div class="actions">
+              <button class="button" type="submit"><span class="icon">✓</span>创建公众账号</button>
+              <a class="button ghost" href="../login.html">已有账号登录</a>
+            </div>
+          </form>
+          <div id="result" style="margin-top:14px;" aria-live="polite"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    document.querySelector("#sendCode").addEventListener("click", (event) => {
+      event.currentTarget.textContent = "验证码已发送";
+      event.currentTarget.disabled = true;
+      document.querySelector("#result").innerHTML = '<div class="notice">验证码已发送至手机号，原型默认验证码为 246810。</div>';
+    });
+
+    document.querySelector("#registerForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const phone = document.querySelector("#phone").value.trim();
+      const code = document.querySelector("#code").value.trim();
+      const pwd = document.querySelector("#password").value;
+      const confirm = document.querySelector("#confirmPassword").value;
+      const agree = document.querySelector("#agree").checked;
+      if (!/^1\\d{10}$/.test(phone)) {
+        document.querySelector("#result").innerHTML = '<div class="notice danger">手机号格式不正确，请填写 11 位手机号。</div>';
+        return;
+      }
+      if (!code || pwd !== confirm || !agree) {
+        document.querySelector("#result").innerHTML = '<div class="notice danger">请补齐验证码、确认两次密码一致，并勾选公众账号说明。</div>';
+        return;
+      }
+      document.querySelector("#result").innerHTML = '<div class="notice">注册成功：users.user_type=public，默认角色 public_user。下一步进入 <a href="overview.html"><strong>public/overview.html</strong></a>。</div>';
+    });
+  </script>
+</body>
+</html>

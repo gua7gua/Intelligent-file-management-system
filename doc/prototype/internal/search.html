@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>档案检索利用 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .search-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 400px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .filter-sections {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .filter-group {
+      display: grid;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #f8fbfc;
+    }
+
+    .filter-group-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .ai-panel {
+      display: grid;
+      gap: 12px;
+    }
+
+    .collapsible summary {
+      display: flex;
+      min-height: 34px;
+      cursor: pointer;
+      list-style: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .collapsible summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .collapsible-body {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .json-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .result-row {
+      transition: background 0.16s ease;
+    }
+
+    .result-row:hover {
+      background: #f8fbfc;
+    }
+
+    .detail-panel {
+      position: sticky;
+      top: 84px;
+      display: grid;
+      gap: 12px;
+      max-height: calc(100vh - 108px);
+      overflow-y: auto;
+    }
+
+    .detail-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .detail-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-line:last-child {
+      border-bottom: 0;
+    }
+
+    .borrow-form {
+      display: none;
+      gap: 10px;
+    }
+
+    .borrow-form.active {
+      display: grid;
+    }
+
+    .toast {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    .toast.active {
+      display: block;
+    }
+
+    @media (max-width: 1120px) {
+      .search-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-panel {
+        position: static;
+        max-height: none;
+        overflow: visible;
+      }
+    }
+
+    @media (max-width: 960px) {
+      .filter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .filter-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <strong>智能档案管理系统</strong>
+        <span>内部查阅者门户</span>
+      </div>
+      <nav class="nav-section" aria-label="内部门户导航">
+        <div class="nav-title">个人工作台</div>
+        <a class="nav-link" href="overview.html">工作台概览</a>
+        <a class="nav-link active" href="search.html">档案检索利用</a>
+        <div class="nav-title">利用记录</div>
+        <a class="nav-link" href="overview.html#borrow">我的借阅申请</a>
+        <a class="nav-link" href="overview.html#downloads">我的下载记录</a>
+      </nav>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div><strong>档案检索利用</strong><span class="muted"> AI 辅助检索与权限过滤</span></div>
+        <div class="role"><span>小李</span><span class="status info">内部查阅者</span><span class="status success">密级上限：秘密</span></div>
+      </header>
+
+      <main class="content">
+        <div class="notice toast" id="toast" role="status"></div>
+
+        <section class="search-layout">
+          <div class="grid">
+            <details class="card panel ai-panel collapsible">
+              <summary>
+                <span class="section-title">AI 检索条件生成</span>
+                <span class="status info">点击展开</span>
+              </summary>
+              <div class="collapsible-body">
+                <div class="field">
+                  <label for="aiInput">自然语言检索描述</label>
+                  <textarea id="aiInput">去年技术部关于智慧城市项目的报告</textarea>
+                  <span class="hint">AI 不查库、不读取正文、不生成文件访问地址。</span>
+                </div>
+                <div class="actions">
+                  <button class="button" type="button" id="generateJson">生成 JSON</button>
+                  <button class="button ghost" type="button" id="clearJson">清空</button>
+                </div>
+                <div class="ai-box">
+                  <pre id="jsonPreview">等待生成查询条件 JSON</pre>
+                </div>
+                <div class="json-actions">
+                  <button class="button secondary" type="button" id="fillForm">填充表单</button>
+                  <button class="button ghost" type="button" id="copyJson">复制 JSON</button>
+                </div>
+              </div>
+            </details>
+
+            <div class="card panel">
+              <div class="toolbar" style="margin: 0;">
+                <h2 class="section-title" style="margin: 0;">结构化检索条件</h2>
+                <span class="status info">后端追加密级、单位、全宗范围过滤</span>
+              </div>
+              <div class="filter-sections">
+                <section class="filter-group" aria-label="核心元数据条件">
+                  <div class="filter-group-head">
+                    <strong>核心元数据</strong>
+                    <span class="hint">对应 archives、fonds、categories、archive_tags</span>
+                  </div>
+                  <div class="filter-grid">
+                    <div class="field">
+                      <label for="keyword">关键词</label>
+                      <input id="keyword" placeholder="题名、责任者、档号、文件名">
+                    </div>
+                    <div class="field">
+                      <label for="archiveNo">档号</label>
+                      <input id="archiveNo" placeholder="如 KJ-2025-0188">
+                    </div>
+                    <div class="field">
+                      <label for="titleText">题名</label>
+                      <input id="titleText" placeholder="支持模糊检索">
+                    </div>
+                    <div class="field">
+                      <label for="creator">责任者</label>
+                      <input id="creator" placeholder="形成单位或人员">
+                    </div>
+                    <div class="field">
+                      <label for="fonds">所属全宗</label>
+                      <select id="fonds">
+                        <option value="">全部</option>
+                        <option>克拉玛依市财政局全宗</option>
+                        <option>克拉玛依市档案馆全宗</option>
+                        <option>信息中心全宗</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="category">档案门类</label>
+                      <select id="category">
+                        <option value="">全部</option>
+                        <option>文书档案</option>
+                        <option>科技档案</option>
+                        <option>会计档案</option>
+                        <option>音像档案</option>
+                        <option>人事档案</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="orgName">形成/移交单位</label>
+                      <input id="orgName" placeholder="组织名称">
+                    </div>
+                    <div class="field">
+                      <label for="tags">标签</label>
+                      <input id="tags" placeholder="项目、年度、专题">
+                    </div>
+                  </div>
+                </section>
+
+                <section class="filter-group" aria-label="时间和业务属性条件">
+                  <div class="filter-group-head">
+                    <strong>时间与业务属性</strong>
+                    <span class="hint">形成日期、来源、载体、保管期限和可利用状态</span>
+                  </div>
+                  <div class="filter-grid">
+                    <div class="field">
+                      <label for="yearFrom">形成年度起</label>
+                      <input id="yearFrom" type="number" min="1900" max="2099" placeholder="如 2023">
+                    </div>
+                    <div class="field">
+                      <label for="yearTo">形成年度止</label>
+                      <input id="yearTo" type="number" min="1900" max="2099" placeholder="如 2026">
+                    </div>
+                    <div class="field">
+                      <label for="formedFrom">形成日期起</label>
+                      <input id="formedFrom" type="date">
+                    </div>
+                    <div class="field">
+                      <label for="formedTo">形成日期止</label>
+                      <input id="formedTo" type="date">
+                    </div>
+                    <div class="field">
+                      <label for="sourceType">档案来源</label>
+                      <select id="sourceType">
+                        <option value="">全部</option>
+                        <option>移交</option>
+                        <option>征集</option>
+                        <option>编研</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="carrier">载体状态</label>
+                      <select id="carrier">
+                        <option value="">全部</option>
+                        <option>纯电子</option>
+                        <option>纸质+电子</option>
+                        <option>纯纸质</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="retention">保管期限</label>
+                      <select id="retention">
+                        <option value="">全部</option>
+                        <option>永久</option>
+                        <option>30年</option>
+                        <option>10年</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="securityLevel">密级范围</label>
+                      <select id="securityLevel">
+                        <option value="">当前权限内全部</option>
+                        <option>非密</option>
+                        <option>内部</option>
+                        <option>秘密</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="openStatus">开放状态</label>
+                      <select id="openStatus">
+                        <option value="">全部</option>
+                        <option>公开</option>
+                        <option>不公开</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="loanStatus">借阅状态</label>
+                      <select id="loanStatus">
+                        <option value="">全部</option>
+                        <option>可借阅</option>
+                        <option>借出中</option>
+                        <option>盘点暂停</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="conditionStatus">实体状态</label>
+                      <select id="conditionStatus">
+                        <option value="">全部</option>
+                        <option>正常</option>
+                        <option>破损</option>
+                        <option>修复中</option>
+                        <option>遗失</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="archivedAt">入库时间</label>
+                      <input id="archivedAt" type="date">
+                    </div>
+                  </div>
+                </section>
+
+                <section class="filter-group" aria-label="电子文件条件">
+                  <div class="filter-group-head">
+                    <strong>电子文件与排序</strong>
+                    <span class="hint">对应 archive_files，预览下载仍需二次鉴权</span>
+                  </div>
+                  <div class="filter-grid">
+                    <div class="field">
+                      <label for="hasFile">电子文件</label>
+                      <select id="hasFile">
+                        <option value="">全部</option>
+                        <option>有电子文件</option>
+                        <option>无电子文件</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="fileExt">文件格式</label>
+                      <select id="fileExt">
+                        <option value="">全部</option>
+                        <option>PDF</option>
+                        <option>DOCX</option>
+                        <option>JPG</option>
+                        <option>MP4</option>
+                        <option>XLSX</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="fileRole">文件角色</label>
+                      <select id="fileRole">
+                        <option value="">全部</option>
+                        <option>原文</option>
+                        <option>扫描件</option>
+                        <option>编研正文</option>
+                        <option>签章件</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="fileCheck">文件检查</label>
+                      <select id="fileCheck">
+                        <option value="">全部</option>
+                        <option>安全可用</option>
+                        <option>待检查</option>
+                        <option>检查失败</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="sortBy">排序</label>
+                      <select id="sortBy">
+                        <option>相关度优先</option>
+                        <option>形成日期倒序</option>
+                        <option>入库时间倒序</option>
+                        <option>档号升序</option>
+                      </select>
+                    </div>
+                  </div>
+                </section>
+              </div>
+              <div class="actions" style="margin-top: 12px;">
+                <button class="button" type="button" id="searchBtn">确认检索</button>
+                <button class="button ghost" type="button" id="resetBtn">重置</button>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <div class="toolbar">
+                <div>
+                  <h2 class="section-title">检索结果</h2>
+                  <p class="page-subtitle" id="resultHint">示例结果已按当前用户权限过滤；不会展示高于密级上限或超出范围的档案。</p>
+                </div>
+                <span class="status info">权限过滤后 3 条</span>
+              </div>
+              <div class="table-wrap scroll-y">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>档号</th>
+                      <th>题名</th>
+                      <th>分类</th>
+                      <th>密级</th>
+                      <th>载体</th>
+                      <th>利用状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="result-row">
+                      <td>KJ-2025-0188</td>
+                      <td>智慧城市项目年度技术报告</td>
+                      <td>科技档案</td>
+                      <td><span class="status warning">秘密</span></td>
+                      <td>纸质+电子</td>
+                      <td><span class="status success">可预览 / 可借阅</span></td>
+                      <td><button class="button ghost" type="button" data-detail="smart-city">详情</button></td>
+                    </tr>
+                    <tr class="result-row">
+                      <td>WS-2024-0912</td>
+                      <td>信息化建设会议纪要</td>
+                      <td>文书档案</td>
+                      <td><span class="status success">非密</span></td>
+                      <td>纯电子</td>
+                      <td><span class="status success">可预览 / 可下载</span></td>
+                      <td><button class="button ghost" type="button" data-detail="meeting">详情</button></td>
+                    </tr>
+                    <tr class="result-row">
+                      <td>KJ-2023-0416</td>
+                      <td>系统升级实施方案</td>
+                      <td>科技档案</td>
+                      <td><span class="status warning">秘密</span></td>
+                      <td>纯纸质</td>
+                      <td><span class="status info">可申请借阅</span></td>
+                      <td><button class="button ghost" type="button" data-detail="upgrade">详情</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <aside class="detail-panel">
+            <div class="drawer" aria-live="polite">
+              <h2 class="section-title" id="detailTitle">智慧城市项目年度技术报告</h2>
+              <div class="detail-grid">
+                <div class="detail-line"><span class="muted">档号</span><strong id="detailNo">KJ-2025-0188</strong></div>
+                <div class="detail-line"><span class="muted">分类</span><strong id="detailCategory">科技档案</strong></div>
+                <div class="detail-line"><span class="muted">责任者</span><strong id="detailCreator">技术部</strong></div>
+                <div class="detail-line"><span class="muted">形成日期</span><strong id="detailDate">2025-12-20</strong></div>
+                <div class="detail-line"><span class="muted">密级</span><strong id="detailLevel">秘密</strong></div>
+                <div class="detail-line"><span class="muted">载体状态</span><strong id="detailCarrier">纸质+电子</strong></div>
+                <div class="detail-line"><span class="muted">纸质借阅</span><strong id="detailBorrow">可申请</strong></div>
+              </div>
+              <div class="notice">内部查阅者不展示具体库房架位。需要纸质原件时提交借阅申请，由管理员审批和到馆核验。</div>
+              <div class="actions">
+                <button class="button secondary" type="button" id="previewBtn">在线预览</button>
+                <button class="button ghost" type="button" id="downloadBtn">下载</button>
+                <button class="button" type="button" id="borrowBtn">申请借阅</button>
+              </div>
+              <form class="borrow-form" id="borrowForm">
+                <div class="field">
+                  <label for="reason">借阅理由</label>
+                  <textarea id="reason">项目复核需要查阅纸质原件。</textarea>
+                </div>
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="days">借阅天数</label>
+                    <input id="days" type="number" min="1" value="7">
+                  </div>
+                  <div class="field">
+                    <label for="visitAt">到馆时间</label>
+                    <input id="visitAt" type="datetime-local" value="2026-06-12T10:00">
+                  </div>
+                </div>
+                <div class="actions">
+                  <button class="button" type="submit">提交申请</button>
+                  <button class="button ghost" type="button" id="cancelBorrow">取消</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">安全边界</h2>
+              <div class="notice">AI 只输出查询条件 JSON；正式检索、预览、下载、借阅申请都走后端业务接口和权限校验。</div>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const toast = document.getElementById('toast');
+    const jsonPreview = document.getElementById('jsonPreview');
+    const details = {
+      'smart-city': {
+        title: '智慧城市项目年度技术报告',
+        no: 'KJ-2025-0188',
+        category: '科技档案',
+        creator: '技术部',
+        date: '2025-12-20',
+        level: '秘密',
+        carrier: '纸质+电子',
+        borrow: '可申请',
+        canDownload: true,
+        canBorrow: true
+      },
+      meeting: {
+        title: '信息化建设会议纪要',
+        no: 'WS-2024-0912',
+        category: '文书档案',
+        creator: '办公室',
+        date: '2024-09-18',
+        level: '非密',
+        carrier: '纯电子',
+        borrow: '不支持',
+        canDownload: true,
+        canBorrow: false
+      },
+      upgrade: {
+        title: '系统升级实施方案',
+        no: 'KJ-2023-0416',
+        category: '科技档案',
+        creator: '信息中心',
+        date: '2023-07-30',
+        level: '秘密',
+        carrier: '纯纸质',
+        borrow: '可申请',
+        canDownload: false,
+        canBorrow: true
+      }
+    };
+    let currentDetail = details['smart-city'];
+
+    function showToast(message, type) {
+      toast.textContent = message;
+      toast.className = 'notice toast active' + (type ? ' ' + type : '');
+    }
+
+    function setDetail(data) {
+      currentDetail = data;
+      document.getElementById('detailTitle').textContent = data.title;
+      document.getElementById('detailNo').textContent = data.no;
+      document.getElementById('detailCategory').textContent = data.category;
+      document.getElementById('detailCreator').textContent = data.creator;
+      document.getElementById('detailDate').textContent = data.date;
+      document.getElementById('detailLevel').textContent = data.level;
+      document.getElementById('detailCarrier').textContent = data.carrier;
+      document.getElementById('detailBorrow').textContent = data.borrow;
+      document.getElementById('borrowForm').classList.remove('active');
+    }
+
+    document.getElementById('generateJson').addEventListener('click', () => {
+      const json = {
+        keyword: '智慧城市 项目 报告',
+        archiveNo: 'KJ-2025',
+        title: '智慧城市项目',
+        category: '科技档案',
+        fonds: '信息中心全宗',
+        organization: '信息中心',
+        formedYearFrom: 2025,
+        formedYearTo: 2025,
+        creator: '技术部',
+        tags: ['智慧城市', '年度报告'],
+        sourceType: '移交',
+        carrierStatus: '纸质+电子',
+        retentionPeriod: '30年',
+        securityLevelMax: '秘密',
+        hasElectronicFile: true,
+        fileExt: 'PDF',
+        sortBy: '形成日期倒序'
+      };
+      jsonPreview.textContent = '<JSON>\n' + JSON.stringify(json, null, 2) + '\n</JSON>';
+      showToast('AI 已生成查询条件 JSON，尚未执行检索。');
+    });
+
+    document.getElementById('fillForm').addEventListener('click', () => {
+      if (!jsonPreview.textContent.includes('{')) {
+        showToast('请先生成 JSON。', 'warning');
+        return;
+      }
+      document.getElementById('keyword').value = '智慧城市 项目 报告';
+      document.getElementById('archiveNo').value = 'KJ-2025';
+      document.getElementById('titleText').value = '智慧城市项目';
+      document.getElementById('category').value = '科技档案';
+      document.getElementById('fonds').value = '信息中心全宗';
+      document.getElementById('orgName').value = '信息中心';
+      document.getElementById('yearFrom').value = '2025';
+      document.getElementById('yearTo').value = '2025';
+      document.getElementById('creator').value = '技术部';
+      document.getElementById('tags').value = '智慧城市, 年度报告';
+      document.getElementById('sourceType').value = '移交';
+      document.getElementById('carrier').value = '纸质+电子';
+      document.getElementById('retention').value = '30年';
+      document.getElementById('securityLevel').value = '秘密';
+      document.getElementById('hasFile').value = '有电子文件';
+      document.getElementById('fileExt').value = 'PDF';
+      document.getElementById('sortBy').value = '形成日期倒序';
+      showToast('JSON 条件已填充到表单，请确认后检索。');
+    });
+
+    document.getElementById('copyJson').addEventListener('click', () => {
+      showToast('JSON 已复制到剪贴板模拟区。');
+    });
+
+    document.getElementById('clearJson').addEventListener('click', () => {
+      jsonPreview.textContent = '等待生成查询条件 JSON';
+    });
+
+    document.getElementById('searchBtn').addEventListener('click', () => {
+      document.getElementById('resultHint').textContent = '已调用普通检索接口，并按密级、所属单位和全宗范围完成后端过滤。';
+      showToast('检索完成。高于当前密级或超出范围的档案不会返回到前端。');
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      document.querySelectorAll('.filter-sections input').forEach((input) => input.value = '');
+      document.querySelectorAll('.filter-sections select').forEach((select) => select.selectedIndex = 0);
+      document.getElementById('sortBy').value = '相关度优先';
+      showToast('已清空结构化检索条件。');
+    });
+
+    document.querySelectorAll('[data-detail]').forEach((button) => {
+      button.addEventListener('click', () => {
+        setDetail(details[button.dataset.detail]);
+      });
+    });
+
+    document.getElementById('previewBtn').addEventListener('click', () => {
+      showToast('预览请求已重新鉴权并记录访问日志。');
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      if (!currentDetail.canDownload) {
+        showToast('该档案没有可下载的电子文件，不能生成文件访问地址。', 'warning');
+        return;
+      }
+      showToast('下载请求已重新鉴权，后端生成临时文件访问地址并记录日志。');
+    });
+
+    document.getElementById('borrowBtn').addEventListener('click', () => {
+      if (!currentDetail.canBorrow) {
+        showToast('纯电子档案不支持纸质借阅。', 'warning');
+        return;
+      }
+      document.getElementById('borrowForm').classList.add('active');
+    });
+
+    document.getElementById('cancelBorrow').addEventListener('click', () => {
+      document.getElementById('borrowForm').classList.remove('active');
+    });
+
+    document.getElementById('borrowForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      showToast('借阅申请 BR-202606-026 已提交，状态为待审批。档案状态不会在申请时改变。');
+      document.getElementById('borrowForm').classList.remove('active');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>审批工作台 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .approval-layout { display:grid; grid-template-columns: 360px minmax(0,1fr); gap:16px; align-items:start; }
+    .approval-card { display:grid; gap:8px; width:100%; padding:12px; border:1px solid var(--border); border-radius:var(--radius); background:#fff; text-align:left; }
+    .approval-card.active { border-color:#8abcbf; background:#f2f8f8; }
+    .evidence-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .snapshot { max-height:230px; overflow:auto; }
+    .toast { display:none; margin:12px 0; }
+    .toast.active { display:block; }
+    @media (max-width: 1080px) { .approval-layout, .evidence-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link active" href="approval.html">审批工作台 <span>当前</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <div><strong>审批工作台</strong><span class="muted"> 密级、开放与销毁审批</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option>后台管理员</option><option>前台管理员</option><option selected>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+      <main class="content">
+        <section>
+          <h1 class="page-title">审批工作台</h1>
+          <p class="page-subtitle">集中处理密级调整、开放调整和销毁清册审批。审批通过才更新目标字段或让清册进入待销毁；退回时目标对象保持不变。</p>
+        </section>
+        <div id="toast" class="notice toast" role="status"></div>
+        <section class="grid four" style="margin-top:16px;">
+          <div class="metric"><span class="label">待审批</span><span class="value">9</span><span class="note">approval_requests.pending</span></div>
+          <div class="metric"><span class="label">今日已处理</span><span class="value">5</span><span class="note">批准 4 / 退回 1</span></div>
+          <div class="metric"><span class="label">销毁审批</span><span class="value">2</span><span class="note">清册快照固定</span></div>
+          <div class="metric"><span class="label">退回补正</span><span class="value">3</span><span class="note">目标字段未变化</span></div>
+        </section>
+        <section class="approval-layout" style="margin-top:16px;">
+          <aside class="card panel">
+            <div class="tabs" aria-label="审批类型筛选">
+              <button class="tab active" type="button" data-filter="all">全部</button>
+              <button class="tab" type="button" data-filter="security">密级</button>
+              <button class="tab" type="button" data-filter="open">开放</button>
+              <button class="tab" type="button" data-filter="destruction">销毁</button>
+            </div>
+            <div id="approvalList" class="grid" style="margin-top:12px;"></div>
+          </aside>
+          <section class="grid">
+            <div class="card panel">
+              <div class="toolbar" style="margin-top:0;">
+                <div><h2 class="section-title" id="approvalTitle">密级调整审批</h2><p class="page-subtitle" id="approvalMeta">SP-2026-0101 / 待审批</p></div>
+                <span class="status warning" id="approvalType">密级调整</span>
+              </div>
+              <div class="form-grid">
+                <div class="field"><label>提交人</label><input id="submitter" value="小刘" disabled></div>
+                <div class="field"><label>提交时间</label><input id="submittedAt" value="2026-06-09 09:20" disabled></div>
+                <div class="field"><label>调整前</label><input id="oldValue" value="秘密" disabled></div>
+                <div class="field"><label>调整后</label><input id="newValue" value="非密" disabled></div>
+              </div>
+              <div class="field" style="margin-top:12px;"><label>申请理由</label><textarea id="reason" disabled>已取得形成单位授权凭证，申请将项目报告降密为非密。</textarea></div>
+            </div>
+            <div id="evidenceArea" class="evidence-grid">
+              <div class="card panel">
+                <h2 class="section-title">目标档案</h2>
+                <div class="notice">目标档案当前字段在审批通过前不会变化。</div>
+                <p><strong id="targetArchive">KJ-2024-0096 智慧城市平台建设报告</strong></p>
+                <p class="muted" id="targetInfo">密级：秘密 / 开放：不公开 / 状态：正常</p>
+              </div>
+              <div class="card panel">
+                <h2 class="section-title">凭证档案</h2>
+                <div class="notice" id="evidenceNotice">凭证档号存在、未销毁，并与目标档案来源关系匹配。</div>
+                <p><strong id="evidenceArchive">PZ-2026-0007 形成单位授权凭证</strong></p>
+                <p class="muted">馆领导可并列查看凭证档案详情。</p>
+              </div>
+            </div>
+            <div id="snapshotArea" class="card panel" style="display:none;">
+              <h2 class="section-title">销毁清册快照</h2>
+              <div class="notice warning">清册内档案元数据快照固定，审批通过后清册进入待销毁；确认销毁仍在销毁页面执行。</div>
+              <div class="table-wrap snapshot">
+                <table>
+                  <thead><tr><th>档号快照</th><th>题名快照</th><th>原保管期限</th><th>鉴定意见</th></tr></thead>
+                  <tbody><tr><td>WS-2006-0012</td><td>过期临时通知材料</td><td>10 年</td><td>已无保存价值</td></tr><tr><td>KJ-2005-0037</td><td>旧设备维护记录</td><td>10 年</td><td>已无保存价值</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card panel">
+              <h2 class="section-title">审批意见</h2>
+              <div class="field"><label for="opinion">意见</label><textarea id="opinion">同意按申请处理。</textarea></div>
+              <div class="actions"><button class="button" type="button" id="approveBtn">审批通过</button><button class="button danger" type="button" id="rejectBtn">退回补正</button></div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script>
+    const approvals = [
+      {type:'security', title:'密级调整审批', no:'SP-2026-0101', badge:'密级调整', old:'秘密', next:'非密', reason:'已取得形成单位授权凭证，申请将项目报告降密为非密。', target:'KJ-2024-0096 智慧城市平台建设报告', info:'密级：秘密 / 开放：不公开 / 状态：正常', evidence:'PZ-2026-0007 形成单位授权凭证'},
+      {type:'open', title:'开放调整审批', no:'SP-2026-0102', badge:'开放调整', old:'不公开', next:'公开', reason:'形成单位同意公开利用，申请调整开放状态。', target:'WS-2025-0031 年度工作报告', info:'密级：非密 / 开放：不公开 / 状态：正常', evidence:'PZ-2026-0008 开放授权凭证'},
+      {type:'destruction', title:'销毁清册审批', no:'SP-2026-0103', badge:'销毁审批', old:'待审批', next:'待销毁', reason:'来源鉴定批次 JD-2026-0003，清册快照和鉴定意见完整。', target:'XH-2026-0003 到期档案销毁清册', info:'清册状态：待审批 / 明细：2 件 / 来源：鉴定批次 JD-2026-0003', evidence:''}
+    ];
+    let current = approvals[0];
+    const toast = document.getElementById('toast');
+    function show(message, type='') { toast.textContent = message; toast.className = 'notice toast active ' + type; }
+    function renderList(filter='all') {
+      approvalList.innerHTML = approvals.filter(a => filter==='all' || a.type===filter).map((a,i)=>`<button class="approval-card ${a.no===current.no?'active':''}" type="button" data-no="${a.no}"><strong>${a.title}</strong><span class="mono">${a.no}</span><span class="status warning">${a.badge}</span><span class="muted">${a.target}</span></button>`).join('');
+    }
+    function setApproval(a) {
+      current = a; approvalTitle.textContent = a.title; approvalMeta.textContent = `${a.no} / 待审批`; approvalType.textContent = a.badge; oldValue.value = a.old; newValue.value = a.next; reason.value = a.reason; targetArchive.textContent = a.target; targetInfo.textContent = a.info; evidenceArchive.textContent = a.evidence || '销毁审批不需要凭证档案'; snapshotArea.style.display = a.type === 'destruction' ? 'block' : 'none'; evidenceArea.style.display = a.type === 'destruction' ? 'none' : 'grid'; renderList(document.querySelector('.tab.active').dataset.filter);
+    }
+    approvalList.addEventListener('click', e => { const b=e.target.closest('[data-no]'); if (b) setApproval(approvals.find(a=>a.no===b.dataset.no)); });
+    document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); tab.classList.add('active'); renderList(tab.dataset.filter); }));
+    approveBtn.addEventListener('click', () => { if (!opinion.value.trim()) { show('审批通过前必须填写意见。','danger'); return; } show(current.type === 'destruction' ? '审批已通过，销毁清册状态变为待销毁。' : '审批已通过，目标档案字段生效并写入变更日志。'); });
+    rejectBtn.addEventListener('click', () => { if (!opinion.value.trim()) { show('退回补正必须填写意见。','danger'); return; } show('已退回补正，目标档案字段或清册状态保持不变。','warning'); });
+    renderList();
+  </script>
+</body>
+</html>

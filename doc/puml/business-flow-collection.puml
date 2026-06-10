@@ -1,0 +1,59 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam activityBackgroundColor #F4FBF5
+skinparam activityBorderColor #2E7D32
+skinparam activityDiamondBackgroundColor #FFFFFF
+skinparam activityDiamondBorderColor #555555
+skinparam swimlaneBorderColor #8A95A3
+skinparam swimlaneTitleBackgroundColor #F7F9FC
+
+title 社会征集与捐赠流程图
+
+|社会公众|
+start
+:登录公众门户;
+:填写征集清单和联系方式;
+:拖拽文件仅解析文件名;
+:提交捐赠意向;
+
+|后台管理员|
+:查看待联系清单;
+if (符合征集方向?) is (是) then
+  :电话联系并约定到馆时间;
+  :清单状态 = 待接收;
+else (否)
+  :填写拒绝理由;
+  :清单状态 = 已拒绝;
+  stop
+endif
+
+|社会公众|
+:携带清单号、档案实物和电子介质到馆;
+
+|前台管理员|
+:逐项验收实物和电子文件;
+:校验提交时已有在线捐赠协议同意记录;
+if (验收结果?) is (全部接收) then
+  :清单状态 = 已接收;
+elseif (部分接收) then
+  :清单状态 = 部分接收;
+  :回退无价值或不合格条目;
+else (拒绝)
+  :清单状态 = 已拒绝;
+  stop
+endif
+:导出并打印接收回执;
+
+|后台管理员|
+:AI 补全正式入库字段;
+:人工确认、装盒、入库、上架;
+:来源标识 = 征集;
+:目标属性 = 永久、非密、公开;
+
+|系统|
+:生成正式档案记录;
+:记录协议、回执、操作日志;
+stop
+@enduml

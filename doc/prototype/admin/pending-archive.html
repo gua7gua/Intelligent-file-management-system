@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>待入库与上架 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .work-layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr) 420px;
+      gap: 14px;
+      align-items: start;
+      height: calc(100vh - 180px);
+      min-height: 560px;
+    }
+
+    .panel-scroll {
+      overflow-y: auto;
+      height: 100%;
+      padding-right: 4px;
+    }
+
+    .batch-card {
+      display: grid;
+      gap: 6px;
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fff;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color .14s, background .14s;
+    }
+    .batch-card:hover,
+    .batch-card.active {
+      border-color: #8abcbf;
+      background: #f2f8f8;
+    }
+    .batch-card .batch-no { font-family: monospace; font-size: 12px; color: var(--muted); }
+
+    .item-card {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #fff;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color .14s, background .14s;
+    }
+    .item-card:hover,
+    .item-card.active {
+      border-color: #8abcbf;
+      background: #f2f8f8;
+    }
+    .item-card .item-title { flex: 1; text-align: left; }
+    .item-card .item-meta { font-size: 12px; color: var(--muted); }
+
+    .detail-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .protect-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--warning-soft);
+      font-size: 12px;
+      color: #6f440c;
+      margin-bottom: 12px;
+    }
+    .protect-row span { white-space: nowrap; }
+
+    .detail-field {
+      display: grid;
+      grid-template-columns: 90px minmax(0, 1fr);
+      gap: 6px;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-field label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .detail-field input,
+    .detail-field select,
+    .detail-field textarea {
+      width: 100%;
+      min-height: 34px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #fff;
+    }
+    .detail-field textarea { min-height: 60px; resize: vertical; }
+
+    .detail-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .toast {
+      position: fixed; right: 22px; bottom: 22px; z-index: 30;
+      display: none; width: min(380px, calc(100vw - 44px));
+      padding: 12px 14px; border: 1px solid #b9d7d9;
+      border-radius: var(--radius); color: #23494f;
+      background: #fff; box-shadow: var(--shadow);
+    }
+    .toast.show { display: block; }
+
+    @media (max-width: 1200px) {
+      .work-layout { grid-template-columns: 1fr; height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link active" href="pending-archive.html">待入库与上架 <span>当前</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div><strong>待入库与上架</strong><span class="muted"> AI 补全与人工确认入库</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option selected>后台管理员</option><option>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+
+      <main class="content">
+        <div class="toolbar">
+          <div><span class="hint" id="aiState">AI 补全：未开始</span></div>
+          <button class="button secondary" type="button" id="runAi">AI 整批补全</button>
+        </div>
+        <section class="work-layout" style="margin-top: 12px;">
+
+          <!-- 左栏：待处理批次 -->
+          <div class="card panel" style="margin:0;">
+            <h2 class="section-title">待处理批次</h2>
+            <div class="panel-scroll" id="batchList"></div>
+          </div>
+
+          <!-- 中栏：已接收条目 -->
+          <div class="card panel" style="margin:0;">
+            <h2 class="section-title">已接收条目</h2>
+            <div class="panel-scroll" id="itemList"></div>
+          </div>
+
+          <!-- 右栏：条目详情表单 -->
+          <div class="card panel" style="margin:0;">
+            <h2 class="section-title" id="detailTitle">条目详情</h2>
+            <div class="panel-scroll" id="detailPanel">
+              <div class="detail-empty">← 选择左侧条目查看和编辑详情</div>
+            </div>
+          </div>
+
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    /* ---- 模拟数据 ---- */
+    const batches = [
+      {
+        id: "BAT-0008", title: "2025 年度会计凭证移交清单", status: "partially_received",
+        accepted: 17, returned: 1, aiStatus: "not_started",
+        items: [
+          { id:"IT-0008-01", inputTitle:"2025 年 1 月会计凭证", filename:"2025-01-voucher.pdf", carrier:"paper_electronic",
+            protected:{ security:"非密",retention:"30y",open:"closed",digitization:true },
+            status:"accepted", match:"匹配成功",
+            fields:{ title:"",responsible:"",formedDate:"2025-01-31",category:"",tags:"" },
+            box:{ boxNo:"",spine:"",location:"" }, archiveNo:"" },
+          { id:"IT-0008-02", inputTitle:"2025 年 2 月会计凭证", filename:"2025-02-voucher.pdf", carrier:"paper_electronic",
+            protected:{ security:"非密",retention:"30y",open:"closed",digitization:true },
+            status:"confirmed", match:"匹配成功",
+            fields:{ title:"2025 年 2 月会计凭证",responsible:"克拉玛依市财政局财务部",formedDate:"2025-02-28",category:"会计档案",tags:"会计凭证,2025" },
+            box:{ boxNo:"BOX-128",spine:"2025 会计凭证 02",location:"401-03-02-05" }, archiveNo:"" },
+          { id:"IT-0008-03", inputTitle:"2025 年 3 月会计凭证", filename:"2025-03-voucher.pdf", carrier:"paper_electronic",
+            protected:{ security:"非密",retention:"30y",open:"closed",digitization:true },
+            status:"suggested", match:"匹配成功",
+            fields:{ title:"2025 年 3 月会计凭证",responsible:"克拉玛依市财政局财务部",formedDate:"2025-03-31",category:"会计档案",tags:"会计凭证,2025" },
+            box:{ boxNo:"",spine:"",location:"" }, archiveNo:"" },
+          { id:"IT-0008-04", inputTitle:"2025 年档案移交说明", filename:"", carrier:"paper",
+            protected:{ security:"非密",retention:"10y",open:"closed",digitization:true },
+            status:"archived", match:"无电子文件",
+            fields:{ title:"2025 年档案移交说明",responsible:"克拉玛依市财政局财务部",formedDate:"2025-06-01",category:"文书档案",tags:"移交说明" },
+            box:{ boxNo:"BOX-132",spine:"2025 移交说明",location:"401-02-01-08" }, archiveNo:"ARC-188" }
+        ]
+      }
+    ];
+
+    let activeBatch = batches[0];
+    let activeItem = activeBatch.items[0];
+    const toast = document.getElementById("toast");
+
+    function showToast(msg) {
+      toast.textContent = msg; toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+
+    /* ---- 渲染 ---- */
+    function renderBatches() {
+      document.getElementById("batchList").innerHTML = batches.map(b => `
+        <button class="batch-card${b.id === activeBatch.id ? ' active' : ''}" type="button" data-batch="${b.id}">
+          <strong>${b.title}</strong>
+          <span class="batch-no">${b.id}</span>
+          <span>接收 ${b.accepted} / 回退 ${b.returned}</span>
+          <span class="hint">AI：${aiLabel(b.aiStatus)}</span>
+        </button>`).join("");
+    }
+
+    function renderItems() {
+      document.getElementById("itemList").innerHTML = activeBatch.items.map(it => `
+        <button class="item-card${it.id === activeItem.id ? ' active' : ''}" type="button" data-item="${it.id}">
+          <span class="item-title">${it.inputTitle}</span>
+          <span class="item-meta">${carrierLabel(it.carrier)}</span>
+          ${statusBadge(it.status)}
+        </button>`).join("");
+    }
+
+    function renderDetail() {
+      const it = activeItem;
+      document.getElementById("detailTitle").textContent = it.inputTitle;
+
+      const needBox = it.carrier !== "electronic";
+      const isArchived = it.status === "archived" || it.status === "normal" || it.archiveNo;
+      const canArchive = (it.status === "accepted" || it.status === "suggested" || it.status === "confirmed") && !it.archiveNo;
+      const canShelf = it.status === "archived" && needBox;
+
+      document.getElementById("detailPanel").innerHTML = `
+        <div class="protect-row">
+          <span>密级：${it.protected.security}</span>
+          <span>保管期限：${it.protected.retention}</span>
+          <span>开放：${it.protected.open === "open" ? "公开" : "不公开"}</span>
+          <span>允许数字化：${it.protected.digitization ? "是" : "否"}</span>
+          ${it.archiveNo ? `<span>档号：${it.archiveNo}</span>` : ""}
+          <span style="margin-left:auto;">${statusBadge(it.status)} ${it.match}</span>
+        </div>
+
+        <div class="detail-field"><label>正式题名</label><input id="fTitle" value="${esc(it.fields.title)}" placeholder="${esc(it.inputTitle)}"></div>
+        <div class="detail-field"><label>责任者</label><input id="fResp" value="${esc(it.fields.responsible)}"></div>
+        <div class="detail-field"><label>形成日期</label><input id="fDate" type="date" value="${it.fields.formedDate}"></div>
+        <div class="detail-field"><label>分类</label><select id="fCat">
+          ${["","文书档案","科技档案","会计档案","音像档案","人事档案"].map(o => `<option ${it.fields.category === o ? "selected" : ""}>${o || "请选择"}</option>`).join("")}
+        </select></div>
+        <div class="detail-field"><label>标签</label><input id="fTags" value="${esc(it.fields.tags)}"></div>
+
+        ${needBox ? `
+        <div class="detail-field"><label>盒号</label><input id="fBoxNo" value="${esc(it.box.boxNo)}" placeholder="如 BOX-128"></div>
+        <div class="detail-field"><label>盒脊信息</label><input id="fSpine" value="${esc(it.box.spine)}" placeholder="如 2025 会计凭证 01"></div>
+        <div class="detail-field"><label>架位</label><input id="fLocation" value="${esc(it.box.location)}" placeholder="如 401-03-02-05"></div>
+        ` : `<div class="notice" style="margin-top:8px;">纯电子档案无需盒号和架位。</div>`}
+
+        ${isArchived ? `<div class="notice" style="margin-top:12px;">已入库，档号 ${it.archiveNo || "—"}。</div>` : ""}
+
+        <div class="detail-actions">
+          ${canArchive ? `<button class="button" type="button" id="doArchive">确认入库</button>` : ""}
+          ${canShelf ? `<button class="button secondary" type="button" id="doShelf">确认上架</button>` : ""}
+        </div>`;
+    }
+
+    function renderAll() { renderBatches(); renderItems(); renderDetail(); updateAiState(); }
+
+    /* ---- 辅助 ---- */
+    function aiLabel(s) { return { not_started:"未开始",running:"处理中",completed:"已完成" }[s] || s; }
+    function carrierLabel(c) { return { electronic:"纯电子",paper_electronic:"纸质+电子",paper:"纯纸质" }[c] || c; }
+    function statusBadge(s) {
+      const m = { accepted:["已接收","info"],suggested:["AI已建议","warning"],confirmed:["待入库","info"],archived:["已入库未上架","warning"],normal:["正常","success"] };
+      const b = m[s] || [s,""]; return `<span class="status ${b[1]}">${b[0]}</span>`;
+    }
+    function esc(v) { return (v||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+    function updateAiState() {
+      document.getElementById("aiState").textContent = "AI 补全：" + aiLabel(activeBatch.aiStatus);
+    }
+
+    function saveDetail() {
+      const it = activeItem;
+      it.fields.title = document.getElementById("fTitle").value.trim();
+      it.fields.responsible = document.getElementById("fResp").value.trim();
+      it.fields.formedDate = document.getElementById("fDate").value;
+      it.fields.category = document.getElementById("fCat").value === "请选择" ? "" : document.getElementById("fCat").value;
+      it.fields.tags = document.getElementById("fTags").value.trim();
+      if (it.carrier !== "electronic") {
+        it.box.boxNo = document.getElementById("fBoxNo").value.trim();
+        it.box.spine = document.getElementById("fSpine").value.trim();
+        it.box.location = document.getElementById("fLocation").value.trim();
+      }
+    }
+
+    /* ---- 事件 ---- */
+    document.getElementById("batchList").addEventListener("click", e => {
+      const btn = e.target.closest("[data-batch]"); if (!btn) return;
+      activeBatch = batches.find(b => b.id === btn.dataset.batch);
+      activeItem = activeBatch.items[0];
+      renderAll();
+    });
+
+    document.getElementById("itemList").addEventListener("click", e => {
+      const btn = e.target.closest("[data-item]"); if (!btn) return;
+      saveDetail();
+      activeItem = activeBatch.items.find(it => it.id === btn.dataset.item);
+      renderAll();
+    });
+
+    document.getElementById("detailPanel").addEventListener("click", e => {
+      if (e.target.id === "doArchive") {
+        saveDetail();
+        const required = ["title","responsible","formedDate","category"];
+        const missing = required.find(f => !activeItem.fields[f]);
+        if (missing) { showToast("请补全所有字段后再入库。"); return; }
+        if (activeItem.carrier !== "electronic") {
+          if (!activeItem.box.boxNo || !activeItem.box.spine || !activeItem.box.location) {
+            showToast("纸质档案入库前必须填写盒号、盒脊和架位。"); return;
+          }
+        }
+        activeItem.archiveNo = `ARC-${Date.now().toString().slice(-4)}${Math.random().toString(36).slice(2,5)}`;
+        activeItem.status = activeItem.carrier === "electronic" ? "normal" : "archived";
+        renderAll();
+        showToast(`${activeItem.inputTitle} 已入库，档号 ${activeItem.archiveNo}。`);
+        return;
+      }
+      if (e.target.id === "doShelf") {
+        activeItem.status = "normal";
+        renderAll();
+        showToast(`${activeItem.inputTitle} 已确认上架，进入正常利用范围。`);
+        return;
+      }
+    });
+
+    document.getElementById("runAi").addEventListener("click", () => {
+      if (activeBatch.aiStatus === "running") { showToast("AI 正在处理中，请稍候。"); return; }
+      activeBatch.aiStatus = "running";
+      updateAiState();
+      showToast("AI 正在整批补全…");
+
+      setTimeout(() => {
+        activeBatch.items.forEach(it => {
+          if (it.status !== "accepted") return;
+          it.fields.title = it.fields.title || it.inputTitle;
+          it.fields.responsible = it.fields.responsible || "克拉玛依市财政局财务部";
+          it.fields.formedDate = it.fields.formedDate || "2025-01-31";
+          it.fields.category = it.fields.category || (it.inputTitle.includes("会计") ? "会计档案" : "文书档案");
+          it.fields.tags = it.fields.tags || "移交,2025";
+          it.status = "suggested";
+        });
+        activeBatch.aiStatus = "completed";
+        saveDetail();
+        renderAll();
+        showToast("AI 整批补全完成，请逐条核查后入库。");
+      }, 1200);
+    });
+
+    renderAll();
+  </script>
+</body>
+</html>

@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>档案编研 - 管理后台</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .workbench {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .status-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .source-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      color: #23494f;
+      background: var(--primary-soft);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .editor-surface {
+      min-height: 220px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fbfdfe;
+    }
+
+    .editor-surface h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .editor-surface p {
+      margin: 0 0 10px;
+      color: #33414c;
+    }
+
+    .material-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .material-list li {
+      display: grid;
+      gap: 5px;
+      padding: 11px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    .material-list strong {
+      color: #1f3441;
+    }
+
+    .check-row {
+      display: grid;
+      gap: 9px;
+    }
+
+    .check-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 30;
+      display: none;
+      max-width: 360px;
+      padding: 12px 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #f7fcfc;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1120px) {
+      .workbench {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link active" href="compilation.html">档案编研 <span>当前</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><strong>档案编研</strong><span class="muted"> 编研成果与纯电子档案入库</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option selected>后台管理员</option><option>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+
+      <div class="content">
+        <div class="toolbar">
+          <div>
+            <h1 class="page-title">档案编研</h1>
+            <p class="page-subtitle">编研成果以草稿、正文文件、入库三个阶段流转；素材只保存引用关系，入库后生成独立正式档案。</p>
+          </div>
+          <div class="actions">
+            <button class="button secondary" id="newCompilation"><span class="icon">+</span>新建编研成果</button>
+            <button class="button" id="saveDraft"><span class="icon">S</span>保存草稿</button>
+          </div>
+        </div>
+
+        <section class="grid four" aria-label="编研统计">
+          <div class="metric">
+            <span class="label">草稿成果</span>
+            <span class="value" id="draftCount">6</span>
+            <span class="note">仅创建人和后台管理员可见</span>
+          </div>
+          <div class="metric">
+            <span class="label">已生成正文</span>
+            <span class="value" id="generatedCount">3</span>
+            <span class="note">等待入库确认</span>
+          </div>
+          <div class="metric">
+            <span class="label">已入库成果</span>
+            <span class="value" id="archivedCount">18</span>
+            <span class="note">正式档案来源为 compilation</span>
+          </div>
+          <div class="metric">
+            <span class="label">本月新增</span>
+            <span class="value">4</span>
+            <span class="note">纯电子载体状态</span>
+          </div>
+        </section>
+
+        <div class="workbench" style="margin-top:16px">
+          <section class="stack">
+            <div class="card panel">
+              <div class="toolbar" style="margin-top:0">
+                <div>
+                  <h2 class="section-title">编研成果列表</h2>
+                  <div class="status-line">
+                    <span class="status">compilations</span>
+                    <span class="status">compilation_materials</span>
+                    <span class="status">archive_files.compilation_body</span>
+                  </div>
+                </div>
+                <div class="actions">
+                  <select aria-label="成果状态筛选">
+                    <option>全部状态</option>
+                    <option>草稿</option>
+                    <option>已生成</option>
+                    <option>已入库</option>
+                  </select>
+                  <button class="button ghost" id="filterBtn"><span class="icon">F</span>筛选</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>编研编号</th>
+                      <th>题名</th>
+                      <th>状态</th>
+                      <th>素材</th>
+                      <th>正文文件</th>
+                      <th>入库档号</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr id="activeRow">
+                      <td class="mono">BY-2026-004</td>
+                      <td>近五年科技成果汇编</td>
+                      <td><span class="status warning" id="rowStatus">草稿</span></td>
+                      <td><span id="rowMaterialCount">2</span> 条引用</td>
+                      <td><span class="status" id="fileStatus">未生成</span></td>
+                      <td><span class="muted" id="archiveNo">待入库生成</span></td>
+                      <td><button class="button ghost" id="loadCurrent">编辑</button></td>
+                    </tr>
+                    <tr>
+                      <td class="mono">BY-2026-003</td>
+                      <td>馆藏红色档案专题索引</td>
+                      <td><span class="status info">已生成</span></td>
+                      <td>8 条引用</td>
+                      <td><span class="status success">PDF 已生成</span></td>
+                      <td><span class="muted">待确认</span></td>
+                      <td><button class="button ghost" type="button" data-load-compilation="BY-2026-003">查看</button></td>
+                    </tr>
+                    <tr>
+                      <td class="mono">BY-2026-002</td>
+                      <td>年度公开档案目录汇编</td>
+                      <td><span class="status success">已入库</span></td>
+                      <td>15 条引用</td>
+                      <td><span class="status success">HTML 已归档</span></td>
+                      <td class="mono">BYDA-2026-00018</td>
+                      <td><button class="button ghost" type="button" data-load-compilation="BY-2026-002">详情</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">成果编辑</h2>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="title">编研标题</label>
+                  <input id="title" value="近五年科技成果汇编">
+                </div>
+                <div class="field">
+                  <label for="type">编研类型</label>
+                  <select id="type">
+                    <option>专题汇编</option>
+                    <option>目录索引</option>
+                    <option>展陈素材</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="range">时间范围</label>
+                  <input id="range" value="2021-2025">
+                </div>
+                <div class="field">
+                  <label for="keywords">关键词</label>
+                  <input id="keywords" value="科技成果, 项目验收, 创新">
+                </div>
+                <div class="field">
+                  <label for="security">密级</label>
+                  <select id="security">
+                    <option>非密</option>
+                    <option>秘密</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="openStatus">是否公开</label>
+                  <select id="openStatus">
+                    <option>公开</option>
+                    <option>不公开</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin-top:12px">
+                <label for="summary">摘要</label>
+                <textarea id="summary">汇总近五年科技档案中已入库、可引用的成果材料，形成专题编研成果。</textarea>
+              </div>
+              <div class="editor-surface" style="margin-top:12px">
+                <h3>正文草稿</h3>
+                <p>第一章 科技项目立项与验收概况</p>
+                <p>第二章 重点成果档案摘要</p>
+                <p>第三章 资料来源与引用档号</p>
+              </div>
+            </div>
+          </section>
+
+          <aside class="stack">
+            <div class="notice">
+              <strong>入库口径</strong>
+              <div>确认入库后写入正式档案，来源为 <span class="mono">compilation</span>，载体状态为纯电子；素材档案不被复制正文，不改变元数据、密级或公开状态。</div>
+            </div>
+
+            <div class="card panel">
+              <div class="toolbar" style="margin-top:0">
+                <h2 class="section-title">素材引用</h2>
+                <button class="button secondary" id="addMaterial"><span class="icon">+</span>添加素材</button>
+              </div>
+              <div class="form-grid" style="grid-template-columns:1fr">
+                <div class="field">
+                  <label for="materialArchiveNo">素材档号</label>
+                  <input id="materialArchiveNo" value="ARC-188" placeholder="输入正式档号，如 ARC-188">
+                  <span class="hint">系统按档号校验档案存在、未销毁且当前管理员有权查看，校验通过后加入素材列表。</span>
+                </div>
+              </div>
+              <ul class="material-list" id="materials" style="margin-top:12px">
+                <li>
+                  <strong>档号 KJ-2021-0018 · 智能巡检项目验收材料</strong>
+                  <span class="muted">引用说明：项目验收结论，权限校验通过</span>
+                </li>
+                <li>
+                  <strong>档号 KJ-2023-0042 · 科技成果登记汇总表</strong>
+                  <span class="muted">引用说明：成果分类依据，权限校验通过</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">正文文件与入库确认</h2>
+              <div class="check-row">
+                <div class="check-item">
+                  <span>正文文件</span>
+                  <span class="status" id="bodyFileCheck">未生成</span>
+                </div>
+                <div class="check-item">
+                  <span>来源类型</span>
+                  <span class="source-pill">compilation</span>
+                </div>
+                <div class="check-item">
+                  <span>载体状态</span>
+                  <span class="status success">纯电子</span>
+                </div>
+                <div class="check-item">
+                  <span>正式文件角色</span>
+                  <span class="mono">compilation_body</span>
+                </div>
+              </div>
+              <div class="actions" style="margin-top:14px">
+                <button class="button secondary" id="generateFile"><span class="icon">G</span>生成正文文件</button>
+                <button class="button" id="archiveCompilation"><span class="icon">A</span>确认纯电子入库</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const toast = document.getElementById('toast');
+    const rowStatus = document.getElementById('rowStatus');
+    const fileStatus = document.getElementById('fileStatus');
+    const bodyFileCheck = document.getElementById('bodyFileCheck');
+    const archiveNo = document.getElementById('archiveNo');
+    const rowMaterialCount = document.getElementById('rowMaterialCount');
+    const materials = document.getElementById('materials');
+    let generated = false;
+    let archived = false;
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2800);
+    }
+
+    document.getElementById('newCompilation').addEventListener('click', () => {
+      document.getElementById('title').value = '新建编研成果';
+      rowStatus.textContent = '草稿';
+      rowStatus.className = 'status warning';
+      showToast('已创建草稿，编号将在保存后生成。');
+    });
+
+    document.getElementById('saveDraft').addEventListener('click', () => {
+      showToast('草稿已保存，状态仍为 draft。');
+    });
+
+    document.getElementById('filterBtn').addEventListener('click', () => {
+      showToast('筛选条件已应用，列表保留正式档案可引用素材。');
+    });
+
+    document.getElementById('loadCurrent').addEventListener('click', () => {
+      showToast('已载入 BY-2026-004，可继续编辑正文和素材。');
+    });
+
+    document.querySelectorAll('[data-load-compilation]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const code = button.dataset.loadCompilation;
+        document.getElementById('title').value = button.closest('tr').children[1].textContent;
+        showToast(`已载入 ${code} 的详情，入库成果只读，草稿或已生成成果可继续处理。`);
+      });
+    });
+
+    document.getElementById('addMaterial').addEventListener('click', () => {
+      const archiveNo = document.getElementById('materialArchiveNo').value.trim();
+      if (!archiveNo) {
+        showToast('请输入素材档号。');
+        return;
+      }
+      const item = document.createElement('li');
+      item.innerHTML = `<strong>档号 ${archiveNo} · 重点实验室建设成果材料</strong><span class="muted">引用说明：档号校验通过，只记录 archive_id 和排序号</span>`;
+      materials.appendChild(item);
+      rowMaterialCount.textContent = String(materials.children.length);
+      showToast('素材档号校验通过，引用已加入；不复制原档案正文。');
+    });
+
+    document.getElementById('generateFile').addEventListener('click', () => {
+      generated = true;
+      rowStatus.textContent = '已生成';
+      rowStatus.className = 'status info';
+      fileStatus.textContent = 'PDF 已生成';
+      fileStatus.className = 'status success';
+      bodyFileCheck.textContent = 'PDF 已生成';
+      bodyFileCheck.className = 'status success';
+      showToast('正文文件已生成，等待入库确认。');
+    });
+
+    document.getElementById('archiveCompilation').addEventListener('click', () => {
+      if (!generated) {
+        showToast('请先生成正文文件，再确认入库。');
+        return;
+      }
+      if (archived) {
+        showToast('该编研成果已经入库。');
+        return;
+      }
+      archived = true;
+      rowStatus.textContent = '已入库';
+      rowStatus.className = 'status success';
+      archiveNo.textContent = 'BYDA-2026-00019';
+      archiveNo.className = 'mono';
+      document.getElementById('archivedCount').textContent = '19';
+      showToast('已生成正式档案：source_type=compilation，carrier_status=electronic。');
+    });
+  </script>
+</body>
+</html>

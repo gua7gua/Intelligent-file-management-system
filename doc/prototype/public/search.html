@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公开档案检索 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .search-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .query-band {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+      box-shadow: var(--shadow);
+    }
+
+    .filter-sections {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .filter-group {
+      display: grid;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #f8fbfc;
+    }
+
+    .filter-group-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .collapsible summary {
+      display: flex;
+      min-height: 34px;
+      cursor: pointer;
+      list-style: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .collapsible summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .collapsible-body {
+      display: grid;
+      gap: 14px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .detail-panel {
+      position: sticky;
+      top: 84px;
+      display: grid;
+      gap: 12px;
+      max-height: calc(100vh - 108px);
+      overflow-y: auto;
+    }
+
+    .detail-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-line:last-child {
+      border-bottom: 0;
+    }
+
+    .login-toggle {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .toast {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    .toast.active {
+      display: block;
+    }
+
+    @media (max-width: 1020px) {
+      .search-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-panel {
+        position: static;
+        max-height: none;
+        overflow: visible;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .filter-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="public-shell">
+    <nav class="public-nav" aria-label="公众门户导航">
+      <a href="index.html">智能档案馆</a>
+      <div class="links">
+        <a href="search.html" class="active">公开检索</a>
+        <a href="collection.html">征集清单</a>
+        <a href="overview.html">公众概览</a>
+        <a href="../login.html">登录</a>
+        <a href="register.html">注册</a>
+      </div>
+    </nav>
+
+    <main class="public-content">
+      <div class="notice toast" id="toast" role="status"></div>
+
+      <section class="toolbar">
+        <div>
+          <h1 class="page-title">公开档案检索</h1>
+          <p class="page-subtitle">仅检索非密、公开、正常且未销毁的正式档案。未登录可查看公开元数据，下载电子文件需登录。</p>
+        </div>
+        <div class="login-toggle">
+          <span class="status warning" id="loginState">未登录</span>
+          <button class="button secondary" type="button" id="toggleLogin">切换为已登录公众</button>
+        </div>
+      </section>
+
+      <section class="search-layout">
+        <div class="grid">
+          <details class="query-band collapsible">
+            <summary>
+              <span class="section-title">AI 公开检索助手</span>
+              <span class="status info">点击展开</span>
+            </summary>
+            <div class="collapsible-body">
+              <div class="notice">公开检索接口固定追加：密级 = 非密、开放状态 = 公开、档案状态 = 正常且未销毁。</div>
+              <div class="field">
+                <label for="aiInput">AI 公开检索描述</label>
+                <textarea id="aiInput">帮我查一下近两年的公开年度工作报告</textarea>
+                <span class="hint">AI 只生成查询条件 JSON，不读取正文，不执行检索。</span>
+              </div>
+              <div class="actions">
+                <button class="button" type="button" id="generateJson">生成 JSON</button>
+                <button class="button ghost" type="button" id="clearJson">清空</button>
+              </div>
+              <div class="ai-box">
+                <pre id="jsonPreview">等待生成公开查询条件 JSON</pre>
+              </div>
+              <div class="actions">
+                <button class="button secondary" type="button" id="fillForm">填充表单</button>
+                <button class="button ghost" type="button" id="copyJson">复制 JSON</button>
+              </div>
+            </div>
+          </details>
+
+          <div class="card panel">
+            <div class="toolbar" style="margin: 0;">
+              <h2 class="section-title" style="margin: 0;">检索条件确认</h2>
+              <span class="status success">固定公开过滤</span>
+            </div>
+            <div class="filter-sections">
+              <section class="filter-group" aria-label="公开元数据条件">
+                <div class="filter-group-head">
+                  <strong>公开元数据</strong>
+                  <span class="hint">只查询非密、公开、正常且未销毁档案</span>
+                </div>
+                <div class="filter-grid">
+                  <div class="field">
+                    <label for="keyword">关键词</label>
+                    <input id="keyword" placeholder="题名、责任者、档号、文件名">
+                  </div>
+                  <div class="field">
+                    <label for="archiveNo">档号</label>
+                    <input id="archiveNo" placeholder="如 WS-2025">
+                  </div>
+                  <div class="field">
+                    <label for="titleText">题名</label>
+                    <input id="titleText" placeholder="公开题名模糊检索">
+                  </div>
+                  <div class="field">
+                    <label for="creator">责任者</label>
+                    <input id="creator" placeholder="形成单位或人员">
+                  </div>
+                  <div class="field">
+                    <label for="category">档案门类</label>
+                    <select id="category">
+                      <option value="">全部</option>
+                      <option>文书档案</option>
+                      <option>科技档案</option>
+                      <option>会计档案</option>
+                      <option>音像档案</option>
+                      <option>人事档案</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="tags">公开标签</label>
+                    <input id="tags" placeholder="年度、城市建设、照片">
+                  </div>
+                </div>
+              </section>
+
+              <section class="filter-group" aria-label="时间来源条件">
+                <div class="filter-group-head">
+                  <strong>时间、来源与载体</strong>
+                  <span class="hint">公众端不展示库房、盒号和内部审批字段</span>
+                </div>
+                <div class="filter-grid">
+                  <div class="field">
+                    <label for="yearFrom">形成年度起</label>
+                    <input id="yearFrom" type="number" min="1900" max="2099" placeholder="如 2024">
+                  </div>
+                  <div class="field">
+                    <label for="yearTo">形成年度止</label>
+                    <input id="yearTo" type="number" min="1900" max="2099" placeholder="如 2026">
+                  </div>
+                  <div class="field">
+                    <label for="formedFrom">形成日期起</label>
+                    <input id="formedFrom" type="date">
+                  </div>
+                  <div class="field">
+                    <label for="formedTo">形成日期止</label>
+                    <input id="formedTo" type="date">
+                  </div>
+                  <div class="field">
+                    <label for="sourceType">档案来源</label>
+                    <select id="sourceType">
+                      <option value="">全部</option>
+                      <option>移交</option>
+                      <option>征集</option>
+                      <option>编研</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="carrier">载体状态</label>
+                    <select id="carrier">
+                      <option value="">全部</option>
+                      <option>纯电子</option>
+                      <option>纸质+电子</option>
+                      <option>纯纸质</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              <section class="filter-group" aria-label="公开文件条件">
+                <div class="filter-group-head">
+                  <strong>公开文件与排序</strong>
+                  <span class="hint">下载仍需登录公众账号</span>
+                </div>
+                <div class="filter-grid">
+                  <div class="field">
+                    <label for="fileState">电子文件</label>
+                    <select id="fileState">
+                      <option value="">全部</option>
+                      <option>有电子文件</option>
+                      <option>仅公开元数据</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="fileExt">文件格式</label>
+                    <select id="fileExt">
+                      <option value="">全部</option>
+                      <option>PDF</option>
+                      <option>JPG</option>
+                      <option>MP4</option>
+                      <option>DOCX</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="fileRole">文件角色</label>
+                    <select id="fileRole">
+                      <option value="">全部</option>
+                      <option>原文</option>
+                      <option>扫描件</option>
+                      <option>编研正文</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="sortBy">排序</label>
+                    <select id="sortBy">
+                      <option>相关度优先</option>
+                      <option>形成日期倒序</option>
+                      <option>入库时间倒序</option>
+                      <option>档号升序</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div class="actions" style="margin-top: 12px;">
+              <button class="button" type="button" id="searchBtn">确认检索</button>
+              <button class="button ghost" type="button" id="resetBtn">重置</button>
+            </div>
+          </div>
+
+          <div class="card panel">
+            <div class="toolbar">
+              <div>
+                <h2 class="section-title">公开结果</h2>
+                <p class="page-subtitle" id="resultHint">示例结果均为公开范围内档案，不含架位信息。</p>
+              </div>
+              <span class="status success">公开范围 3 条</span>
+            </div>
+            <div class="table-wrap scroll-y">
+              <table>
+                <thead>
+                  <tr>
+                    <th>档号</th>
+                    <th>题名</th>
+                    <th>分类</th>
+                    <th>年度</th>
+                    <th>载体</th>
+                    <th>文件状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>WS-2025-0031</td>
+                    <td>2025 年度公开工作报告</td>
+                    <td>文书档案</td>
+                    <td>2025</td>
+                    <td>纯电子</td>
+                    <td><span class="status success">可预览下载</span></td>
+                    <td><button class="button ghost" type="button" data-detail="report">详情</button></td>
+                  </tr>
+                  <tr>
+                    <td>YX-2024-0118</td>
+                    <td>城市更新公开照片汇编</td>
+                    <td>音像档案</td>
+                    <td>2024</td>
+                    <td>纸质+电子</td>
+                    <td><span class="status success">可预览下载</span></td>
+                    <td><button class="button ghost" type="button" data-detail="photo">详情</button></td>
+                  </tr>
+                  <tr>
+                    <td>WS-2023-0620</td>
+                    <td>公共服务事项说明</td>
+                    <td>文书档案</td>
+                    <td>2023</td>
+                    <td>纯纸质</td>
+                    <td><span class="status info">仅公开元数据</span></td>
+                    <td><button class="button ghost" type="button" data-detail="service">详情</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <aside class="detail-panel">
+          <div class="drawer">
+            <h2 class="section-title" id="detailTitle">2025 年度公开工作报告</h2>
+            <div class="detail-line"><span class="muted">档号</span><strong id="detailNo">WS-2025-0031</strong></div>
+            <div class="detail-line"><span class="muted">分类</span><strong id="detailCategory">文书档案</strong></div>
+            <div class="detail-line"><span class="muted">责任者</span><strong id="detailCreator">办公室</strong></div>
+            <div class="detail-line"><span class="muted">形成日期</span><strong id="detailDate">2025-12-30</strong></div>
+            <div class="detail-line"><span class="muted">开放状态</span><strong>公开</strong></div>
+            <div class="detail-line"><span class="muted">密级</span><strong>非密</strong></div>
+            <div class="detail-line"><span class="muted">文件状态</span><strong id="detailFile">可预览下载</strong></div>
+            <div class="actions">
+              <button class="button secondary" type="button" id="previewBtn">在线预览</button>
+              <button class="button" type="button" id="downloadBtn">下载</button>
+            </div>
+          </div>
+
+          <div class="card panel">
+            <h2 class="section-title">公开利用边界</h2>
+            <div class="notice">公众页面不展示未公开档案题名、内部密级范围、库房架位或盒位。下载需登录并写入访问日志。</div>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const toast = document.getElementById('toast');
+    const loginState = document.getElementById('loginState');
+    const jsonPreview = document.getElementById('jsonPreview');
+    let loggedIn = false;
+    let currentCanDownload = true;
+
+    const details = {
+      report: {
+        title: '2025 年度公开工作报告',
+        no: 'WS-2025-0031',
+        category: '文书档案',
+        creator: '办公室',
+        date: '2025-12-30',
+        file: '可预览下载',
+        canDownload: true
+      },
+      photo: {
+        title: '城市更新公开照片汇编',
+        no: 'YX-2024-0118',
+        category: '音像档案',
+        creator: '宣传部',
+        date: '2024-08-16',
+        file: '可预览下载',
+        canDownload: true
+      },
+      service: {
+        title: '公共服务事项说明',
+        no: 'WS-2023-0620',
+        category: '文书档案',
+        creator: '服务中心',
+        date: '2023-03-20',
+        file: '仅公开元数据',
+        canDownload: false
+      }
+    };
+
+    function showToast(message, type) {
+      toast.textContent = message;
+      toast.className = 'notice toast active' + (type ? ' ' + type : '');
+    }
+
+    document.getElementById('toggleLogin').addEventListener('click', () => {
+      loggedIn = !loggedIn;
+      loginState.textContent = loggedIn ? '已登录公众' : '未登录';
+      loginState.className = loggedIn ? 'status success' : 'status warning';
+      document.getElementById('toggleLogin').textContent = loggedIn ? '切换为未登录' : '切换为已登录公众';
+    });
+
+    document.getElementById('generateJson').addEventListener('click', () => {
+      const json = {
+        keyword: '公开 年度 工作报告',
+        archiveNo: 'WS-2025',
+        title: '年度公开工作报告',
+        category: '文书档案',
+        formedYearFrom: 2024,
+        formedYearTo: 2025,
+        responsible: '办公室',
+        tags: ['年度报告', '公开'],
+        sourceType: '移交',
+        carrierStatus: '纯电子',
+        fileExt: 'PDF',
+        securityLevel: 0,
+        openStatus: 'open',
+        lifecycleStatus: 'normal'
+      };
+      jsonPreview.textContent = '<JSON>\n' + JSON.stringify(json, null, 2) + '\n</JSON>';
+      showToast('AI 已生成公开查询条件 JSON，尚未执行检索。');
+    });
+
+    document.getElementById('fillForm').addEventListener('click', () => {
+      if (!jsonPreview.textContent.includes('{')) {
+        showToast('请先生成 JSON。', 'warning');
+        return;
+      }
+      document.getElementById('keyword').value = '公开 年度 工作报告';
+      document.getElementById('archiveNo').value = 'WS-2025';
+      document.getElementById('titleText').value = '年度公开工作报告';
+      document.getElementById('category').value = '文书档案';
+      document.getElementById('yearFrom').value = '2024';
+      document.getElementById('yearTo').value = '2025';
+      document.getElementById('creator').value = '办公室';
+      document.getElementById('tags').value = '年度报告, 公开';
+      document.getElementById('sourceType').value = '移交';
+      document.getElementById('carrier').value = '纯电子';
+      document.getElementById('fileState').value = '有电子文件';
+      document.getElementById('fileExt').value = 'PDF';
+      document.getElementById('sortBy').value = '形成日期倒序';
+      showToast('JSON 条件已填充，公开过滤条件由后端强制追加。');
+    });
+
+    document.getElementById('copyJson').addEventListener('click', () => {
+      showToast('JSON 已复制到剪贴板模拟区。');
+    });
+
+    document.getElementById('clearJson').addEventListener('click', () => {
+      jsonPreview.textContent = '等待生成公开查询条件 JSON';
+    });
+
+    document.getElementById('searchBtn').addEventListener('click', () => {
+      document.getElementById('resultHint').textContent = '已执行公开检索：后端固定过滤非密、公开、正常且未销毁档案。';
+      showToast('公开检索完成。未公开、涉密、已销毁或未上架档案不会返回。');
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      document.querySelectorAll('.filter-sections input').forEach((input) => input.value = '');
+      document.querySelectorAll('.filter-sections select').forEach((select) => select.selectedIndex = 0);
+      document.getElementById('sortBy').value = '相关度优先';
+      showToast('已清空公开检索条件，固定公开过滤仍由后端保留。');
+    });
+
+    document.querySelectorAll('[data-detail]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const detail = details[button.dataset.detail];
+        currentCanDownload = detail.canDownload;
+        document.getElementById('detailTitle').textContent = detail.title;
+        document.getElementById('detailNo').textContent = detail.no;
+        document.getElementById('detailCategory').textContent = detail.category;
+        document.getElementById('detailCreator').textContent = detail.creator;
+        document.getElementById('detailDate').textContent = detail.date;
+        document.getElementById('detailFile').textContent = detail.file;
+      });
+    });
+
+    document.getElementById('previewBtn').addEventListener('click', () => {
+      showToast('公开预览已通过公开范围鉴权。');
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      if (!currentCanDownload) {
+        showToast('该档案仅公开元数据，没有可下载电子文件。', 'warning');
+        return;
+      }
+      if (!loggedIn) {
+        showToast('下载电子文件需要登录公众账号。', 'warning');
+        return;
+      }
+      showToast('下载已通过公开鉴权，并记录到我的下载记录。');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 12
+skinparam backgroundColor #FFFFFF
+skinparam node {
+  BackgroundColor #F7F9FC
+  BorderColor #526070
+}
+skinparam database {
+  BackgroundColor #EEF5FF
+  BorderColor #2F5F98
+}
+skinparam cloud {
+  BackgroundColor #F4FBF5
+  BorderColor #2E7D32
+}
+
+title 系统部署架构图
+
+node "用户终端" {
+  [公众门户\nVue 3 + Element Plus] as PublicFE
+  [内部查阅者门户\nVue 3 + Element Plus] as InternalFE
+  [移交单位门户\nVue 3 + Element Plus] as TransferFE
+  [管理后台\nVue 3 + Element Plus] as AdminFE
+}
+
+cloud "互联网/政务网络" as Net
+
+node "Docker Host" {
+  node "nginx\n:80/:443\n静态资源 + 反向代理" as Nginx
+  node "spring-boot\nJDK 17\nMyBatis-Plus + Sa-Token\n:8080" as App
+  database "PostgreSQL 16+\n元数据、流程、审批、日志" as PG
+  node "MinIO\n:9000/:9001\n电子文件和附件" as MinIO
+  node "ClamAV\n:3310\n上传文件病毒扫描" as ClamAV
+}
+
+cloud "外部 AI 服务\nDeepSeek / OpenAI 兼容接口" as AI
+node "外部设备" {
+  [高速扫描仪] as Scanner
+  [打印机] as Printer
+}
+
+PublicFE --> Net : HTTPS
+InternalFE --> Net : HTTPS
+TransferFE --> Net : HTTPS
+AdminFE --> Net : HTTPS
+Net --> Nginx : HTTPS
+Nginx --> App : /api/*
+App --> PG : JDBC
+App --> MinIO : S3 API
+App --> ClamAV : clamd 内网调用
+App --> AI : HTTPS JSON\n仅元数据
+Scanner ..> App : 前台上传扫描件
+Printer ..> App : 清单、回执、凭证、清册
+
+note right of App
+  Controller → Service → Mapper
+  统一鉴权、事务、审计
+  AI 结果人工确认后才执行
+end note
+
+note right of MinIO
+  暂存路径：
+  _staging/{sourceType}/{batchId}/{stagingFileId}/...
+  正式路径：
+  {archiveNo}/{fileId}/...
+end note
+
+@enduml

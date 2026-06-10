@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>档案盘点 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .hero-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .scope-banner {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+      padding: 14px;
+      border: 1px solid #efd39d;
+      border-radius: var(--radius);
+      color: #6f440c;
+      background: var(--warning-soft);
+    }
+
+    .scope-formula {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      font-weight: 800;
+    }
+
+    .scope-formula span {
+      display: inline-flex;
+      min-height: 28px;
+      align-items: center;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #ffffff;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 330px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .task-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .task-item {
+      display: grid;
+      gap: 9px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+      text-align: left;
+    }
+
+    .task-item.active {
+      border-color: #8abcbf;
+      box-shadow: 0 0 0 3px rgba(31, 111, 120, 0.1);
+    }
+
+    .task-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .progress-track {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e5edf2;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--primary);
+    }
+
+    .inventory-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .result-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .mini-button {
+      min-height: 30px;
+      padding: 5px 9px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: #34414d;
+      background: #ffffff;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .mini-button.active {
+      color: var(--primary-strong);
+      border-color: #b9d7d9;
+      background: var(--primary-soft);
+    }
+
+    .result-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .result-option {
+      min-height: 28px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: #34414d;
+      background: #ffffff;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .result-option.active {
+      color: var(--primary-strong);
+      border-color: #8abcbf;
+      background: var(--primary-soft);
+    }
+
+    .result-option.danger.active {
+      color: #8a2924;
+      border-color: #f2b6b2;
+      background: var(--danger-soft);
+    }
+
+    .result-option.warning.active {
+      color: #7a4c12;
+      border-color: #efd39d;
+      background: var(--warning-soft);
+    }
+
+    .inline-input {
+      width: min(180px, 100%);
+      min-height: 30px;
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .borrow-impact {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .impact-item {
+      min-height: 102px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(23, 33, 43, 0.38);
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(780px, 100%);
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      border-radius: var(--radius);
+      background: #ffffff;
+      box-shadow: var(--shadow);
+    }
+
+    .modal header,
+    .modal footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal footer {
+      border-top: 1px solid var(--border);
+      border-bottom: 0;
+    }
+
+    .modal .body {
+      padding: 18px;
+    }
+
+    .toast {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1180px) {
+      .summary-grid,
+      .workspace,
+      .borrow-impact {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .scope-banner,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link active" href="inventory.html">档案盘点 <span>当前</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><strong>档案盘点</strong><span class="muted"> 盘点任务与差异处理</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option selected>后台管理员</option><option>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+
+      <section class="content">
+        <div class="hero-line">
+          <div>
+            <h1 class="page-title">档案盘点</h1>
+            <p class="page-subtitle">按库房号和分类生成盘点任务，命中范围内档案在盘点期间暂停借阅。</p>
+          </div>
+          <button class="button" type="button" id="openTaskModal">
+            <span class="icon" aria-hidden="true">+</span>
+            新建盘点任务
+          </button>
+        </div>
+
+        <div class="notice toast" id="taskToast">已生成盘点清单：401 库房 AND 科技档案，命中 128 件，借阅状态置为暂停。</div>
+        <div class="notice success toast" id="completeToast">盘点结果已提交，任务状态变为已完成，正常档案恢复可借。</div>
+
+        <div class="summary-grid">
+          <div class="metric">
+            <span class="label">进行中任务</span>
+            <span class="value">2</span>
+            <span class="note">401 科技档案、402 会计档案</span>
+          </div>
+          <div class="metric">
+            <span class="label">暂停借阅档案</span>
+            <span class="value">186</span>
+            <span class="note">借阅审批需检查盘点范围</span>
+          </div>
+          <div class="metric">
+            <span class="label">异常项</span>
+            <span class="value">7</span>
+            <span class="note">缺失 2 · 错位 3 · 损坏 2</span>
+          </div>
+          <div class="metric">
+            <span class="label">本年完成</span>
+            <span class="value">5</span>
+            <span class="note">最近完成：2026-05-21</span>
+          </div>
+        </div>
+
+        <div class="scope-banner">
+          <div>
+            <div class="scope-formula">
+              <span>盘点范围</span>
+              <span id="scopeRoom">库房号：401</span>
+              <strong>AND</strong>
+              <span id="scopeCategory">分类：科技档案</span>
+            </div>
+            <div class="hint">该范围内正式档案进入盘点中，借阅审批命中时显示“盘点暂停借阅”。已借出档案标记为“借出中”，不强制召回。</div>
+          </div>
+          <span class="status warning">借阅暂停生效</span>
+        </div>
+
+        <div class="workspace">
+          <section class="card panel">
+            <div class="toolbar" style="margin-top:0">
+              <h2 class="section-title">盘点任务</h2>
+              <div class="tabs" aria-label="任务状态">
+                <button class="tab active" type="button" data-task-filter="running">进行中</button>
+                <button class="tab" type="button" data-task-filter="draft">草稿</button>
+                <button class="tab" type="button" data-task-filter="done">已完成</button>
+              </div>
+            </div>
+            <div class="task-list">
+              <button class="task-item active" type="button" data-status="running" data-room="401" data-category="科技档案" data-name="2026 年度 401 库房科技档案盘点">
+                <strong>2026 年度 401 库房科技档案盘点</strong>
+                <span class="task-meta"><span>范围：401 AND 科技档案</span><span>128 件</span></span>
+                <span class="progress-track"><span class="progress-fill" style="width:72%"></span></span>
+                <span class="task-meta"><span>已核对 92 件</span><span class="status warning">进行中</span></span>
+              </button>
+              <button class="task-item" type="button" data-status="running" data-room="402" data-category="会计档案" data-name="2026 年度 402 库房会计档案盘点">
+                <strong>2026 年度 402 库房会计档案盘点</strong>
+                <span class="task-meta"><span>范围：402 AND 会计档案</span><span>58 件</span></span>
+                <span class="progress-track"><span class="progress-fill" style="width:45%"></span></span>
+                <span class="task-meta"><span>已核对 26 件</span><span class="status warning">进行中</span></span>
+              </button>
+              <button class="task-item" type="button" data-status="done" data-room="401" data-category="文书档案" data-name="2026 春季 401 库房文书档案复盘">
+                <strong>2026 春季 401 库房文书档案复盘</strong>
+                <span class="task-meta"><span>范围：401 AND 文书档案</span><span>96 件</span></span>
+                <span class="progress-track"><span class="progress-fill" style="width:100%"></span></span>
+                <span class="task-meta"><span>已核对 96 件</span><span class="status success">已完成</span></span>
+              </button>
+            </div>
+          </section>
+
+          <section class="card panel">
+            <div class="inventory-toolbar">
+              <div>
+                <h2 class="section-title" id="taskTitle">2026 年度 401 库房科技档案盘点</h2>
+                <p class="hint">任务号：PD-202606-001 · 状态：running · 开始时间：2026-06-08 09:30</p>
+              </div>
+              <div class="actions">
+                <button class="button secondary" type="button" id="submitInventory">
+                  <span class="icon" aria-hidden="true">✓</span>
+                  提交盘点结果
+                </button>
+              </div>
+            </div>
+            <div class="result-filter" aria-label="结果筛选">
+              <button class="mini-button active" type="button" data-result-filter="all">全部 128</button>
+              <button class="mini-button" type="button" data-result-filter="正常">正常 85</button>
+              <button class="mini-button" type="button" data-result-filter="缺失">缺失 2</button>
+              <button class="mini-button" type="button" data-result-filter="错位">错位 3</button>
+              <button class="mini-button" type="button" data-result-filter="损坏">损坏 2</button>
+              <button class="mini-button" type="button" data-result-filter="借出中">借出中 6</button>
+            </div>
+
+            <div class="table-wrap" style="margin-top:12px">
+              <table>
+                <thead>
+                  <tr data-result="正常">
+                    <th>档号 / 题名</th>
+                    <th>应在架位</th>
+                    <th>实际架位</th>
+                    <th>借阅状态</th>
+                    <th>盘点结果</th>
+                    <th>说明</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-result="错位">
+                    <td><span class="mono">KJ-2025-00018</span><br>采油一厂设备验收报告</td>
+                    <td class="mono">401-03-02-05</td>
+                    <td><input class="inline-input mono" value="401-03-02-05" aria-label="实际架位"></td>
+                    <td><span class="status warning">暂停借阅</span></td>
+                    <td>
+                      <div class="result-group">
+                        <button class="result-option active" type="button">正常</button>
+                        <button class="result-option warning" type="button">错位</button>
+                        <button class="result-option danger" type="button">缺失</button>
+                        <button class="result-option warning" type="button">损坏</button>
+                      </div>
+                    </td>
+                    <td><input class="inline-input" value="实物一致" aria-label="说明"></td>
+                  </tr>
+                  <tr data-result="缺失">
+                    <td><span class="mono">KJ-2025-00019</span><br>管线改造竣工图</td>
+                    <td class="mono">401-03-03-01</td>
+                    <td><input class="inline-input mono" value="401-03-03-02" aria-label="实际架位"></td>
+                    <td><span class="status warning">暂停借阅</span></td>
+                    <td>
+                      <div class="result-group">
+                        <button class="result-option" type="button">正常</button>
+                        <button class="result-option warning active" type="button">错位</button>
+                        <button class="result-option danger" type="button">缺失</button>
+                        <button class="result-option warning" type="button">损坏</button>
+                      </div>
+                    </td>
+                    <td><input class="inline-input" value="同机架相邻盒位" aria-label="说明"></td>
+                  </tr>
+                  <tr data-result="借出中">
+                    <td><span class="mono">KJ-2024-00031</span><br>油田道路施工图</td>
+                    <td class="mono">401-01-01-02</td>
+                    <td><input class="inline-input mono" value="" placeholder="未见实物" aria-label="实际架位"></td>
+                    <td><span class="status warning">暂停借阅</span></td>
+                    <td>
+                      <div class="result-group">
+                        <button class="result-option" type="button">正常</button>
+                        <button class="result-option warning" type="button">错位</button>
+                        <button class="result-option danger active" type="button">缺失</button>
+                        <button class="result-option warning" type="button">损坏</button>
+                      </div>
+                    </td>
+                    <td><input class="inline-input" value="架位未找到" aria-label="说明"></td>
+                  </tr>
+                  <tr>
+                    <td><span class="mono">KJ-2023-00008</span><br>设备维修记录汇编</td>
+                    <td class="mono">401-02-04-03</td>
+                    <td><input class="inline-input mono" value="401-02-04-03" aria-label="实际架位"></td>
+                    <td><span class="status info">借出中</span></td>
+                    <td>
+                      <div class="result-group">
+                        <button class="result-option" type="button">正常</button>
+                        <button class="result-option warning" type="button">错位</button>
+                        <button class="result-option danger" type="button">缺失</button>
+                        <button class="result-option warning" type="button">损坏</button>
+                        <button class="result-option active" type="button">借出中</button>
+                      </div>
+                    </td>
+                    <td><input class="inline-input" value="BR-202606-017 已出库" aria-label="说明"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <section class="borrow-impact">
+          <div class="impact-item">
+            <span class="status warning">借阅审批校验</span>
+            <h3 class="section-title" style="margin-top:10px">命中范围暂停</h3>
+            <p class="hint">401 库房 AND 科技档案处于盘点中，新的纸质借阅申请显示“盘点暂停借阅”。</p>
+          </div>
+          <div class="impact-item">
+            <span class="status info">已借出档案</span>
+            <h3 class="section-title" style="margin-top:10px">不强制召回</h3>
+            <p class="hint">盘点清单记录为“借出中”，归还后可补核实物状态。</p>
+          </div>
+          <div class="impact-item">
+            <span class="status success">完成后恢复</span>
+            <h3 class="section-title" style="margin-top:10px">正常档案可借</h3>
+            <p class="hint">提交盘点结果后，正常项恢复 `loan_status = available`。</p>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="taskModal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+    <div class="modal">
+      <header>
+        <h2 class="section-title" id="taskModalTitle">新建盘点任务</h2>
+        <button class="button ghost" type="button" id="closeTaskModal">关闭</button>
+      </header>
+      <div class="body">
+        <div class="notice warning">盘点范围必须同时满足库房号和分类：库房号 AND 分类。</div>
+        <div class="form-grid" style="margin-top:14px">
+          <div class="field">
+            <label for="taskRoom">库房号</label>
+            <select id="taskRoom">
+              <option>401</option>
+              <option>402</option>
+              <option>403</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="taskCategory">分类</label>
+            <select id="taskCategory">
+              <option>科技档案</option>
+              <option>文书档案</option>
+              <option>会计档案</option>
+              <option>音像档案</option>
+              <option>人事档案</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="taskNameInput">任务名称</label>
+            <input id="taskNameInput" value="2026 年度 401 库房科技档案盘点" autocomplete="off">
+          </div>
+        </div>
+        <p class="hint" id="taskHint">预计命中：401 库房 AND 科技档案，系统生成清单后该范围暂停借阅。</p>
+      </div>
+      <footer>
+        <button class="button ghost" type="button" id="cancelTask">取消</button>
+        <button class="button" type="button" id="createTask">
+          <span class="icon" aria-hidden="true">+</span>
+          生成清单
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    const taskModal = document.getElementById('taskModal');
+    const taskRoom = document.getElementById('taskRoom');
+    const taskCategory = document.getElementById('taskCategory');
+    const taskNameInput = document.getElementById('taskNameInput');
+    const taskHint = document.getElementById('taskHint');
+
+    function toggleTaskModal(show) {
+      taskModal.classList.toggle('open', show);
+    }
+
+    function updateTaskDraft() {
+      taskNameInput.value = `2026 年度 ${taskRoom.value} 库房${taskCategory.value}盘点`;
+      taskHint.textContent = `预计命中：${taskRoom.value} 库房 AND ${taskCategory.value}，系统生成清单后该范围暂停借阅。`;
+    }
+
+    document.getElementById('openTaskModal').addEventListener('click', () => toggleTaskModal(true));
+    document.getElementById('closeTaskModal').addEventListener('click', () => toggleTaskModal(false));
+    document.getElementById('cancelTask').addEventListener('click', () => toggleTaskModal(false));
+    taskRoom.addEventListener('change', updateTaskDraft);
+    taskCategory.addEventListener('change', updateTaskDraft);
+    document.getElementById('createTask').addEventListener('click', () => {
+      document.getElementById('scopeRoom').textContent = `库房号：${taskRoom.value}`;
+      document.getElementById('scopeCategory').textContent = `分类：${taskCategory.value}`;
+      document.getElementById('taskTitle').textContent = taskNameInput.value;
+      toggleTaskModal(false);
+      document.getElementById('taskToast').classList.add('show');
+    });
+
+    document.querySelectorAll('.task-item').forEach((task) => {
+      task.addEventListener('click', () => {
+        document.querySelectorAll('.task-item').forEach((item) => item.classList.remove('active'));
+        task.classList.add('active');
+        document.getElementById('scopeRoom').textContent = `库房号：${task.dataset.room}`;
+        document.getElementById('scopeCategory').textContent = `分类：${task.dataset.category}`;
+        document.getElementById('taskTitle').textContent = task.dataset.name;
+      });
+    });
+
+    document.querySelectorAll('.result-group').forEach((group) => {
+      group.addEventListener('click', (event) => {
+        if (!event.target.classList.contains('result-option')) return;
+        group.querySelectorAll('.result-option').forEach((option) => option.classList.remove('active'));
+        event.target.classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('[data-result-filter]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const siblings = button.parentElement.querySelectorAll('button');
+        siblings.forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        document.querySelectorAll('tbody tr[data-result]').forEach((row) => {
+          row.hidden = button.dataset.resultFilter !== 'all' && row.dataset.result !== button.dataset.resultFilter;
+        });
+      });
+    });
+
+    document.querySelectorAll('[data-task-filter]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const siblings = button.parentElement.querySelectorAll('button');
+        siblings.forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        document.querySelectorAll('.task-item').forEach((task) => {
+          task.hidden = task.dataset.status !== button.dataset.taskFilter;
+        });
+      });
+    });
+
+    document.getElementById('submitInventory').addEventListener('click', () => {
+      document.getElementById('completeToast').classList.add('show');
+    });
+  </script>
+</body>
+</html>

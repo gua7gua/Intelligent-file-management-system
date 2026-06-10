@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>系统配置 - 管理后台</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .settings-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .config-row {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr) 130px;
+      gap: 12px;
+      align-items: center;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .config-key {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .switch-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .switch-line input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .format-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      color: #23494f;
+      background: var(--primary-soft);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 30;
+      display: none;
+      max-width: 390px;
+      padding: 12px 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #f7fcfc;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1120px) {
+      .settings-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .config-row {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link active" href="system-settings.html">系统配置 <span>当前</span></a></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><strong>系统配置</strong><span class="muted"> 系统参数配置与审计</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option>后台管理员</option><option>前台管理员</option><option>馆领导</option><option selected>系统管理员</option></select></div>
+      </header>
+
+      <div class="content">
+        <div class="toolbar">
+          <div>
+            <h1 class="page-title">系统配置</h1>
+            <p class="page-subtitle">维护上传白名单、上传大小、AI 开关、公开检索开关和业务默认参数；配置变更记录审计日志。</p>
+          </div>
+          <div class="actions">
+            <button class="button secondary" id="resetConfig"><span class="icon">R</span>恢复本页示例</button>
+            <button class="button" id="saveConfig"><span class="icon">S</span>保存配置</button>
+          </div>
+        </div>
+
+        <section class="grid four" aria-label="配置概览">
+          <div class="metric">
+            <span class="label">可编辑配置</span>
+            <span class="value">7</span>
+            <span class="note">editable = true</span>
+          </div>
+          <div class="metric">
+            <span class="label">AI 功能</span>
+            <span class="value" id="aiMetric">开</span>
+            <span class="note">ai.enabled</span>
+          </div>
+          <div class="metric">
+            <span class="label">公开检索</span>
+            <span class="value" id="publicMetric">开</span>
+            <span class="note">public_search.enabled</span>
+          </div>
+          <div class="metric">
+            <span class="label">最近保存</span>
+            <span class="value" id="savedAt">09:22</span>
+            <span class="note">写入 audit_logs</span>
+          </div>
+        </section>
+
+        <div class="settings-layout" style="margin-top:16px">
+          <section class="stack">
+            <div class="card panel">
+              <h2 class="section-title">文件上传配置</h2>
+              <div class="config-row">
+                <div class="config-key">
+                  <strong>上传格式白名单</strong>
+                  <span class="mono">upload.allowed_extensions</span>
+                </div>
+                <div>
+                  <div class="tag-list" id="formatTags">
+                    <span class="format-tag">pdf</span>
+                    <span class="format-tag">docx</span>
+                    <span class="format-tag">jpg</span>
+                    <span class="format-tag">png</span>
+                    <span class="format-tag">mp4</span>
+                  </div>
+                  <div class="field" style="margin-top:10px">
+                    <label for="newFormat">新增格式</label>
+                    <input id="newFormat" value="tif">
+                  </div>
+                </div>
+                <button class="button secondary" id="addFormat"><span class="icon">+</span>添加格式</button>
+              </div>
+              <div class="config-row">
+                <div class="config-key">
+                  <strong>最大上传大小</strong>
+                  <span class="mono">upload.max_file_size_mb</span>
+                </div>
+                <div class="field">
+                  <label for="maxSize">大小限制 MB</label>
+                  <input id="maxSize" type="number" min="1" max="2048" value="512">
+                </div>
+                <span class="status">number</span>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">能力开关</h2>
+              <div class="config-row">
+                <div class="config-key">
+                  <strong>AI 功能开关</strong>
+                  <span class="mono">ai.enabled</span>
+                </div>
+                <label class="switch-line">
+                  <input type="checkbox" id="aiSwitch" checked>
+                  <span>启用 AI 补全、检索 JSON 和数据研判建议</span>
+                </label>
+                <span class="status info">boolean</span>
+              </div>
+              <div class="config-row">
+                <div class="config-key">
+                  <strong>公开检索开关</strong>
+                  <span class="mono">public_search.enabled</span>
+                </div>
+                <label class="switch-line">
+                  <input type="checkbox" id="publicSwitch" checked>
+                  <span>启用公众门户公开档案检索入口</span>
+                </label>
+                <span class="status info">boolean</span>
+              </div>
+              <div class="notice" style="margin-top:12px">
+                AI 关闭时业务流程回退为人工填写和手工筛选；公开检索关闭只影响入口，不改变正式档案的公开字段。
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">业务默认参数</h2>
+              <div class="config-row">
+                <div class="config-key">
+                  <strong>库房占用告警阈值</strong>
+                  <span class="mono">warehouse.usage_warning_threshold</span>
+                </div>
+                <div class="field">
+                  <label for="warehouseThreshold">阈值百分比</label>
+                  <input id="warehouseThreshold" type="number" min="50" max="100" value="85">
+                </div>
+                <span class="status">number</span>
+              </div>
+              <div class="config-row">
+                <div class="config-key">
+                  <strong>默认借阅天数</strong>
+                  <span class="mono">borrow.default_days</span>
+                </div>
+                <div class="field">
+                  <label for="borrowDays">天数</label>
+                  <input id="borrowDays" type="number" min="1" max="90" value="14">
+                </div>
+                <span class="status">number</span>
+              </div>
+              <div class="config-row">
+                <div class="config-key">
+                  <strong>征集捐赠协议文案</strong>
+                  <span class="mono">collection.agreement_text</span>
+                </div>
+                <div class="field">
+                  <label for="agreementText">协议文案</label>
+                  <textarea id="agreementText">捐赠人声明材料来源合法、权属清晰，同意无偿捐赠，并允许档案馆按规定整理、保存和公开利用。</textarea>
+                </div>
+                <span class="status">string</span>
+              </div>
+            </div>
+
+            <div class="card panel">
+              <h2 class="section-title">配置项明细</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>配置键</th>
+                      <th>当前值</th>
+                      <th>类型</th>
+                      <th>可编辑</th>
+                      <th>说明</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td class="mono">upload.allowed_extensions</td>
+                      <td>pdf, docx, jpg, png, mp4</td>
+                      <td>json</td>
+                      <td><span class="status success">是</span></td>
+                      <td>文件上传格式白名单</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">ai.enabled</td>
+                      <td>true</td>
+                      <td>boolean</td>
+                      <td><span class="status success">是</span></td>
+                      <td>AI 功能统一开关</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">public_search.enabled</td>
+                      <td>true</td>
+                      <td>boolean</td>
+                      <td><span class="status success">是</span></td>
+                      <td>公众公开检索入口</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">collection.agreement_text</td>
+                      <td>捐赠协议文案</td>
+                      <td>string</td>
+                      <td><span class="status success">是</span></td>
+                      <td>公众提交征集清单前展示并勾选同意</td>
+                    </tr>
+                    <tr>
+                      <td class="mono">security.audit_retention</td>
+                      <td>permanent</td>
+                      <td>string</td>
+                      <td><span class="status">否</span></td>
+                      <td>审计日志保留策略，不允许页面修改</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <aside class="stack">
+            <div class="card panel">
+              <h2 class="section-title">配置边界</h2>
+              <div class="timeline">
+                <li><span>上传</span><div>只维护格式白名单和大小限制。</div></li>
+                <li><span>AI</span><div>统一启停补全、检索 JSON 和数据研判建议。</div></li>
+                <li><span>公开检索</span><div>只控制公众入口，不直接改档案公开状态。</div></li>
+                <li><span>征集协议</span><div>公众提交时在线展示并记录同意时间。</div></li>
+              </div>
+            </div>
+
+            <div class="notice warning">
+              <strong>审批边界</strong>
+              <div>配置页不办理密级调整、开放调整或销毁审批；这些业务必须进入审批工作台并保留审批记录。</div>
+            </div>
+
+            <div class="notice">
+              <strong>审计要求</strong>
+              <div>保存配置写入 <span class="mono">audit_logs</span>，不可在页面删除审计记录。</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const toast = document.getElementById('toast');
+    const aiSwitch = document.getElementById('aiSwitch');
+    const publicSwitch = document.getElementById('publicSwitch');
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    function syncMetrics() {
+      document.getElementById('aiMetric').textContent = aiSwitch.checked ? '开' : '关';
+      document.getElementById('publicMetric').textContent = publicSwitch.checked ? '开' : '关';
+    }
+
+    aiSwitch.addEventListener('change', () => {
+      syncMetrics();
+      showToast(aiSwitch.checked ? 'AI 功能已启用。' : 'AI 已关闭，业务流程回退为人工处理。');
+    });
+
+    publicSwitch.addEventListener('change', () => {
+      syncMetrics();
+      showToast(publicSwitch.checked ? '公开检索入口已启用。' : '公开检索入口已关闭，档案公开字段不变化。');
+    });
+
+    document.getElementById('addFormat').addEventListener('click', () => {
+      const input = document.getElementById('newFormat');
+      const value = input.value.trim().replace('.', '').toLowerCase();
+      if (!value) {
+        showToast('请输入要加入白名单的扩展名。');
+        return;
+      }
+      const tag = document.createElement('span');
+      tag.className = 'format-tag';
+      tag.textContent = value;
+      document.getElementById('formatTags').appendChild(tag);
+      input.value = '';
+      showToast('格式已加入白名单，保存后写入 system_configs。');
+    });
+
+    document.getElementById('saveConfig').addEventListener('click', () => {
+      const maxSize = Number(document.getElementById('maxSize').value);
+      const borrowDays = Number(document.getElementById('borrowDays').value);
+      if (maxSize < 1 || maxSize > 2048) {
+        showToast('上传大小必须在 1 到 2048 MB 之间。');
+        return;
+      }
+      if (borrowDays < 1 || borrowDays > 90) {
+        showToast('默认借阅天数必须在 1 到 90 天之间。');
+        return;
+      }
+      document.getElementById('savedAt').textContent = '刚刚';
+      showToast('配置已保存，变更写入 audit_logs。');
+    });
+
+    document.getElementById('resetConfig').addEventListener('click', () => {
+      aiSwitch.checked = true;
+      publicSwitch.checked = true;
+      document.getElementById('maxSize').value = '512';
+      document.getElementById('warehouseThreshold').value = '85';
+      document.getElementById('borrowDays').value = '14';
+      syncMetrics();
+      showToast('已恢复本页示例值。');
+    });
+
+  </script>
+</body>
+</html>

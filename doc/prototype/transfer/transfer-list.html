@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>编制移交清单 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .portal-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 3px 9px;
+      border: 1px solid #b9d7d9;
+      border-radius: 999px;
+      color: var(--primary-strong);
+      background: var(--primary-soft);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .edit-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .edit-layout > .grid,
+    .edit-layout > .submit-panel,
+    .edit-layout > .grid > .card,
+    .edit-layout > .grid > section {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .drop-zone {
+      display: grid;
+      min-height: 176px;
+      place-items: center;
+      gap: 12px;
+      padding: 22px;
+      border: 2px dashed #9bbdc0;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #f7fcfc;
+      text-align: center;
+      transition: border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .drop-zone strong {
+      display: block;
+      font-size: 17px;
+    }
+
+    .local-file-list {
+      display: grid;
+      gap: 8px;
+      max-height: 220px;
+      margin-top: 12px;
+      overflow-y: auto;
+    }
+
+    .local-file {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .editable-table {
+      min-width: 1260px;
+    }
+
+    .editable-table input,
+    .editable-table select {
+      width: 100%;
+      min-width: 108px;
+      min-height: 34px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .editable-table .title-input {
+      min-width: 180px;
+    }
+
+    .editable-table .file-input {
+      min-width: 190px;
+    }
+
+    .validation-list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .submit-panel {
+      position: sticky;
+      top: 86px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .status-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 30;
+      display: none;
+      width: min(380px, calc(100vw - 44px));
+      padding: 12px 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #ffffff;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1160px) {
+      .edit-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .submit-panel {
+        position: static;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .form-grid,
+      .grid.three {
+        grid-template-columns: 1fr;
+      }
+
+      .local-file {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="移交单位门户导航">
+      <div class="brand">
+        <strong>智能档案管理系统</strong>
+        <span>移交单位门户</span>
+      </div>
+      <nav class="nav-section">
+        <div class="nav-title">移交业务</div>
+        <a class="nav-link" href="overview.html">移交工作台 <span>状态</span></a>
+        <a class="nav-link active" href="transfer-list.html">编制移交清单 <span>当前</span></a>
+      </nav>
+      <nav class="nav-section">
+        <div class="nav-title">清单动作</div>
+        <a class="nav-link" href="overview.html?filter=draft">草稿清单 <span>继续</span></a>
+        <a class="nav-link" href="overview.html?filter=partially_received">回退补交 <span>新建</span></a>
+      </nav>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div><span class="portal-badge">移交单位经办人</span><span class="muted"> 编制移交清单，仅解析文件名不上传文件</span></div>
+        <div class="role"><span>克拉玛依市财政局</span><span class="hint" id="batchStatusText">当前状态：草稿</span></div>
+      </header>
+
+      <main class="content">
+        <section>
+          <h1 class="page-title">编制移交清单</h1>
+          <p class="page-subtitle">填写清单级信息和条目字段。拖拽电子文件只会在浏览器本地解析文件名、扩展名和大小，用于辅助填表，真正文件上传由前台管理员在验收阶段完成。</p>
+        </section>
+
+        <div class="edit-layout" style="margin-top: 18px;">
+          <div class="grid">
+            <section class="card panel">
+              <div class="status-line">
+                <h2 class="section-title" style="margin: 0;">清单基础信息</h2>
+                <span id="batchBadge" class="status">草稿</span>
+              </div>
+              <div class="form-grid" style="margin-top: 14px;">
+                <div class="field">
+                  <label for="listTitle">清单标题</label>
+                  <input id="listTitle" value="2025 年度会计档案移交清单">
+                </div>
+                <div class="field">
+                  <label for="orgName">移交单位</label>
+                  <input id="orgName" value="克拉玛依市财政局" readonly>
+                  <span class="hint">取自当前账号，提交时由后端校验</span>
+                </div>
+                <div class="field">
+                  <label for="department">移交部门</label>
+                  <input id="department" value="财务部">
+                </div>
+                <div class="field">
+                  <label for="contactName">经办人</label>
+                  <input id="contactName" value="小张" readonly>
+                </div>
+                <div class="field">
+                  <label for="contactPhone">联系电话</label>
+                  <input id="contactPhone" value="0990-6123456">
+                </div>
+                <div class="field">
+                  <label for="archiveYear">档案所属年度</label>
+                  <input id="archiveYear" type="number" min="1900" max="2099" value="2025">
+                </div>
+                <div class="field">
+                  <label for="expectedDate">预计到馆移交日期</label>
+                  <input id="expectedDate" type="date" value="2026-06-24">
+                </div>
+              </div>
+            </section>
+
+            <section class="card panel">
+              <h2 class="section-title">本地解析电子文件</h2>
+              <div class="drop-zone" id="dropZone">
+                <div>
+                  <strong>拖拽文件到这里，或选择本地文件</strong>
+                  <p class="muted" style="margin: 6px 0 0;">系统只读取文件名、扩展名、大小，不写入暂存文件表，不上传到 MinIO。</p>
+                </div>
+                <label class="button secondary" for="filePicker">选择文件</label>
+                <input class="sr-only" id="filePicker" type="file" multiple>
+              </div>
+              <div class="local-file-list" id="localFileList" aria-live="polite"></div>
+            </section>
+
+            <section>
+              <div class="toolbar" style="margin-top: 0;">
+                <h2 class="section-title" style="margin: 0;">清单条目</h2>
+                <div class="actions">
+                  <button class="button ghost" type="button" id="addBlank">新增空白条目</button>
+                  <button class="button secondary" type="button" id="validateBtn">校验清单</button>
+                </div>
+              </div>
+              <div class="table-wrap scroll-y">
+                <table class="editable-table">
+                  <thead>
+                    <tr>
+                      <th>序号</th>
+                      <th>档案标题</th>
+                      <th>页数</th>
+                      <th>保管期限</th>
+                      <th>载体状态</th>
+                      <th>电子格式</th>
+                      <th>保密级别</th>
+                      <th>是否公开</th>
+                      <th>允许数字化</th>
+                      <th>档案文件名</th>
+                      <th>形成日期</th>
+                      <th>状态</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="itemBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <aside class="submit-panel">
+            <section class="card panel">
+              <h2 class="section-title">提交检查</h2>
+              <div id="validationBox" class="notice">
+                已准备校验。提交前请确认载体状态、保管期限、密级、公开状态等人工判断字段。
+              </div>
+              <div class="actions" style="margin-top: 12px;">
+                <button class="button ghost" type="button" id="saveDraft">保存草稿</button>
+                <button class="button" type="button" id="submitList">提交清单</button>
+                <button class="button secondary" type="button" id="exportList" hidden>导出打印清单</button>
+              </div>
+              <p class="hint">提交后清单状态变为待移交，条目状态变为待验收；移交单位不可再编辑，只能导出清单或查看进度。</p>
+            </section>
+
+            <section class="notice warning">
+              <strong>字段保护边界</strong>
+              <p style="margin: 8px 0 0;">拖拽文件不会判断载体状态。密级、保管期限、是否公开、是否允许数字化由经办人填写，后续 AI 和普通编辑不能覆盖。</p>
+            </section>
+
+            <section class="card panel">
+              <h2 class="section-title">线下交接提醒</h2>
+              <ul class="timeline">
+                <li><span class="muted">提交后</span><strong>导出 PDF 清单</strong></li>
+                <li><span class="muted">到馆时</span><strong>携带纸质原件、U 盘、签字清单</strong></li>
+                <li><span class="muted">前台</span><strong>验收实物并上传 U 盘文件</strong></li>
+              </ul>
+            </section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const itemBody = document.getElementById("itemBody");
+    const filePicker = document.getElementById("filePicker");
+    const dropZone = document.getElementById("dropZone");
+    const localFileList = document.getElementById("localFileList");
+    const validationBox = document.getElementById("validationBox");
+    const toast = document.getElementById("toast");
+
+    let submitted = false;
+    let rows = [
+      {
+        title: "2025 年 1 月会计凭证",
+        pages: "126",
+        retention: "30y",
+        carrier: "paper_electronic",
+        format: "PDF",
+        security: "0",
+        open: "closed",
+        digitization: "yes",
+        filename: "2025-01-voucher.pdf",
+        formedDate: "2025-01-31",
+        localSize: "2.8 MB"
+      },
+      {
+        title: "2025 年 2 月会计凭证",
+        pages: "118",
+        retention: "30y",
+        carrier: "paper_electronic",
+        format: "PDF",
+        security: "0",
+        open: "closed",
+        digitization: "yes",
+        filename: "2025-02-voucher.pdf",
+        formedDate: "2025-02-28",
+        localSize: "3.1 MB"
+      }
+    ];
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes) return "0 KB";
+      const units = ["B", "KB", "MB", "GB"];
+      let size = bytes;
+      let unit = 0;
+      while (size >= 1024 && unit < units.length - 1) {
+        size = size / 1024;
+        unit += 1;
+      }
+      return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+    }
+
+    function titleFromFile(name) {
+      return name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ");
+    }
+
+    function fileExt(name) {
+      const match = name.match(/\.([^.]+)$/);
+      return match ? match[1].toUpperCase() : "";
+    }
+
+    function renderRows() {
+      itemBody.innerHTML = rows.map((row, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td><input class="title-input" data-field="title" data-index="${index}" value="${row.title}" ${submitted ? "readonly" : ""}></td>
+          <td><input type="number" min="0" data-field="pages" data-index="${index}" value="${row.pages}" ${submitted ? "readonly" : ""}></td>
+          <td>
+            <select data-field="retention" data-index="${index}" ${submitted ? "disabled" : ""}>
+              <option value="">请选择</option>
+              <option value="10y" ${row.retention === "10y" ? "selected" : ""}>10 年</option>
+              <option value="30y" ${row.retention === "30y" ? "selected" : ""}>30 年</option>
+              <option value="permanent" ${row.retention === "permanent" ? "selected" : ""}>永久</option>
+            </select>
+          </td>
+          <td>
+            <select data-field="carrier" data-index="${index}" ${submitted ? "disabled" : ""}>
+              <option value="">人工确认</option>
+              <option value="electronic" ${row.carrier === "electronic" ? "selected" : ""}>纯电子</option>
+              <option value="paper_electronic" ${row.carrier === "paper_electronic" ? "selected" : ""}>纸质+电子</option>
+              <option value="paper" ${row.carrier === "paper" ? "selected" : ""}>纯纸质</option>
+            </select>
+          </td>
+          <td><input data-field="format" data-index="${index}" value="${row.format}" ${submitted ? "readonly" : ""}></td>
+          <td>
+            <select data-field="security" data-index="${index}" ${submitted ? "disabled" : ""}>
+              <option value="0" ${row.security === "0" ? "selected" : ""}>非密</option>
+              <option value="1" ${row.security === "1" ? "selected" : ""}>内部</option>
+              <option value="2" ${row.security === "2" ? "selected" : ""}>秘密</option>
+              <option value="3" ${row.security === "3" ? "selected" : ""}>机密</option>
+              <option value="4" ${row.security === "4" ? "selected" : ""}>绝密</option>
+            </select>
+          </td>
+          <td>
+            <select data-field="open" data-index="${index}" ${submitted ? "disabled" : ""}>
+              <option value="open" ${row.open === "open" ? "selected" : ""}>公开</option>
+              <option value="closed" ${row.open === "closed" ? "selected" : ""}>不公开</option>
+            </select>
+          </td>
+          <td>
+            <select data-field="digitization" data-index="${index}" ${submitted ? "disabled" : ""}>
+              <option value="yes" ${row.digitization === "yes" ? "selected" : ""}>允许</option>
+              <option value="no" ${row.digitization === "no" ? "selected" : ""}>不允许</option>
+              <option value="none" ${row.digitization === "none" ? "selected" : ""}>不适用</option>
+            </select>
+          </td>
+          <td><input class="file-input" data-field="filename" data-index="${index}" value="${row.filename}" ${submitted ? "readonly" : ""}></td>
+          <td><input type="date" data-field="formedDate" data-index="${index}" value="${row.formedDate}" ${submitted ? "readonly" : ""}></td>
+          <td>${submitted ? '<span class="status info">待验收</span>' : '<span class="status">草稿</span>'}</td>
+          <td><button class="button ghost" type="button" data-remove="${index}" ${submitted ? "disabled" : ""}>删除</button></td>
+        </tr>
+      `).join("");
+    }
+
+    function renderLocalFiles(files) {
+      const list = Array.from(files);
+      if (!list.length) return;
+      localFileList.innerHTML = list.map((file) => `
+        <div class="local-file">
+          <div>
+            <strong>${file.name}</strong>
+            <div class="hint">${fileExt(file.name) || "未知格式"}，${formatBytes(file.size)}，仅本地解析</div>
+          </div>
+          <span class="status info">未上传</span>
+        </div>
+      `).join("");
+    }
+
+    function appendFiles(files) {
+      const list = Array.from(files);
+      list.forEach((file) => {
+        rows.push({
+          title: titleFromFile(file.name),
+          pages: "",
+          retention: "",
+          carrier: "",
+          format: fileExt(file.name),
+          security: "0",
+          open: "closed",
+          digitization: "none",
+          filename: file.name,
+          formedDate: "",
+          localSize: formatBytes(file.size)
+        });
+      });
+      renderRows();
+      renderLocalFiles(files);
+      showToast(`已解析 ${list.length} 个文件名。载体状态仍需人工确认，未上传文件本体。`);
+    }
+
+    function readFormRows() {
+      document.querySelectorAll("[data-field]").forEach((input) => {
+        const index = Number(input.dataset.index);
+        const field = input.dataset.field;
+        rows[index][field] = input.value;
+      });
+    }
+
+    function validateList() {
+      readFormRows();
+      const issues = [];
+      const requiredBatch = [
+        ["listTitle", "清单标题"],
+        ["department", "移交部门"],
+        ["contactPhone", "联系电话"],
+        ["archiveYear", "档案所属年度"],
+        ["expectedDate", "预计到馆移交日期"]
+      ];
+      requiredBatch.forEach(([id, label]) => {
+        if (!document.getElementById(id).value.trim()) {
+          issues.push(`${label}不能为空`);
+        }
+      });
+      rows.forEach((row, index) => {
+        const no = index + 1;
+        if (!row.title.trim()) issues.push(`第 ${no} 条缺少档案标题`);
+        if (!row.retention) issues.push(`第 ${no} 条缺少保管期限`);
+        if (!row.carrier) issues.push(`第 ${no} 条必须人工确认载体状态`);
+        if (!row.formedDate) issues.push(`第 ${no} 条缺少档案形成日期`);
+        if (row.carrier === "paper" && row.filename.trim()) issues.push(`第 ${no} 条为纯纸质时不应保留电子文件名`);
+        if ((row.carrier === "electronic" || row.carrier === "paper_electronic") && !row.filename.trim()) issues.push(`第 ${no} 条包含电子载体时应填写档案文件名`);
+        if (row.security !== "0" && row.open === "open") issues.push(`第 ${no} 条为涉密档案时不能选择公开`);
+      });
+
+      if (issues.length) {
+        validationBox.className = "notice danger";
+        validationBox.innerHTML = `<strong>发现 ${issues.length} 个问题</strong><ul class="validation-list">${issues.map((issue) => `<li>${issue}</li>`).join("")}</ul>`;
+        return false;
+      }
+      validationBox.className = "notice";
+      validationBox.innerHTML = "<strong>校验通过</strong><p style=\"margin: 8px 0 0;\">可提交清单。提交后批次状态为待移交，条目状态为待验收。</p>";
+      return true;
+    }
+
+    itemBody.addEventListener("input", readFormRows);
+    itemBody.addEventListener("change", readFormRows);
+    itemBody.addEventListener("click", (event) => {
+      const remove = event.target.closest("[data-remove]");
+      if (remove && !submitted) {
+        rows.splice(Number(remove.dataset.remove), 1);
+        renderRows();
+        showToast("已删除未提交条目。");
+      }
+    });
+
+    document.getElementById("addBlank").addEventListener("click", () => {
+      if (submitted) return;
+      rows.push({
+        title: "",
+        pages: "",
+        retention: "",
+        carrier: "paper",
+        format: "",
+        security: "0",
+        open: "closed",
+        digitization: "yes",
+        filename: "",
+        formedDate: "",
+        localSize: ""
+      });
+      renderRows();
+      showToast("已新增空白条目，适合手工填写纯纸质档案。");
+    });
+
+    document.getElementById("validateBtn").addEventListener("click", () => {
+      validateList();
+    });
+
+    document.getElementById("saveDraft").addEventListener("click", () => {
+      readFormRows();
+      showToast("草稿已保存。清单仍可在移交工作台继续编辑。");
+    });
+
+    document.getElementById("submitList").addEventListener("click", () => {
+      if (!validateList()) {
+        showToast("清单存在校验问题，请修正后再提交。");
+        return;
+      }
+      submitted = true;
+      document.getElementById("batchBadge").className = "status info";
+      document.getElementById("batchBadge").textContent = "待移交";
+      document.getElementById("batchStatusText").textContent = "当前状态：待移交";
+      document.getElementById("exportList").hidden = false;
+      renderRows();
+      showToast("清单已提交。请导出 PDF 并随纸质原件、U 盘到馆移交。");
+    });
+
+    document.getElementById("exportList").addEventListener("click", () => {
+      showToast("移交清单 PDF 已生成，包含双方签字盖章区。");
+    });
+
+    filePicker.addEventListener("change", () => appendFiles(filePicker.files));
+
+    ["dragenter", "dragover"].forEach((eventName) => {
+      dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach((eventName) => {
+      dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropZone.classList.remove("dragover");
+      });
+    });
+
+    dropZone.addEventListener("drop", (event) => appendFiles(event.dataTransfer.files));
+
+    renderRows();
+  </script>
+</body>
+</html>

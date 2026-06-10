@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam rectangle {
+  BackgroundColor #F7F9FC
+  BorderColor #526070
+}
+skinparam arrowColor #526070
+
+title 系统运行维护组织架构图
+
+rectangle "运维管理组\n服务级别、变更、容量、发布" as OpsManage
+rectangle "服务热线组\n用户请求受理、事件记录、进度反馈" as Helpdesk
+rectangle "操作值守组\n系统运行监控、备份检查、告警上报" as Monitor
+rectangle "运维支持组\n故障处理、漏洞修复、系统升级" as Support
+rectangle "安全管理组\n权限复核、日志审计、等保整改" as Security
+rectangle "后勤服务组\n耗材、培训、资料归档" as Logistics
+
+OpsManage --> Helpdesk
+OpsManage --> Monitor
+OpsManage --> Support
+OpsManage --> Security
+OpsManage --> Logistics
+Helpdesk ..> Support : 派单
+Monitor ..> Support : 告警处理
+Security ..> OpsManage : 安全报告
+Logistics ..> Helpdesk : 培训资料和用户支持
+
+@enduml

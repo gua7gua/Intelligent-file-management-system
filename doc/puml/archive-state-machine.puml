@@ -1,0 +1,45 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam state {
+  BackgroundColor #F7F9FC
+  BorderColor #526070
+  FontColor #111827
+}
+
+title 清单、文件与正式档案主状态机
+
+[*] --> Draft : 编制清单
+Draft --> PendingTransfer : 提交清单
+PendingTransfer --> Received : 全部验收通过
+PendingTransfer --> PartiallyReceived : 部分接收/部分回退
+PendingTransfer --> Rejected : 整批拒绝或回退
+Rejected --> [*]
+
+PartiallyReceived --> PendingArchive : 已接收条目继续入库
+Received --> PendingArchive : AI 补全/人工核对
+PendingArchive --> ArchivedUnshelved : 纸质相关档案确认入库
+PendingArchive --> Normal : 纯电子档案确认入库
+ArchivedUnshelved --> Normal : 确认上架
+
+Normal --> Borrowed : 借阅出库
+Borrowed --> Normal : 归还确认
+Normal --> Inventorying : 盘点命中范围
+Inventorying --> Normal : 盘点完成
+Normal --> PendingDestroy : 鉴定为待销毁
+PendingDestroy --> Destroyed : 审批通过并确认销毁
+Destroyed --> [*]
+
+note right of PendingArchive
+  AI 只补全白名单字段：
+  题名、责任者、形成日期、
+  分类、标签
+end note
+
+note right of ArchivedUnshelved
+  已生成正式档号和架位记录，
+  但不向查阅者和公众开放检索。
+end note
+
+@enduml

@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>档案鉴定 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .hero-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 330px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .batch-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .batch-item {
+      display: grid;
+      gap: 9px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #ffffff;
+      text-align: left;
+    }
+
+    .batch-item.active {
+      border-color: #8abcbf;
+      box-shadow: 0 0 0 3px rgba(31, 111, 120, 0.1);
+    }
+
+    .batch-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .range-card {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .range-card div {
+      padding: 11px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #f7fafc;
+    }
+
+    .range-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .range-card strong {
+      display: block;
+      margin-top: 4px;
+    }
+
+    .choice-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .choice {
+      min-height: 30px;
+      padding: 5px 9px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: #34414d;
+      background: #ffffff;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .choice.active {
+      color: var(--primary-strong);
+      border-color: #8abcbf;
+      background: var(--primary-soft);
+    }
+
+    .choice.destroy.active {
+      color: #8a2924;
+      border-color: #f2b6b2;
+      background: var(--danger-soft);
+    }
+
+    .inline-input,
+    .inline-select {
+      width: min(180px, 100%);
+      min-height: 32px;
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .generation-box {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      margin-top: 16px;
+      padding: 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      background: var(--primary-soft);
+    }
+
+    .step-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .step-list li {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .step-list b {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      border-radius: 999px;
+      color: #ffffff;
+      background: var(--primary);
+      font-size: 12px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(23, 33, 43, 0.38);
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: min(780px, 100%);
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      border-radius: var(--radius);
+      background: #ffffff;
+      box-shadow: var(--shadow);
+    }
+
+    .modal header,
+    .modal footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal footer {
+      border-top: 1px solid var(--border);
+      border-bottom: 0;
+    }
+
+    .modal .body {
+      padding: 18px;
+    }
+
+    .toast {
+      display: none;
+      margin-bottom: 14px;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1180px) {
+      .summary-grid,
+      .workspace,
+      .range-card,
+      .generation-box {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link" href="archive-management.html">档案管理 <span>整理</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link active" href="appraisal.html">档案鉴定 <span>当前</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div><strong>档案鉴定</strong><span class="muted"> 到期提醒与鉴定工作台</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option selected>后台管理员</option><option>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+
+      <section class="content">
+        <div class="hero-line">
+          <div>
+            <h1 class="page-title">档案鉴定</h1>
+            <p class="page-subtitle">对到期档案作一次性保存价值判断：延长保存或标记待销毁，完成后系统自动生成销毁清册。</p>
+          </div>
+          <button class="button" type="button" id="openBatchModal">
+            <span class="icon" aria-hidden="true">+</span>
+            创建鉴定批次
+          </button>
+        </div>
+
+        <div class="notice toast" id="batchToast">已创建鉴定批次 JD-202606-014，命中 26 件到期档案。</div>
+        <div class="notice toast" id="finishToast">鉴定已完成，系统自动生成销毁清册 XH-202606-009，清册状态为待提交。</div>
+
+        <div class="summary-grid">
+          <div class="metric">
+            <span class="label">即将到期档案</span>
+            <span class="value">74</span>
+            <span class="note">90 天内到期</span>
+          </div>
+          <div class="metric">
+            <span class="label">待鉴定批次</span>
+            <span class="value">3</span>
+            <span class="note">草稿 2 · 进行中 1</span>
+          </div>
+          <div class="metric">
+            <span class="label">待销毁条目</span>
+            <span class="value">18</span>
+            <span class="note">进入清册生成范围</span>
+          </div>
+          <div class="metric">
+            <span class="label">已生成清册</span>
+            <span class="value">5</span>
+            <span class="note">本年累计</span>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <section class="card panel">
+            <div class="toolbar" style="margin-top:0">
+              <h2 class="section-title">鉴定批次</h2>
+              <div class="tabs">
+                <button class="tab active" type="button" data-filter="pending">待处理</button>
+                <button class="tab" type="button" data-filter="done">已完成</button>
+              </div>
+            </div>
+            <div class="batch-list">
+              <button class="batch-item active" type="button" data-status="pending" data-name="2026 年度科技档案到期鉴定">
+                <strong>2026 年度科技档案到期鉴定</strong>
+                <span class="batch-meta"><span class="mono">JD-202606-011</span><span>科技档案</span><span>2014-2016</span></span>
+                <span class="batch-meta"><span>26 件待判断</span><span class="status warning">草稿</span></span>
+              </button>
+              <button class="batch-item" type="button" data-status="pending" data-name="2026 年度会计档案保管期鉴定">
+                <strong>2026 年度会计档案保管期鉴定</strong>
+                <span class="batch-meta"><span class="mono">JD-202606-012</span><span>会计档案</span><span>2013-2015</span></span>
+                <span class="batch-meta"><span>42 件待判断</span><span class="status warning">草稿</span></span>
+              </button>
+              <button class="batch-item" type="button" data-status="done" data-name="2026 春季文书档案鉴定">
+                <strong>2026 春季文书档案鉴定</strong>
+                <span class="batch-meta"><span class="mono">JD-202605-006</span><span>文书档案</span><span>已完成</span></span>
+                <span class="batch-meta"><span>生成清册 XH-202605-004</span><span class="status success">完成</span></span>
+              </button>
+            </div>
+
+            <div class="notice" style="margin-top:14px">
+              <strong>处置边界</strong><br>
+              鉴定页只做保存价值判断；提交审批、确认销毁和证据链保存在档案销毁页面继续处理。
+            </div>
+          </section>
+
+          <section class="card panel">
+            <div class="toolbar" style="margin-top:0">
+              <div>
+                <h2 class="section-title" id="batchTitle">2026 年度科技档案到期鉴定</h2>
+                <p class="hint">批次号：JD-202606-011 · 状态：draft · 鉴定人：小刘</p>
+              </div>
+              <button class="button secondary" type="button" id="finishAppraisal">
+                <span class="icon" aria-hidden="true">✓</span>
+                完成鉴定
+              </button>
+            </div>
+
+            <div class="range-card">
+              <div><span>分类</span><strong>科技档案</strong></div>
+              <div><span>年度范围</span><strong>2014 - 2016</strong></div>
+              <div><span>到期范围</span><strong>2026-06-01 至 2026-12-31</strong></div>
+              <div><span>命中档案</span><strong>26 件</strong></div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>档号 / 题名</th>
+                    <th>原期限 / 到期日</th>
+                    <th>当前状态</th>
+                    <th>鉴定结果</th>
+                    <th>新期限</th>
+                    <th>鉴定意见</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><span class="mono">KJ-2015-00321</span><br>采油设备维修记录</td>
+                    <td>10 年<br><span class="muted">2026-07-01</span></td>
+                    <td><span class="status success">正常</span></td>
+                    <td>
+                      <div class="choice-group">
+                        <button class="choice active" type="button">延长保存</button>
+                        <button class="choice destroy" type="button">待销毁</button>
+                      </div>
+                    </td>
+                    <td>
+                      <select class="inline-select" aria-label="新保管期限">
+                        <option>30 年</option>
+                        <option>永久</option>
+                      </select>
+                      <input class="inline-input" value="2046-07-01" aria-label="新到期日" style="margin-top:6px">
+                    </td>
+                    <td><input class="inline-input" value="仍有设备追溯价值" aria-label="鉴定意见"></td>
+                  </tr>
+                  <tr>
+                    <td><span class="mono">KJ-2014-00108</span><br>临时施工周报汇编</td>
+                    <td>10 年<br><span class="muted">2026-06-30</span></td>
+                    <td><span class="status success">正常</span></td>
+                    <td>
+                      <div class="choice-group">
+                        <button class="choice" type="button">延长保存</button>
+                        <button class="choice destroy active" type="button">待销毁</button>
+                      </div>
+                    </td>
+                    <td><span class="status danger">不延长</span></td>
+                    <td><input class="inline-input" value="无继续保存价值" aria-label="鉴定意见"></td>
+                  </tr>
+                  <tr>
+                    <td><span class="mono">KJ-2016-00077</span><br>管线巡检过程照片目录</td>
+                    <td>10 年<br><span class="muted">2026-09-15</span></td>
+                    <td><span class="status info">借出中</span></td>
+                    <td>
+                      <div class="choice-group">
+                        <button class="choice" type="button">延长保存</button>
+                        <button class="choice destroy active" type="button">待销毁</button>
+                      </div>
+                    </td>
+                    <td><span class="status danger">不延长</span></td>
+                    <td><input class="inline-input" value="归还后随清册核对实物" aria-label="鉴定意见"></td>
+                  </tr>
+                  <tr>
+                    <td><span class="mono">KJ-2015-00412</span><br>老旧设备采购询价材料</td>
+                    <td>10 年<br><span class="muted">2026-11-20</span></td>
+                    <td><span class="status warning">盘点中</span></td>
+                    <td>
+                      <div class="choice-group">
+                        <button class="choice active" type="button">延长保存</button>
+                        <button class="choice destroy" type="button">待销毁</button>
+                      </div>
+                    </td>
+                    <td>
+                      <select class="inline-select" aria-label="新保管期限">
+                        <option>30 年</option>
+                        <option>永久</option>
+                      </select>
+                      <input class="inline-input" value="2046-11-20" aria-label="新到期日" style="margin-top:6px">
+                    </td>
+                    <td><input class="inline-input" value="后续审计仍可能引用" aria-label="鉴定意见"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="generation-box">
+              <div>
+                <strong>完成鉴定后的系统动作</strong>
+                <p class="hint">待销毁条目自动写入销毁清册，清册保存档号、题名、分类、密级、保管期限和鉴定意见快照。</p>
+              </div>
+              <span class="status info" id="listStatus">待生成清册</span>
+            </div>
+          </section>
+        </div>
+
+        <section class="card panel" style="margin-top:16px">
+          <h2 class="section-title">鉴定到销毁的流转</h2>
+          <ul class="step-list">
+            <li><b>1</b><span>创建鉴定批次，按分类、年度和到期范围拉入档案。</span></li>
+            <li><b>2</b><span>逐件作出“延长保存”或“待销毁”结论，记录鉴定人、时间和意见。</span></li>
+            <li><b>3</b><span>完成鉴定后，待销毁档案状态变为“待销毁”，系统自动生成销毁清册。</span></li>
+            <li><b>4</b><span>清册进入档案销毁页面待提交，后续由馆领导审批并形成证据链。</span></li>
+          </ul>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="batchModal" role="dialog" aria-modal="true" aria-labelledby="batchModalTitle">
+    <div class="modal">
+      <header>
+        <h2 class="section-title" id="batchModalTitle">创建鉴定批次</h2>
+        <button class="button ghost" type="button" id="closeBatchModal">关闭</button>
+      </header>
+      <div class="body">
+        <div class="form-grid">
+          <div class="field">
+            <label for="category">分类</label>
+            <select id="category">
+              <option>科技档案</option>
+              <option>文书档案</option>
+              <option>会计档案</option>
+              <option>音像档案</option>
+              <option>人事档案</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="yearStart">形成年度起</label>
+            <input id="yearStart" type="number" value="2014">
+          </div>
+          <div class="field">
+            <label for="yearEnd">形成年度止</label>
+            <input id="yearEnd" type="number" value="2016">
+          </div>
+          <div class="field">
+            <label for="dueStart">到期日期起</label>
+            <input id="dueStart" type="date" value="2026-06-01">
+          </div>
+          <div class="field">
+            <label for="dueEnd">到期日期止</label>
+            <input id="dueEnd" type="date" value="2026-12-31">
+          </div>
+          <div class="field">
+            <label for="newBatchName">批次名称</label>
+            <input id="newBatchName" value="2026 年度科技档案到期鉴定">
+          </div>
+        </div>
+        <p class="hint" id="batchHint">预计命中 26 件到期档案，批次保存为草稿。</p>
+      </div>
+      <footer>
+        <button class="button ghost" type="button" id="cancelBatch">取消</button>
+        <button class="button" type="button" id="createBatch">
+          <span class="icon" aria-hidden="true">+</span>
+          创建批次
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    const batchModal = document.getElementById('batchModal');
+    const category = document.getElementById('category');
+    const newBatchName = document.getElementById('newBatchName');
+
+    function toggleBatchModal(show) {
+      batchModal.classList.toggle('open', show);
+    }
+
+    function updateBatchName() {
+      newBatchName.value = `2026 年度${category.value}到期鉴定`;
+      document.getElementById('batchHint').textContent = `预计命中 26 件${category.value}到期档案，批次保存为草稿。`;
+    }
+
+    document.getElementById('openBatchModal').addEventListener('click', () => toggleBatchModal(true));
+    document.getElementById('closeBatchModal').addEventListener('click', () => toggleBatchModal(false));
+    document.getElementById('cancelBatch').addEventListener('click', () => toggleBatchModal(false));
+    category.addEventListener('change', updateBatchName);
+    document.getElementById('createBatch').addEventListener('click', () => {
+      document.getElementById('batchTitle').textContent = newBatchName.value;
+      toggleBatchModal(false);
+      document.getElementById('batchToast').classList.add('show');
+    });
+
+    document.querySelectorAll('.choice-group').forEach((group) => {
+      group.addEventListener('click', (event) => {
+        if (!event.target.classList.contains('choice')) return;
+        group.querySelectorAll('.choice').forEach((choice) => choice.classList.remove('active'));
+        event.target.classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('.batch-item').forEach((batch) => {
+      batch.addEventListener('click', () => {
+        document.querySelectorAll('.batch-item').forEach((item) => item.classList.remove('active'));
+        batch.classList.add('active');
+        document.getElementById('batchTitle').textContent = batch.dataset.name;
+      });
+    });
+
+    document.querySelectorAll('[data-filter]').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        tab.parentElement.querySelectorAll('[data-filter]').forEach((item) => item.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.batch-item').forEach((item) => {
+          item.hidden = item.dataset.status !== tab.dataset.filter;
+        });
+      });
+    });
+
+    document.getElementById('finishAppraisal').addEventListener('click', () => {
+      document.getElementById('finishToast').classList.add('show');
+      document.getElementById('listStatus').textContent = '已生成 XH-202606-009';
+      document.getElementById('listStatus').className = 'status success';
+    });
+  </script>
+</body>
+</html>

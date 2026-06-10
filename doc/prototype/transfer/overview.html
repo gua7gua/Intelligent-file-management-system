@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>移交工作台 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .portal-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 3px 9px;
+      border: 1px solid #b9d7d9;
+      border-radius: 999px;
+      color: var(--primary-strong);
+      background: var(--primary-soft);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(340px, 0.9fr);
+      gap: 16px;
+      align-items: start;
+      min-width: 0;
+    }
+
+    .workspace > * {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .batch-row {
+      transition: background 0.16s ease;
+    }
+
+    .batch-row:hover,
+    .batch-row.active {
+      background: #f2f8f8;
+    }
+
+    .batch-row button {
+      width: 100%;
+      padding: 0;
+      border: 0;
+      color: inherit;
+      background: transparent;
+      text-align: left;
+    }
+
+    .detail-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .detail-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .meta-item {
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #f8fafb;
+    }
+
+    .meta-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .meta-item strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 14px;
+    }
+
+    .progress-line {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin: 14px 0;
+    }
+
+    .progress-node {
+      min-height: 66px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .progress-node.done {
+      border-color: #a8d8be;
+      background: var(--success-soft);
+    }
+
+    .progress-node.current {
+      border-color: #8abcbf;
+      background: var(--primary-soft);
+    }
+
+    .progress-node strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .progress-node span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .item-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .item-card {
+      display: grid;
+      gap: 6px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+    }
+
+    .item-card .line {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .receipt-box {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 12px;
+      border: 1px dashed #b8c5ce;
+      border-radius: var(--radius);
+      background: #f7fafc;
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 30;
+      display: none;
+      width: min(360px, calc(100vw - 44px));
+      padding: 12px 14px;
+      border: 1px solid #b9d7d9;
+      border-radius: var(--radius);
+      color: #23494f;
+      background: #ffffff;
+      box-shadow: var(--shadow);
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @media (max-width: 1120px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .grid.four,
+      .grid.three {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-meta,
+      .progress-line {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="移交单位门户导航">
+      <div class="brand">
+        <strong>智能档案管理系统</strong>
+        <span>移交单位门户</span>
+      </div>
+      <nav class="nav-section">
+        <div class="nav-title">移交业务</div>
+        <a class="nav-link active" href="overview.html">移交工作台 <span>当前</span></a>
+        <a class="nav-link" href="transfer-list.html">编制移交清单 <span>新建</span></a>
+      </nav>
+      <nav class="nav-section">
+        <div class="nav-title">状态说明</div>
+        <a class="nav-link" href="transfer-list.html?intent=print">清单导出打印 <span>PDF</span></a>
+        <a class="nav-link" href="overview.html?filter=returned">回退条目处理 <span>补交</span></a>
+      </nav>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div><span class="portal-badge">移交单位经办人</span><span class="muted"> 财务部小张，仅查看本单位清单和回执</span></div>
+        <div class="role"><span>克拉玛依市财政局</span><span>联系电话 0990-6123456</span></div>
+      </header>
+
+      <main class="content">
+        <section>
+          <h1 class="page-title">移交工作台</h1>
+          <p class="page-subtitle">跟踪本单位移交清单从编制、前台验收、后台入库到上架的全过程。移交单位侧不上传电子文件本体，电子文件随 U 盘到馆后由前台统一上传。</p>
+        </section>
+
+        <section class="grid four" aria-label="状态统计" style="margin-top: 18px;">
+          <div class="metric">
+            <span class="label">草稿清单</span>
+            <span class="value">2</span>
+            <span class="note">可继续编辑并提交</span>
+          </div>
+          <div class="metric">
+            <span class="label">待移交</span>
+            <span class="value">3</span>
+            <span class="note">需携带纸质原件、U 盘和签字清单到馆</span>
+          </div>
+          <div class="metric">
+            <span class="label">部分接收</span>
+            <span class="value">1</span>
+            <span class="note">回退条目下次新建清单补交</span>
+          </div>
+          <div class="metric">
+            <span class="label">已上架</span>
+            <span class="value">8</span>
+            <span class="note">纸质相关档案已进入利用范围</span>
+          </div>
+        </section>
+
+        <section class="flow-strip" aria-label="移交流程">
+          <div class="flow-step">
+            <strong>1. 编制清单</strong>
+            <span class="muted">浏览器本地解析文件名，不上传文件。</span>
+          </div>
+          <div class="flow-step">
+            <strong>2. 前台验收</strong>
+            <span class="muted">核对实物，上传 U 盘文件并匹配清单。</span>
+          </div>
+          <div class="flow-step">
+            <strong>3. 后台入库</strong>
+            <span class="muted">AI 补全白名单字段，人工确认后生成档号。</span>
+          </div>
+          <div class="flow-step">
+            <strong>4. 确认上架</strong>
+            <span class="muted">纸质相关档案上架后开放检索和借阅。</span>
+          </div>
+        </section>
+
+        <div class="notice warning">
+          提醒：提交后的清单只读。若前台回退条目，回退条目不占用正式档号，请在下次移交时新建清单补交。
+        </div>
+
+        <div class="toolbar">
+          <div class="tabs" role="tablist" aria-label="清单状态筛选">
+            <button class="tab active" type="button" data-filter="all">全部</button>
+            <button class="tab" type="button" data-filter="draft">草稿</button>
+            <button class="tab" type="button" data-filter="pending_transfer">待移交</button>
+            <button class="tab" type="button" data-filter="partially_received">部分接收</button>
+            <button class="tab" type="button" data-filter="archived">已入库</button>
+            <button class="tab" type="button" data-filter="shelved">已上架</button>
+          </div>
+          <div class="actions">
+            <label class="field" style="min-width: 220px;">
+              <span class="sr-only">搜索清单</span>
+              <input id="keyword" type="search" placeholder="搜索清单号、标题、年度">
+            </label>
+            <a class="button" href="transfer-list.html">新建清单</a>
+          </div>
+        </div>
+
+        <section class="workspace">
+          <div>
+            <h2 class="section-title">我的移交清单</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>清单号</th>
+                    <th>标题</th>
+                    <th>年度</th>
+                    <th>预计移交</th>
+                    <th>条目</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="batchBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <aside class="card panel" aria-label="清单详情">
+            <div class="detail-head">
+              <div>
+                <h2 class="section-title" id="detailTitle">清单详情</h2>
+                <p class="muted" id="detailSubtitle" style="margin: 0;"></p>
+              </div>
+              <span id="detailStatus" class="status"></span>
+            </div>
+
+            <div class="detail-meta" id="detailMeta"></div>
+            <div class="progress-line" id="progressLine"></div>
+
+            <div class="receipt-box">
+              <strong>可执行操作</strong>
+              <div class="actions" id="detailActions"></div>
+              <p class="hint" id="detailHint"></p>
+            </div>
+
+            <h3 class="section-title" style="margin-top: 16px;">条目状态</h3>
+            <div class="item-list" id="itemList"></div>
+          </aside>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const statusMap = {
+      draft: ["草稿", ""],
+      pending_transfer: ["待移交", "info"],
+      received: ["已接收", "success"],
+      partially_received: ["部分接收", "warning"],
+      pending_archive: ["待入库", "info"],
+      archived: ["已入库", "success"],
+      shelved: ["已上架", "success"],
+      rejected: ["已拒绝", "danger"]
+    };
+
+    const itemStatusMap = {
+      draft: ["草稿", ""],
+      pending_acceptance: ["待验收", "info"],
+      accepted: ["已接收", "success"],
+      rejected: ["已回退", "danger"],
+      pending_archive: ["待入库", "info"],
+      archived: ["已入库", "success"]
+    };
+
+    const batches = [
+      {
+        id: "YJ-2026-0008",
+        title: "2025 年度会计凭证移交清单",
+        year: "2025",
+        expected: "2026-06-24",
+        status: "partially_received",
+        items: 18,
+        org: "克拉玛依市财政局",
+        dept: "财务部",
+        contact: "小张 0990-6123456",
+        submitted: "2026-06-03 09:20",
+        accepted: "2026-06-07 15:40",
+        archived: "待后台入库",
+        shelved: "未上架",
+        listItems: [
+          { no: "01", title: "2025 年 1 月会计凭证", status: "accepted", file: "2025-01-voucher.pdf", note: "纸质 126 页，电子文件匹配成功" },
+          { no: "02", title: "2025 年 2 月会计凭证", status: "accepted", file: "2025-02-voucher.pdf", note: "纸质 118 页，电子文件匹配成功" },
+          { no: "03", title: "2025 年 3 月会计凭证", status: "rejected", file: "2025-03-voucher.pdf", note: "回退原因：纸质缺少末页签章，下次新建清单补交" }
+        ]
+      },
+      {
+        id: "YJ-2026-0007",
+        title: "2025 年度工资表电子档案",
+        year: "2025",
+        expected: "2026-06-18",
+        status: "pending_transfer",
+        items: 12,
+        org: "克拉玛依市财政局",
+        dept: "人事财务联合组",
+        contact: "小张 0990-6123456",
+        submitted: "2026-06-02 16:05",
+        accepted: "待到馆验收",
+        archived: "未入库",
+        shelved: "未上架",
+        listItems: [
+          { no: "01", title: "2025 年 1-6 月工资表", status: "pending_acceptance", file: "salary-2025-h1.xlsx", note: "待携带 U 盘到馆" },
+          { no: "02", title: "2025 年 7-12 月工资表", status: "pending_acceptance", file: "salary-2025-h2.xlsx", note: "待携带 U 盘到馆" }
+        ]
+      },
+      {
+        id: "YJ-2026-0006",
+        title: "2024 年度决算报告及附件",
+        year: "2024",
+        expected: "2026-05-29",
+        status: "shelved",
+        items: 9,
+        org: "克拉玛依市财政局",
+        dept: "财务部",
+        contact: "小张 0990-6123456",
+        submitted: "2026-05-20 11:10",
+        accepted: "2026-05-29 10:30",
+        archived: "2026-06-01 14:12",
+        shelved: "2026-06-03 09:45",
+        listItems: [
+          { no: "01", title: "2024 年度部门决算报告", status: "archived", file: "final-report-2024.pdf", note: "正式档号 KLMY-CW-2024-00031，已上架" },
+          { no: "02", title: "2024 年度决算附表", status: "archived", file: "final-forms-2024.xlsx", note: "正式档号 KLMY-CW-2024-00032，已上架" }
+        ]
+      },
+      {
+        id: "DRAFT-2026-02",
+        title: "2025 年度专项资金附件",
+        year: "2025",
+        expected: "未填写",
+        status: "draft",
+        items: 4,
+        org: "克拉玛依市财政局",
+        dept: "财务部",
+        contact: "小张 0990-6123456",
+        submitted: "未提交",
+        accepted: "未接收",
+        archived: "未入库",
+        shelved: "未上架",
+        listItems: [
+          { no: "01", title: "专项资金拨付通知", status: "draft", file: "未解析", note: "可继续编辑" },
+          { no: "02", title: "专项资金验收表", status: "draft", file: "未解析", note: "可继续编辑" }
+        ]
+      }
+    ];
+
+    let activeFilter = "all";
+    let selectedId = batches[0].id;
+
+    const body = document.getElementById("batchBody");
+    const keyword = document.getElementById("keyword");
+    const toast = document.getElementById("toast");
+
+    function statusBadge(status) {
+      const [label, type] = statusMap[status] || [status, ""];
+      return `<span class="status ${type}">${label}</span>`;
+    }
+
+    function itemBadge(status) {
+      const [label, type] = itemStatusMap[status] || [status, ""];
+      return `<span class="status ${type}">${label}</span>`;
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+
+    function filteredBatches() {
+      const q = keyword.value.trim().toLowerCase();
+      return batches.filter((batch) => {
+        const matchFilter = activeFilter === "all" || batch.status === activeFilter;
+        const matchKeyword = !q || `${batch.id} ${batch.title} ${batch.year}`.toLowerCase().includes(q);
+        return matchFilter && matchKeyword;
+      });
+    }
+
+    function renderList() {
+      const rows = filteredBatches();
+      body.innerHTML = rows.map((batch) => `
+        <tr class="batch-row ${batch.id === selectedId ? "active" : ""}">
+          <td><button type="button" data-select="${batch.id}"><strong class="mono">${batch.id}</strong></button></td>
+          <td>${batch.title}</td>
+          <td>${batch.year}</td>
+          <td>${batch.expected}</td>
+          <td>${batch.items} 件</td>
+          <td>${statusBadge(batch.status)}</td>
+          <td>
+            <button class="button ghost" type="button" data-action="${batch.status === "draft" ? "edit" : "export"}" data-id="${batch.id}">
+              ${batch.status === "draft" ? "继续编辑" : "导出清单"}
+            </button>
+          </td>
+        </tr>
+      `).join("");
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="7"><div class="empty">没有符合条件的清单</div></td></tr>`;
+      }
+    }
+
+    function progressFor(status) {
+      const order = [
+        ["编制清单", "提交后生成清单号"],
+        ["前台验收", "实物核对和电子文件匹配"],
+        ["后台入库", "生成正式档号"],
+        ["确认上架", "纸质相关档案开放利用"]
+      ];
+      const indexMap = {
+        draft: 0,
+        pending_transfer: 1,
+        received: 2,
+        partially_received: 2,
+        pending_archive: 2,
+        archived: 3,
+        shelved: 4,
+        rejected: 1
+      };
+      const reached = indexMap[status] ?? 0;
+      return order.map((step, index) => {
+        const cls = index < reached ? "done" : index === reached ? "current" : "";
+        return `<div class="progress-node ${cls}"><strong>${step[0]}</strong><span>${step[1]}</span></div>`;
+      }).join("");
+    }
+
+    function renderDetail() {
+      const batch = batches.find((item) => item.id === selectedId) || batches[0];
+      document.getElementById("detailTitle").textContent = batch.title;
+      document.getElementById("detailSubtitle").textContent = batch.id;
+      document.getElementById("detailStatus").outerHTML = `<span id="detailStatus" class="status ${statusMap[batch.status][1]}">${statusMap[batch.status][0]}</span>`;
+      document.getElementById("detailMeta").innerHTML = `
+        <div class="meta-item"><span>移交单位</span><strong>${batch.org}</strong></div>
+        <div class="meta-item"><span>移交部门</span><strong>${batch.dept}</strong></div>
+        <div class="meta-item"><span>经办人</span><strong>${batch.contact}</strong></div>
+        <div class="meta-item"><span>提交时间</span><strong>${batch.submitted}</strong></div>
+        <div class="meta-item"><span>接收时间</span><strong>${batch.accepted}</strong></div>
+        <div class="meta-item"><span>入库/上架</span><strong>${batch.archived} / ${batch.shelved}</strong></div>
+      `;
+      document.getElementById("progressLine").innerHTML = progressFor(batch.status);
+      document.getElementById("itemList").innerHTML = batch.listItems.map((item) => `
+        <article class="item-card">
+          <div class="line"><strong>${item.no}. ${item.title}</strong>${itemBadge(item.status)}</div>
+          <span class="muted">档案文件名：${item.file}</span>
+          <span class="${item.status === "rejected" ? "status danger" : "hint"}">${item.note}</span>
+        </article>
+      `).join("");
+
+      const actions = [];
+      if (batch.status === "draft") {
+        actions.push(`<a class="button" href="transfer-list.html?batch=${encodeURIComponent(batch.id)}">继续编辑</a>`);
+      } else {
+        actions.push(`<button class="button" type="button" data-action="export" data-id="${batch.id}">导出移交清单</button>`);
+      }
+      if (["received", "partially_received", "pending_archive", "archived", "shelved"].includes(batch.status)) {
+        actions.push(`<button class="button secondary" type="button" data-action="receipt" data-id="${batch.id}">下载接收回执</button>`);
+      }
+      if (batch.status === "partially_received") {
+        actions.push(`<a class="button warning" href="transfer-list.html?intent=resubmit&from=${encodeURIComponent(batch.id)}">新建补交清单</a>`);
+      }
+      document.getElementById("detailActions").innerHTML = actions.join("");
+      document.getElementById("detailHint").textContent = batch.status === "draft"
+        ? "草稿清单仍可编辑；提交后将变为只读并生成可打印清单。"
+        : "提交后的清单只读。工作台仅展示本单位进度，不展示后台库房架位。";
+    }
+
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((item) => item.classList.remove("active"));
+        tab.classList.add("active");
+        activeFilter = tab.dataset.filter;
+        renderList();
+      });
+    });
+
+    keyword.addEventListener("input", renderList);
+
+    document.addEventListener("click", (event) => {
+      const select = event.target.closest("[data-select]");
+      if (select) {
+        selectedId = select.dataset.select;
+        renderList();
+        renderDetail();
+      }
+
+      const action = event.target.closest("[data-action]");
+      if (action) {
+        const id = action.dataset.id;
+        if (action.dataset.action === "export") {
+          showToast(`${id} 的移交清单 PDF 已加入下载队列，页面保留目标路径和导出意图。`);
+        }
+        if (action.dataset.action === "receipt") {
+          showToast(`${id} 的接收回执包含已接收条目和回退原因。`);
+        }
+      }
+    });
+
+    renderList();
+    renderDetail();
+  </script>
+</body>
+</html>

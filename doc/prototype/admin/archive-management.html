@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>档案管理 - 智能档案管理系统</title>
+  <link rel="stylesheet" href="../common/css/base.css">
+  <link rel="stylesheet" href="../common/css/components.css">
+  <link rel="stylesheet" href="../common/css/shell.css">
+  <style>
+    .manage-layout { display: grid; grid-template-columns: 220px minmax(0,1fr) 380px; gap: 16px; align-items: start; }
+    .tree button { width: 100%; margin-bottom: 8px; justify-content: flex-start; }
+    .detail-kv { display: grid; grid-template-columns: 118px minmax(0,1fr); gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .detail-kv span { color: var(--muted); font-weight: 700; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .toast { display: none; margin: 12px 0; }
+    .toast.active { display: block; }
+    @media (max-width: 1220px) { .manage-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="管理后台导航">
+      <div class="brand"><strong>智能档案管理系统</strong><span>管理后台</span></div>
+      <nav class="nav-section"><div class="nav-title">工作台</div><a class="nav-link" href="overview.html">管理概览 <span>总览</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">接收入库</div><a class="nav-link" href="transfer-reception.html">移交验收 <span>前台</span></a><a class="nav-link" href="collection.html">征集管理与接收 <span>征集</span></a><a class="nav-link" href="pending-archive.html">待入库与上架 <span>后台</span></a><a class="nav-link active" href="archive-management.html">档案管理 <span>当前</span></a><a class="nav-link" href="fonds.html">全宗管理 <span>全宗</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">库房与利用</div><a class="nav-link" href="warehouse.html">库房管理 <span>架位</span></a><a class="nav-link" href="inventory.html">档案盘点 <span>盘点</span></a><a class="nav-link" href="borrow-approval.html">借阅审批 <span>闭环</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">处置与审批</div><a class="nav-link" href="appraisal.html">档案鉴定 <span>到期</span></a><a class="nav-link" href="destruction.html">档案销毁 <span>清册</span></a><a class="nav-link" href="approval.html">审批工作台 <span>领导</span></a></nav>
+      <nav class="nav-section"><div class="nav-title">支撑管理</div><a class="nav-link" href="compilation.html">档案编研 <span>编研</span></a><a class="nav-link" href="statistics.html">数据统计 <span>报表</span></a><a class="nav-link" href="data-analysis.html">数据研判 <span>分析</span></a><a class="nav-link" href="preservation.html">档案保存 <span>备份</span></a><a class="nav-link" href="user-management.html">用户管理 <span>系统</span></a><a class="nav-link" href="system-settings.html">系统配置 <span>设置</span></a></nav>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <div><strong>档案管理</strong><span class="muted"> 正式档案查询与元数据整理</span></div>
+        <div class="role"><label for="roleSelect">角色</label><select id="roleSelect"><option selected>后台管理员</option><option>前台管理员</option><option>馆领导</option><option>系统管理员</option></select></div>
+      </header>
+      <main class="content">
+        <section>
+          <h1 class="page-title">档案管理</h1>
+          <p class="page-subtitle">正式档案查询、元数据整理和密级/开放调整发起。普通编辑和 AI 不得覆盖密级、保管期限、是否公开、是否允许数字化、档号、架位和销毁状态。</p>
+        </section>
+        <div id="toast" class="notice toast" role="status"></div>
+        <section class="manage-layout" style="margin-top:16px;">
+          <aside class="card panel tree">
+            <h2 class="section-title">固定档案门类</h2>
+            <button class="button secondary" type="button" data-category="">全部门类</button>
+            <button class="button ghost" type="button" data-category="文书档案">文书档案</button>
+            <button class="button ghost" type="button" data-category="科技档案">科技档案</button>
+            <button class="button ghost" type="button" data-category="会计档案">会计档案</button>
+            <button class="button ghost" type="button" data-category="音像档案">音像档案</button>
+            <button class="button ghost" type="button" data-category="人事档案">人事档案</button>
+            <p class="hint">五大门类来自 `categories` 初始化字典，本页不提供增删。</p>
+          </aside>
+          <section class="grid">
+            <div class="card panel">
+              <h2 class="section-title">筛选条件</h2>
+              <div class="form-grid">
+                <div class="field"><label for="keyword">关键词</label><input id="keyword" placeholder="题名、档号、责任者"></div>
+                <div class="field"><label for="year">年度</label><input id="year" type="number" placeholder="2025"></div>
+                <div class="field"><label for="security">密级</label><select id="security"><option>全部</option><option>非密</option><option>内部</option><option>秘密</option><option>机密</option><option>绝密</option></select></div>
+                <div class="field"><label for="open">开放状态</label><select id="open"><option>全部</option><option>公开</option><option>不公开</option></select></div>
+                <div class="field"><label for="retention">保管期限</label><select id="retention"><option>全部</option><option>10 年</option><option>30 年</option><option>永久</option></select></div>
+                <div class="field"><label for="carrier">载体状态</label><select id="carrier"><option>全部</option><option>纯电子</option><option>纸质+电子</option><option>纯纸质</option></select></div>
+              </div>
+              <div class="actions" style="margin-top:12px;"><button class="button" type="button" id="filterBtn">查询</button><button class="button ghost" type="button" id="resetBtn">重置</button></div>
+            </div>
+            <div class="card panel">
+              <h2 class="section-title">档案列表</h2>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>档号</th><th>题名</th><th>分类</th><th>密级</th><th>开放</th><th>载体</th><th>状态</th></tr></thead>
+                  <tbody>
+                    <tr data-id="0"><td>WS-2025-0031</td><td>2025 年度公开工作报告</td><td>文书档案</td><td>非密</td><td>公开</td><td>纯电子</td><td><span class="status success">正常</span></td></tr>
+                    <tr data-id="1"><td>KJ-2024-0096</td><td>智慧城市平台建设报告</td><td>科技档案</td><td>秘密</td><td>不公开</td><td>纸质+电子</td><td><span class="status success">正常</span></td></tr>
+                    <tr data-id="2"><td>KJ-2025-0102</td><td>设备采购验收材料</td><td>会计档案</td><td>非密</td><td>不公开</td><td>纯纸质</td><td><span class="status warning">已入库未上架</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+          <aside class="drawer" aria-label="档案详情">
+            <h2 class="section-title" id="detailTitle">2025 年度公开工作报告</h2>
+            <div class="detail-kv"><span>档号</span><strong id="archiveNo">WS-2025-0031</strong></div>
+            <div class="detail-kv"><span>生命周期</span><strong id="life">正常</strong></div>
+            <div class="detail-kv"><span>架位</span><strong id="location">纯电子无架位</strong></div>
+            <h3 class="section-title" style="margin-top:12px;">可编辑元数据</h3>
+            <div class="field"><label for="title">题名</label><input id="title" value="2025 年度公开工作报告"></div>
+            <div class="field"><label for="responsible">责任者</label><input id="responsible" value="办公室"></div>
+            <div class="split">
+              <div class="field"><label for="formed">形成日期</label><input id="formed" type="date" value="2025-12-30"></div>
+              <div class="field"><label for="categoryEdit">分类</label><select id="categoryEdit"><option>文书档案</option><option>科技档案</option><option>会计档案</option><option>音像档案</option><option>人事档案</option></select></div>
+            </div>
+            <div class="field"><label for="tags">标签</label><input id="tags" value="公开,年度报告"></div>
+            <div class="field"><label for="summary">摘要</label><textarea id="summary">年度公开工作报告和政务公开情况。</textarea></div>
+            <div class="actions"><button class="button" type="button" id="saveMeta">保存元数据</button><button class="button ghost" type="button" id="preview">预览</button></div>
+            <h3 class="section-title" style="margin-top:12px;">受保护字段</h3>
+            <div class="notice warning">密级、保管期限、公开状态、允许数字化、档号、架位和销毁状态不可普通编辑。解密不等于自动公开。</div>
+            <div class="split">
+              <div class="field"><label>当前密级</label><input id="secNow" value="非密" disabled></div>
+              <div class="field"><label>当前开放</label><input id="openNow" value="公开" disabled></div>
+            </div>
+            <h3 class="section-title" style="margin-top:12px;">发起审批</h3>
+            <div class="field"><label for="evidence">凭证档号</label><input id="evidence" placeholder="如 PZ-2026-0007"></div>
+            <div class="split">
+              <div class="field"><label for="newSecurity">调整后密级</label><select id="newSecurity"><option>非密</option><option>内部</option><option>秘密</option><option>机密</option><option>绝密</option></select></div>
+              <div class="field"><label for="newOpen">调整后开放</label><select id="newOpen"><option>公开</option><option>不公开</option></select></div>
+            </div>
+            <div class="field"><label for="reason">申请理由</label><textarea id="reason" placeholder="填写调整依据和理由"></textarea></div>
+            <div class="actions"><button class="button secondary" type="button" id="securityApply">密级调整</button><button class="button secondary" type="button" id="openApply">开放调整</button><a class="button ghost" href="approval.html">审批工作台</a></div>
+          </aside>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script>
+    const rows = [
+      {title:'2025 年度公开工作报告', no:'WS-2025-0031', life:'正常', location:'纯电子无架位', sec:'非密', open:'公开', category:'文书档案', responsible:'办公室', formed:'2025-12-30', tags:'公开,年度报告', summary:'年度公开工作报告和政务公开情况。'},
+      {title:'智慧城市平台建设报告', no:'KJ-2024-0096', life:'正常', location:'401-03-02-05', sec:'秘密', open:'不公开', category:'科技档案', responsible:'技术部', formed:'2024-09-18', tags:'智慧城市,平台', summary:'智慧城市平台建设项目过程材料和技术报告。'},
+      {title:'设备采购验收材料', no:'KJ-2025-0102', life:'已入库未上架', location:'401-02-01-08', sec:'非密', open:'不公开', category:'会计档案', responsible:'财务部', formed:'2025-06-01', tags:'采购,验收', summary:'设备采购验收和财务附件。'}
+    ];
+    const toast = document.getElementById('toast');
+    function show(message, type='') { toast.textContent = message; toast.className = 'notice toast active ' + type; }
+    function setDetail(data) {
+      detailTitle.textContent = data.title; archiveNo.textContent = data.no; life.textContent = data.life; location.textContent = data.location;
+      title.value = data.title; responsible.value = data.responsible; formed.value = data.formed; categoryEdit.value = data.category; tags.value = data.tags; summary.value = data.summary; secNow.value = data.sec; openNow.value = data.open;
+    }
+    document.querySelectorAll('[data-id]').forEach(row => row.addEventListener('click', () => setDetail(rows[row.dataset.id])));
+    document.querySelectorAll('[data-category]').forEach(btn => btn.addEventListener('click', () => show(`已按 ${btn.dataset.category || '全部门类'} 查询正式档案。`)));
+    filterBtn.addEventListener('click', () => show('筛选已执行：仅查询正式档案表 archives。'));
+    resetBtn.addEventListener('click', () => { document.querySelectorAll('#keyword,#year').forEach(i => i.value=''); show('筛选条件已重置。'); });
+    saveMeta.addEventListener('click', () => show('元数据已保存，变更来源 manual_edit 写入 archive_change_logs。'));
+    preview.addEventListener('click', () => show('预览需复用档案查询鉴权，通过后生成文件访问地址。'));
+    function submitApproval(kind) {
+      if (!evidence.value.trim() || !reason.value.trim()) { show('请填写凭证档号和申请理由。', 'danger'); return; }
+      show(`${kind}申请已生成审批单，目标字段在馆领导审批通过前保持不变。`);
+    }
+    securityApply.addEventListener('click', () => submitApproval('密级调整'));
+    openApply.addEventListener('click', () => submitApproval('开放调整'));
+  </script>
+</body>
+</html>

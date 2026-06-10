@@ -1,0 +1,44 @@
+@startuml
+skinparam defaultFontName Source Han Sans CN
+skinparam defaultFontSize 13
+skinparam backgroundColor #FFFFFF
+skinparam sequence {
+  ArrowColor #526070
+  LifeLineBorderColor #8A95A3
+  LifeLineBackgroundColor #F7F9FC
+  ParticipantBackgroundColor #F7F9FC
+  ParticipantBorderColor #526070
+}
+
+title AI 交互与安全边界时序图
+
+actor "用户" as User
+participant "前端页面" as FE
+participant "Spring Boot\nAI 接口" as BE
+participant "AI 白名单过滤器" as Filter
+participant "DeepSeek / OpenAI\n兼容模型" as AI
+database "PostgreSQL" as DB
+collections "MinIO" as MinIO
+
+User -> FE : 点击 AI 补全/检索/研判
+FE -> BE : 提交最小必要上下文
+BE -> AI : 调用模型\n只传元数据和用户输入
+AI --> BE : 返回 <JSON> 结构化结果
+BE -> Filter : 提取 JSON 并校验 ruleType
+Filter -> Filter : 白名单字段、枚举、状态校验
+Filter --> BE : 候选建议或查询条件
+BE --> FE : 返回可编辑结果
+FE --> User : 展示候选字段/查询条件
+User -> FE : 人工确认或修改
+FE -> BE : 调用正式业务接口
+BE -> DB : 权限、密级、状态校验后写库/查询
+BE -> MinIO : 仅文件流程访问对象存储
+BE --> FE : 返回业务结果
+
+note over AI,MinIO
+  AI 不读取电子文件正文，
+  不生成档号，不直接写库，
+  不覆盖密级、保管期限、公开状态。
+end note
+
+@enduml
