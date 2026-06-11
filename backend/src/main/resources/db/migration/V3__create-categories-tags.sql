@@ -18,10 +18,3 @@ CREATE TABLE tags (
   updated_by BIGINT,
   deleted_at TIMESTAMPTZ
 );
-
-CREATE TABLE archive_tags (
-  archive_id BIGINT NOT NULL REFERENCES archives(id) ON DELETE CASCADE,
-  tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (archive_id, tag_id)
-);

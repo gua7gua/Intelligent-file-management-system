@@ -19,7 +19,7 @@ CREATE TABLE warehouse_rooms (
 
 CREATE TABLE storage_locations (
   id BIGSERIAL PRIMARY KEY,
-  room_id BIGINT NOT NULL REFERENCES warehouse_rooms(id),
+  room_id BIGINT NOT NULL,
   rack_no INTEGER NOT NULL CHECK (rack_no > 0),
   layer_no INTEGER NOT NULL CHECK (layer_no > 0),
   box_slot_no INTEGER NOT NULL CHECK (box_slot_no > 0),
@@ -35,9 +35,9 @@ CREATE TABLE storage_locations (
 CREATE TABLE archive_boxes (
   id BIGSERIAL PRIMARY KEY,
   box_no VARCHAR(80) NOT NULL,
-  location_id BIGINT REFERENCES storage_locations(id),
-  category_id SMALLINT REFERENCES categories(id),
-  fonds_id BIGINT REFERENCES fonds(id),
+  location_id BIGINT,
+  category_id SMALLINT,
+  fonds_id BIGINT,
   year_label VARCHAR(20),
   spine_text TEXT,
   capacity INTEGER CHECK (capacity IS NULL OR capacity > 0),
@@ -52,8 +52,8 @@ CREATE TABLE archive_boxes (
 
 CREATE TABLE archive_box_items (
   id BIGSERIAL PRIMARY KEY,
-  box_id BIGINT NOT NULL REFERENCES archive_boxes(id) ON DELETE CASCADE,
-  archive_id BIGINT NOT NULL REFERENCES archives(id) ON DELETE CASCADE,
+  box_id BIGINT NOT NULL,
+  archive_id BIGINT NOT NULL,
   sort_no INTEGER NOT NULL CHECK (sort_no > 0),
   page_count INTEGER CHECK (page_count IS NULL OR page_count >= 0),
   physical_status VARCHAR(20) NOT NULL DEFAULT 'normal' CHECK (physical_status IN ('normal','damaged','lost')),

@@ -5,10 +5,10 @@ import lombok.Getter;
 
 @Getter
 public enum OrgType {
-    @EnumValue archive_org("archive_org"),
-    @EnumValue government("government"),
-    @EnumValue enterprise("enterprise"),
-    @EnumValue public_institution("public_institution");
+    archive_org("archive_org"),
+    government("government"),
+    enterprise("enterprise"),
+    public_institution("public_institution");
 
     @EnumValue
     private final String value;

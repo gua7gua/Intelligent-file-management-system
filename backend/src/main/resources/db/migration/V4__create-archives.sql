@@ -15,8 +15,8 @@ CREATE TABLE compilations (
   generated_archive_id BIGINT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by BIGINT REFERENCES users(id),
-  updated_by BIGINT REFERENCES users(id),
+  created_by BIGINT,
+  updated_by BIGINT,
   deleted_at TIMESTAMPTZ
 );
 
@@ -27,13 +27,13 @@ CREATE TABLE archives (
   responsible_text TEXT,
   formed_date DATE,
   formed_year INTEGER,
-  category_id SMALLINT NOT NULL REFERENCES categories(id),
+  category_id SMALLINT NOT NULL,
   source_type VARCHAR(20) NOT NULL CHECK (source_type IN ('transfer','collection','compilation')),
-  source_batch_id BIGINT REFERENCES intake_batches(id),
-  source_item_id BIGINT REFERENCES intake_items(id),
-  source_compilation_id BIGINT REFERENCES compilations(id),
-  organization_id BIGINT REFERENCES organizations(id),
-  fonds_id BIGINT REFERENCES fonds(id),
+  source_batch_id BIGINT,
+  source_item_id BIGINT,
+  source_compilation_id BIGINT,
+  organization_id BIGINT,
+  fonds_id BIGINT,
   carrier_status VARCHAR(20) NOT NULL CHECK (carrier_status IN ('electronic','paper_electronic','paper')),
   retention_period VARCHAR(20) NOT NULL CHECK (retention_period IN ('10y','30y','permanent')),
   retention_until DATE,
@@ -47,8 +47,8 @@ CREATE TABLE archives (
   shelved_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by BIGINT REFERENCES users(id),
-  updated_by BIGINT REFERENCES users(id),
+  created_by BIGINT,
+  updated_by BIGINT,
   deleted_at TIMESTAMPTZ,
   CONSTRAINT ck_archives_source_ref CHECK (
     (source_type IN ('transfer','collection') AND source_batch_id IS NOT NULL AND source_item_id IS NOT NULL AND source_compilation_id IS NULL)
@@ -69,7 +69,7 @@ CREATE TABLE archives (
 
 CREATE TABLE archive_files (
   id BIGSERIAL PRIMARY KEY,
-  archive_id BIGINT NOT NULL REFERENCES archives(id) ON DELETE CASCADE,
+  archive_id BIGINT NOT NULL,
   file_role VARCHAR(30) NOT NULL CHECK (file_role IN ('original','scan','compilation_body','signature')),
   bucket_name VARCHAR(100) NOT NULL,
   object_key TEXT NOT NULL,
@@ -82,9 +82,16 @@ CREATE TABLE archive_files (
   usability_result VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (usability_result IN ('pending','passed','failed')),
   file_status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (file_status IN ('pending','normal','failed','deleted')),
   deleted_at TIMESTAMPTZ,
-  deleted_by BIGINT REFERENCES users(id),
+  deleted_by BIGINT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by BIGINT REFERENCES users(id),
-  updated_by BIGINT REFERENCES users(id)
+  created_by BIGINT,
+  updated_by BIGINT
+);
+
+CREATE TABLE archive_tags (
+  archive_id BIGINT NOT NULL,
+  tag_id BIGINT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (archive_id, tag_id)
 );

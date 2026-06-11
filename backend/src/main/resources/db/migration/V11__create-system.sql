@@ -13,8 +13,8 @@ CREATE TABLE backup_tasks (
   message TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by BIGINT REFERENCES users(id),
-  updated_by BIGINT REFERENCES users(id),
+  created_by BIGINT,
+  updated_by BIGINT,
   deleted_at TIMESTAMPTZ
 );
 
@@ -41,10 +41,10 @@ CREATE TABLE file_check_records (
 
 CREATE TABLE archive_access_logs (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT REFERENCES users(id),
+  user_id BIGINT,
   user_type VARCHAR(20) NOT NULL CHECK (user_type IN ('internal','public','anonymous')),
-  archive_id BIGINT NOT NULL REFERENCES archives(id),
-  archive_file_id BIGINT REFERENCES archive_files(id),
+  archive_id BIGINT NOT NULL,
+  archive_file_id BIGINT,
   access_type VARCHAR(30) NOT NULL CHECK (access_type IN ('view_metadata','preview','download')),
   ip_address INET,
   accessed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -54,7 +54,7 @@ CREATE TABLE archive_access_logs (
 
 CREATE TABLE audit_logs (
   id BIGSERIAL PRIMARY KEY,
-  actor_user_id BIGINT REFERENCES users(id),
+  actor_user_id BIGINT,
   actor_type VARCHAR(20) NOT NULL CHECK (actor_type IN ('internal','public','system')),
   module_name VARCHAR(50) NOT NULL,
   operation_type VARCHAR(50) NOT NULL,

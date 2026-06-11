@@ -18,7 +18,7 @@ CREATE TABLE fonds (
   id BIGSERIAL PRIMARY KEY,
   fonds_no VARCHAR(50) NOT NULL,
   fonds_name TEXT NOT NULL,
-  organization_id BIGINT REFERENCES organizations(id),
+  organization_id BIGINT,
   description TEXT,
   status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -18,7 +18,7 @@ CREATE TABLE users (
   phone VARCHAR(30),
   password_hash TEXT NOT NULL,
   real_name TEXT NOT NULL,
-  organization_id BIGINT REFERENCES organizations(id),
+  organization_id BIGINT,
   department_name TEXT,
   max_security_level SMALLINT NOT NULL DEFAULT 0 CHECK (max_security_level BETWEEN 0 AND 4),
   data_scope VARCHAR(20) NOT NULL DEFAULT 'own_org' CHECK (data_scope IN ('own_org','own_fonds','all')),
@@ -31,8 +31,8 @@ CREATE TABLE users (
 );
 
 CREATE TABLE user_roles (
-  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  role_id SMALLINT NOT NULL REFERENCES roles(id),
+  user_id BIGINT NOT NULL,
+  role_id SMALLINT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, role_id)
 );

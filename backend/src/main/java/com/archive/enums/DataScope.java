@@ -5,9 +5,9 @@ import lombok.Getter;
 
 @Getter
 public enum DataScope {
-    @EnumValue own_org("own_org"),
-    @EnumValue own_fonds("own_fonds"),
-    @EnumValue all("all");
+    own_org("own_org"),
+    own_fonds("own_fonds"),
+    all("all");
 
     @EnumValue
     private final String value;

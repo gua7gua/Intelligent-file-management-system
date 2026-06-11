@@ -2,11 +2,13 @@ package com.archive.enums;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 import lombok.Getter;
+import lombok.ToString;
 
 @Getter
+@ToString
 public enum UserType {
-    @EnumValue internal("internal"),
-    @EnumValue public_("public");
+    internal("internal"),
+    public_("public");
 
     @EnumValue
     private final String value;
