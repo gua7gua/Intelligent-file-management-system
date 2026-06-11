@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:archive_db}
+    username: ${DB_USER:archive_user}
+    password: ${DB_PASSWORD:archive_pass_2024}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: "0"
+
+logging:
+  level:
+    com.archive: DEBUG
+    org.flywaydb: INFO
