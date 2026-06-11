@@ -48,3 +48,13 @@ management:
     web:
       exposure:
         include: health,info
+
+ai:
+  enabled: false
+  base-url: ${AI_BASE_URL:https://api.deepseek.com}
+  api-key: ${DEEPSEEK_API_KEY:}
+  model: ${AI_MODEL:deepseek-chat}
+  connect-timeout: 5
+  read-timeout: 15
+  search-max-retries: 3
+  batch-size: 50
