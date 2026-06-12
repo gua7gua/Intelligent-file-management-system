@@ -5,25 +5,22 @@ import { loginApi, getUserInfoApi } from '@/api/auth'
 import router from '@/router'
 
 /** 管理后台相关角色 */
-const ADMIN_ROLES = ['front_admin', 'back_admin', 'leader', 'sys_admin']
+const ADMIN_ROLES = ['front_archivist', 'back_archivist', 'director', 'sys_admin']
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
   const user = ref<UserInfo | null>(null)
   const roles = ref<string[]>([])
-  const permissions = ref<string[]>([])
 
   const isLoggedIn = computed(() => !!token.value)
 
   /** 登录 */
-  async function login(username: string, password: string) {
-    const data = await loginApi({ username, password })
+  async function login(loginName: string, password: string, portal: string) {
+    const data = await loginApi({ loginName, password, portal })
     token.value = data.token
     user.value = data.user
-    roles.value = data.roles
-    permissions.value = data.permissions
+    roles.value = data.user.roles
     localStorage.setItem('token', data.token)
-    router.push(getDefaultPortal())
   }
 
   /** 登出 */
@@ -31,7 +28,6 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     user.value = null
     roles.value = []
-    permissions.value = []
     localStorage.removeItem('token')
     router.push('/login')
   }
@@ -42,8 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const data = await getUserInfoApi()
       user.value = data.user
-      roles.value = data.roles
-      permissions.value = data.permissions
+      roles.value = data.user.roles
     } catch {
       logout()
     }
@@ -53,7 +48,7 @@ export const useAuthStore = defineStore('auth', () => {
   function getDefaultPortal(): string {
     if (roles.value.some((r) => ADMIN_ROLES.includes(r))) return '/admin'
     if (roles.value.includes('transfer_user')) return '/transfer'
-    if (roles.value.includes('internal_user')) return '/internal'
+    if (roles.value.includes('internal_reader')) return '/internal'
     return '/public'
   }
 
@@ -66,7 +61,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (roles.value.includes('transfer_user')) {
       portals.push({ key: 'transfer', label: '移交门户', path: '/transfer' })
     }
-    if (roles.value.includes('internal_user')) {
+    if (roles.value.includes('internal_reader')) {
       portals.push({ key: 'internal', label: '内部门户', path: '/internal' })
     }
     portals.push({ key: 'public', label: '公众门户', path: '/public' })
@@ -86,7 +81,6 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     user,
     roles,
-    permissions,
     isLoggedIn,
     login,
     logout,

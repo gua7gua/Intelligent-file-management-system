@@ -43,10 +43,10 @@
       >
         <div class="form-field">
           <label for="account">账号 / 手机号 / 工号</label>
-          <el-form-item prop="username">
+          <el-form-item prop="loginName">
             <el-input
               id="account"
-              v-model="form.username"
+              v-model="form.loginName"
               placeholder="请输入账号"
               autocomplete="username"
               size="large"
@@ -70,12 +70,12 @@
         <div class="form-field">
           <label for="role">登录角色</label>
           <el-select id="role" v-model="form.role" placeholder="请选择角色" size="large" style="width: 100%">
-            <el-option label="档案管理员（前台）" value="front_admin" />
-            <el-option label="档案管理员（后台）" value="back_admin" />
+            <el-option label="档案管理员（前台）" value="front_archivist" />
+            <el-option label="档案管理员（后台）" value="back_archivist" />
             <el-option label="移交单位经办人" value="transfer_user" />
-            <el-option label="内部查阅者" value="internal_user" />
+            <el-option label="内部查阅者" value="internal_reader" />
             <el-option label="社会公众" value="public_user" />
-            <el-option label="馆领导" value="leader" />
+            <el-option label="馆领导" value="director" />
             <el-option label="系统管理员" value="sys_admin" />
           </el-select>
           <span class="hint">一人多角色时，后端仍按当前会话角色和数据范围校验。</span>
@@ -123,29 +123,40 @@ const loginMessage = ref('')
 const loginMessageType = ref('')
 
 const form = reactive({
-  username: '',
+  loginName: '',
   password: '',
-  role: 'back_admin',
+  role: 'back_archivist',
 })
 
 const rules: Record<string, FormItemRule[]> = {
-  username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
+  loginName: [{ required: true, message: '请输入账号', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
 
-/** 角色对应的门户路径 */
-const roleTargets: Record<string, string> = {
-  front_admin: '管理后台',
-  back_admin: '管理后台',
-  transfer_user: '移交单位门户',
-  internal_user: '内部查阅者门户',
-  public_user: '公众门户',
-  leader: '管理后台',
+/** 角色到 portal 的映射 */
+const roleToPortal: Record<string, string> = {
+  front_archivist: 'admin',
+  back_archivist: 'admin',
+  director: 'admin',
+  sys_admin: 'admin',
+  transfer_user: 'transfer',
+  internal_reader: 'internal',
+  public_user: 'public',
+}
+
+/** 角色对应的门户名称 */
+const rolePortalNames: Record<string, string> = {
+  front_archivist: '管理后台',
+  back_archivist: '管理后台',
+  director: '管理后台',
   sys_admin: '管理后台',
+  transfer_user: '移交单位门户',
+  internal_reader: '内部查阅者门户',
+  public_user: '公众门户',
 }
 
 /** 当前角色对应的门户名称 */
-const targetPortal = computed(() => roleTargets[form.role] || '')
+const targetPortal = computed(() => rolePortalNames[form.role] || '')
 
 async function handleLogin() {
   const valid = await formRef.value?.validate().catch(() => false)
@@ -154,7 +165,8 @@ async function handleLogin() {
   loading.value = true
   loginMessage.value = ''
   try {
-    await authStore.login(form.username, form.password)
+    const portal = roleToPortal[form.role] || 'admin'
+    await authStore.login(form.loginName, form.password, portal)
     const redirect = (route.query.redirect as string) || authStore.getDefaultPortal()
     router.push(redirect)
   } catch {
