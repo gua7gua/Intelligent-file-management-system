@@ -35,6 +35,7 @@ public class IntakeBatchService {
     private final IntakeItemMapper itemMapper;
     private final JdbcTemplate jdbcTemplate;
     private final com.archive.util.PdfGenerator pdfGenerator;
+    private final com.archive.service.StagingFileService stagingFileService;
 
     // ==================== 序列号 ====================
 
@@ -516,7 +517,7 @@ public class IntakeBatchService {
             item.setStatus(ItemStatus.rejected);
             item.setRejectReason(req.getRejectReason());
             item.setAcceptanceNote(req.getAcceptanceNote());
-            // 注意：暂存文件删除由刘星 feat/file-liu 实现
+            stagingFileService.deleteStagingFilesForItem(itemId);
         } else {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "验收结果只能为 accepted 或 rejected");
         }
