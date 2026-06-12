@@ -1,2 +1,5 @@
 // src/mock/index.ts
-// Mock 数据汇总入口，后续按模块扩展
+// Mock 数据汇总入口
+
+export { mockReceptionBatches, mockBatchDetail, mockUploadResult } from './modules/reception'
+export { mockCollectionBatches } from './modules/collection'
