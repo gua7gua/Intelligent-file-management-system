@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { DictItem } from '@/types/components'
+import { getDictionariesApi } from '@/api/dictionary'
 
 export const useAppStore = defineStore('app', () => {
   const sidebarCollapsed = ref(false)
@@ -17,7 +18,8 @@ export const useAppStore = defineStore('app', () => {
   async function loadDictionaries() {
     if (dictionariesLoaded.value) return
     try {
-      // TODO: 接入后端 GET /api/dictionaries
+      const data = await getDictionariesApi()
+      dictionaries.value = data
       dictionariesLoaded.value = true
     } catch {
       // 字典加载失败不阻塞使用
