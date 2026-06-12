@@ -79,42 +79,42 @@ const menuSections = computed<NavSection[]>(() => {
     {
       title: '工作台',
       items: [
-        { path: '/admin/overview', title: '管理概览', tag: '总览', roles: ['front_admin', 'back_admin', 'leader', 'sys_admin'] },
+        { path: '/admin/overview', title: '管理概览', tag: '总览', roles: ['front_archivist', 'back_archivist', 'director', 'sys_admin'] },
       ],
     },
     {
       title: '接收入库',
       items: [
-        { path: '/admin/transfer-reception', title: '移交验收', tag: '前台', roles: ['front_admin', 'back_admin'] },
-        { path: '/admin/collection', title: '征集管理与接收', tag: '征集', roles: ['front_admin', 'back_admin'] },
-        { path: '/admin/pending-archive', title: '待入库与上架', tag: '后台', roles: ['back_admin'] },
-        { path: '/admin/archive-management', title: '档案管理', tag: '整理', roles: ['back_admin'] },
-        { path: '/admin/fonds', title: '全宗管理', tag: '全宗', roles: ['back_admin'] },
+        { path: '/admin/transfer-reception', title: '移交验收', tag: '前台', roles: ['front_archivist', 'back_archivist'] },
+        { path: '/admin/collection', title: '征集管理与接收', tag: '征集', roles: ['front_archivist', 'back_archivist'] },
+        { path: '/admin/pending-archive', title: '待入库与上架', tag: '后台', roles: ['back_archivist'] },
+        { path: '/admin/archive-management', title: '档案管理', tag: '整理', roles: ['back_archivist'] },
+        { path: '/admin/fonds', title: '全宗管理', tag: '全宗', roles: ['back_archivist'] },
       ],
     },
     {
       title: '库房与利用',
       items: [
-        { path: '/admin/warehouse', title: '库房管理', tag: '架位', roles: ['back_admin'] },
-        { path: '/admin/inventory', title: '档案盘点', tag: '盘点', roles: ['back_admin'] },
-        { path: '/admin/borrow-approval', title: '借阅审批', tag: '闭环', roles: ['front_admin', 'back_admin'] },
+        { path: '/admin/warehouse', title: '库房管理', tag: '架位', roles: ['back_archivist'] },
+        { path: '/admin/inventory', title: '档案盘点', tag: '盘点', roles: ['back_archivist'] },
+        { path: '/admin/borrow-approval', title: '借阅审批', tag: '闭环', roles: ['front_archivist', 'back_archivist'] },
       ],
     },
     {
       title: '处置与审批',
       items: [
-        { path: '/admin/appraisal', title: '档案鉴定', tag: '当前', roles: ['back_admin'] },
-        { path: '/admin/destruction', title: '档案销毁', tag: '清册', roles: ['back_admin'] },
-        { path: '/admin/approval', title: '审批工作台', tag: '领导', roles: ['leader'] },
+        { path: '/admin/appraisal', title: '档案鉴定', tag: '当前', roles: ['back_archivist'] },
+        { path: '/admin/destruction', title: '档案销毁', tag: '清册', roles: ['back_archivist'] },
+        { path: '/admin/approval', title: '审批工作台', tag: '领导', roles: ['director'] },
       ],
     },
     {
       title: '支撑管理',
       items: [
-        { path: '/admin/compilation', title: '档案编研', tag: '编研', roles: ['back_admin'] },
-        { path: '/admin/statistics', title: '数据统计', tag: '报表', roles: ['back_admin', 'leader'] },
-        { path: '/admin/data-analysis', title: '数据研判', tag: '分析', roles: ['back_admin'] },
-        { path: '/admin/preservation', title: '档案保存', tag: '备份', roles: ['back_admin'] },
+        { path: '/admin/compilation', title: '档案编研', tag: '编研', roles: ['back_archivist'] },
+        { path: '/admin/statistics', title: '数据统计', tag: '报表', roles: ['back_archivist', 'director'] },
+        { path: '/admin/data-analysis', title: '数据研判', tag: '分析', roles: ['back_archivist'] },
+        { path: '/admin/preservation', title: '档案保存', tag: '备份', roles: ['back_archivist'] },
         { path: '/admin/user-management', title: '用户管理', tag: '系统', roles: ['sys_admin'] },
         { path: '/admin/system-settings', title: '系统配置', tag: '设置', roles: ['sys_admin'] },
       ],
