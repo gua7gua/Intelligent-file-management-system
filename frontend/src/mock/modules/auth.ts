@@ -95,9 +95,14 @@ const defaultRouteMap: Record<string, string> = {
   public: '/public',
 }
 
-/** 模拟登录响应 */
-export function mockLoginResponse(portal: string): LoginResult {
-  const entry = Object.values(mockUsers).find((u) => u.portal === portal) || mockUsers.admin
+/** 模拟登录响应（按 loginName 查找用户） */
+export function mockLoginResponse(loginName: string, portal: string): LoginResult {
+  // 优先按 loginName 精确匹配测试账号
+  let entry = mockUsers[loginName]
+  if (!entry) {
+    // loginName 不匹配预设账号时，按 portal 找第一个匹配的
+    entry = Object.values(mockUsers).find((u) => u.portal === portal) || mockUsers.admin
+  }
   return {
     token: `mock-token-${entry.user.realName}-${Date.now()}`,
     user: entry.user,

@@ -6,7 +6,7 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false'
 /** 登录 */
 export function loginApi(data: LoginParams): Promise<LoginResult> {
   if (USE_MOCK) {
-    return import('@/mock/modules/auth').then((m) => m.mockLoginResponse(data.portal))
+    return import('@/mock/modules/auth').then((m) => m.mockLoginResponse(data.loginName, data.portal))
   }
   return request.post('/auth/login', data)
 }
