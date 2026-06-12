@@ -83,14 +83,15 @@ export const OpenStatus = {
   CLOSED: 'closed',
 } as const
 
-/** 角色标识 */
+/** 角色标识（对齐接口文档） */
 export const RoleKey = {
-  FRONT_ADMIN: 'front_admin',
-  BACK_ADMIN: 'back_admin',
+  FRONT_ARCHIVIST: 'front_archivist',
+  BACK_ARCHIVIST: 'back_archivist',
   TRANSFER_USER: 'transfer_user',
-  INTERNAL_USER: 'internal_user',
-  LEADER: 'leader',
+  INTERNAL_READER: 'internal_reader',
+  DIRECTOR: 'director',
   SYS_ADMIN: 'sys_admin',
+  PUBLIC_USER: 'public_user',
 } as const
 
 /** 清单状态中文映射（需结合 sourceType） */
