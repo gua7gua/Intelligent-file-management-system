@@ -2,6 +2,7 @@
 export interface UserInfo {
   id: number
   realName: string
+  username?: string
   userType: 'internal' | 'public'
   roles: string[]
   organizationId: number

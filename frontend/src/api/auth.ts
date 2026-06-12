@@ -1,5 +1,10 @@
 import request from './request'
 import type { LoginParams, LoginResult } from '@/types/user'
+import type {
+  PublicRegisterRequest,
+  PublicResetPasswordRequest,
+  PublicSmsCodeRequest,
+} from '@/types/public'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false'
 
@@ -25,4 +30,28 @@ export function logoutApi(): Promise<void> {
     return Promise.resolve()
   }
   return request.post('/auth/logout')
+}
+
+/** 发送公众短信验证码 */
+export function sendPublicSmsCode(data: PublicSmsCodeRequest): Promise<boolean> {
+  if (USE_MOCK) {
+    return import('@/mock/modules/public').then((m) => m.mockSendPublicSmsCode(data))
+  }
+  return request.post('/public/auth/sms-code', data)
+}
+
+/** 公众注册 */
+export function registerPublicUser(data: PublicRegisterRequest): Promise<{ id: number; realName: string; roles: string[] }> {
+  if (USE_MOCK) {
+    return import('@/mock/modules/public').then((m) => m.mockRegisterPublicUser(data))
+  }
+  return request.post('/public/auth/register', data)
+}
+
+/** 公众重置密码 */
+export function resetPublicPassword(data: PublicResetPasswordRequest): Promise<boolean> {
+  if (USE_MOCK) {
+    return import('@/mock/modules/public').then((m) => m.mockResetPublicPassword(data))
+  }
+  return request.post('/public/auth/reset-password', data)
 }
