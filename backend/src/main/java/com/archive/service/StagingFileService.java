@@ -15,18 +15,17 @@ import com.archive.exception.BusinessException;
 import com.archive.mapper.IntakeBatchMapper;
 import com.archive.mapper.IntakeItemMapper;
 import com.archive.mapper.StagingFileMapper;
+import com.archive.util.FileTypeUtil;
+import com.archive.util.HashUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FilenameUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -114,10 +113,10 @@ public class StagingFileService {
     private StagingFileResponse processSingleFile(IntakeBatch batch, MultipartFile file,
                                                    String uploadBatchNo, String sourceType) {
         String originalFilename = file.getOriginalFilename();
-        String ext = FilenameUtils.getExtension(originalFilename).toLowerCase();
+        String ext = FileTypeUtil.getExtension(originalFilename);
 
         // 格式校验
-        if (ext.isEmpty() || !fileProperties.getAllowedExtensions().contains(ext)) {
+        if (!FileTypeUtil.isAllowedExtension(originalFilename, fileProperties.getAllowedExtensions())) {
             throw new BusinessException(ErrorCode.UNSUPPORTED_MEDIA_TYPE,
                     "不支持的文件格式: " + ext);
         }
@@ -140,7 +139,7 @@ public class StagingFileService {
         String contentType = file.getContentType();
 
         // SHA-256 哈希
-        String sha256 = computeSha256(fileBytes);
+        String sha256 = HashUtil.sha256(fileBytes);
 
         // 同批次重复检查
         Long dupCount = stagingFileMapper.selectCount(
@@ -329,23 +328,6 @@ public class StagingFileService {
             return item.getId();
         }
         return null;
-    }
-
-    /**
-     * 计算 SHA-256 哈希。
-     */
-    private String computeSha256(byte[] data) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(data);
-            StringBuilder sb = new StringBuilder(hash.length * 2);
-            for (byte b : hash) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 算法不可用", e);
-        }
     }
 
     /**
