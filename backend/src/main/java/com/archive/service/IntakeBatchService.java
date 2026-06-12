@@ -34,6 +34,7 @@ public class IntakeBatchService {
     private final IntakeBatchMapper batchMapper;
     private final IntakeItemMapper itemMapper;
     private final JdbcTemplate jdbcTemplate;
+    private final com.archive.util.PdfGenerator pdfGenerator;
 
     // ==================== 序列号 ====================
 
@@ -553,7 +554,20 @@ public class IntakeBatchService {
     }
 
     /**
-     * 导出接收回执（骨架，暂返回空数据）。
+     * 导出移交清单 PDF。
+     */
+    public byte[] exportTransferPdf(Long batchId) {
+        IntakeBatch batch = getBatchAndCheckOwner(batchId, SourceType.transfer);
+        if (batch.getStatus() == BatchStatus.draft) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "草稿清单不可导出");
+        }
+        List<IntakeItem> items = itemMapper.selectList(
+                new QueryWrapper<IntakeItem>().eq("batch_id", batchId).orderByAsc("item_no"));
+        return pdfGenerator.generateTransferPdf(batch, items);
+    }
+
+    /**
+     * 导出接收回执 PDF。
      */
     public byte[] exportReceipt(Long batchId) {
         IntakeBatch batch = batchMapper.selectById(batchId);
@@ -564,8 +578,9 @@ public class IntakeBatchService {
                 && batch.getStatus() != BatchStatus.partially_received) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "只有已接收或部分接收的清单可以导出回执");
         }
-        // PDF 生成待后续实现
-        return new byte[0];
+        List<IntakeItem> items = itemMapper.selectList(
+                new QueryWrapper<IntakeItem>().eq("batch_id", batchId).orderByAsc("item_no"));
+        return pdfGenerator.generateReceiptPdf(batch, items);
     }
 
     // ==================== 征集管理（后台） ====================

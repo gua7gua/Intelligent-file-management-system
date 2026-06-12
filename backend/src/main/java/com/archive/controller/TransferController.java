@@ -97,9 +97,9 @@ public class TransferController {
     }
 
     @GetMapping("/batches/{batchId}/export")
-    @Operation(summary = "导出移交清单 PDF（骨架）")
+    @Operation(summary = "导出移交清单 PDF")
     public ResponseEntity<byte[]> exportBatch(@PathVariable Long batchId) {
-        byte[] data = intakeBatchService.exportReceipt(batchId);
+        byte[] data = intakeBatchService.exportTransferPdf(batchId);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"transfer.pdf\"")
                 .contentType(MediaType.APPLICATION_PDF)
