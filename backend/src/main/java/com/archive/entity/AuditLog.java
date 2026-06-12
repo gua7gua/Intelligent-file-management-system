@@ -1,15 +1,19 @@
 package com.archive.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import lombok.Data;
+import org.apache.ibatis.type.JdbcType;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 
 /**
  * 操作审计日志。
  */
 @Data
-@TableName("audit_logs")
+@TableName(value = "audit_logs", autoResultMap = true)
 public class AuditLog {
 
     private Long id;
@@ -26,7 +30,8 @@ public class AuditLog {
 
     private Long businessId;
 
-    private Object detail;
+    @TableField(typeHandler = JacksonTypeHandler.class, jdbcType = JdbcType.OTHER)
+    private Map<String, Object> detail;
 
     private String ipAddress;
 

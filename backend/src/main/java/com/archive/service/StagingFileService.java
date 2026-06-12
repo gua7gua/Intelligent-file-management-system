@@ -45,6 +45,7 @@ public class StagingFileService {
     private final ClamAvScanner clamAvScanner;
     private final FileProperties fileProperties;
     private final AuditService auditService;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     // ==================== 上传 ====================
 
@@ -173,8 +174,15 @@ public class StagingFileService {
                     "病毒扫描服务异常，上传被拒绝: " + originalFilename);
         }
 
-        // 先插入 DB 拿到 stagingFileId（用于构造 MinIO 路径）
+        // 先从序列获取下一个 ID，用于构造 MinIO 暂存路径
+        Long nextId = jdbcTemplate.queryForObject(
+                "SELECT nextval('staging_files_id_seq')", Long.class);
+        String objectKey = String.format("archive-files/_staging/%s/%d/%d/%s",
+                sourceType, batch.getId(), nextId, originalFilename);
+
+        // 一次性插入完整记录（object_key 为 NOT NULL，不能先插再更新）
         StagingFile sf = new StagingFile();
+        sf.setId(nextId);
         sf.setBatchId(batch.getId());
         sf.setUploadBatchNo(uploadBatchNo);
         sf.setOriginalFilename(originalFilename);
@@ -183,17 +191,12 @@ public class StagingFileService {
         sf.setFileSize(file.getSize());
         sf.setSha256(sha256);
         sf.setBucketName(fileProperties.getBucket());
+        sf.setObjectKey(objectKey);
         sf.setMatchStatus(MatchStatus.unmatched);
         sf.setScanResult(scanResult == ScanResult.failed ? ScanResult.pending : scanResult);
         sf.setUploadedBy(AuthContext.getCurrentUserId());
         sf.setUploadedAt(OffsetDateTime.now());
         stagingFileMapper.insert(sf);
-
-        // 构造 MinIO 暂存路径并上传
-        String objectKey = String.format("archive-files/_staging/%s/%d/%d/%s",
-                sourceType, batch.getId(), sf.getId(), originalFilename);
-        sf.setObjectKey(objectKey);
-        stagingFileMapper.updateById(sf);
 
         // 上传到 MinIO
         minioService.ensureBucket(fileProperties.getBucket());
