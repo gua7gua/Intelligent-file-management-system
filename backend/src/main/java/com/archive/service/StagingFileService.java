@@ -45,6 +45,7 @@ public class StagingFileService {
     private final MinioService minioService;
     private final ClamAvScanner clamAvScanner;
     private final FileProperties fileProperties;
+    private final AuditService auditService;
 
     // ==================== 上传 ====================
 
@@ -161,10 +162,14 @@ public class StagingFileService {
         ScanResult scanResult = clamAvScanner.scan(new ByteArrayInputStream(fileBytes));
         if (scanResult == ScanResult.infected) {
             log.warn("文件被 ClamAV 检测为感染病毒: {}", originalFilename);
+            auditService.log("M03", "scan_reject", "staging_file", null,
+                    "filename", originalFilename);
             throw new BusinessException(ErrorCode.EXTERNAL_SERVICE_ERROR,
                     "文件检测到病毒，上传被拒绝: " + originalFilename);
         }
         if (scanResult == ScanResult.failed && fileProperties.getScan().isEnabled()) {
+            auditService.log("M03", "scan_failed", "staging_file", null,
+                    "filename", originalFilename);
             throw new BusinessException(ErrorCode.EXTERNAL_SERVICE_ERROR,
                     "病毒扫描服务异常，上传被拒绝: " + originalFilename);
         }
@@ -195,6 +200,10 @@ public class StagingFileService {
         minioService.ensureBucket(fileProperties.getBucket());
         minioService.putObject(fileProperties.getBucket(), objectKey,
                 new ByteArrayInputStream(fileBytes), file.getSize(), contentType);
+
+        // 记录审计日志：文件上传成功
+        auditService.log("M03", "upload", "staging_file", sf.getId(),
+                "filename", originalFilename);
 
         // 自动文件名匹配
         Long matchedItemId = tryAutoMatch(batch.getId(), originalFilename);
@@ -277,6 +286,8 @@ public class StagingFileService {
             }
             sf.setMatchStatus(MatchStatus.deleted);
             stagingFileMapper.updateById(sf);
+            auditService.log("M03", "delete", "staging_file", sf.getId(),
+                    "reason", "item_rejected");
         }
     }
 
