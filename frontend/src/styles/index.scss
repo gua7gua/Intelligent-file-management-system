@@ -1,23 +1,5 @@
 @use './variables' as *;
 
-/* 全局重置 */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html,
-body,
-#app {
-  width: 100%;
-  height: 100%;
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
-}
-
 /* 滚动条美化 */
 ::-webkit-scrollbar {
   width: 6px;
@@ -31,128 +13,6 @@ body,
 
 ::-webkit-scrollbar-track {
   background: transparent;
-}
-
-/* 管理后台布局 */
-.admin-layout {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.admin-sidebar {
-  width: $sidebar-width;
-  height: 100%;
-  background-color: $sidebar-bg;
-  transition: width 0.3s;
-  overflow: hidden;
-  flex-shrink: 0;
-
-  &.collapsed {
-    width: $sidebar-collapsed-width;
-  }
-}
-
-.admin-sidebar-logo {
-  height: $header-height;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  color: #ffffff;
-  font-size: 16px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-
-  .logo-icon {
-    font-size: 22px;
-    flex-shrink: 0;
-  }
-
-  .logo-text {
-    margin-left: 10px;
-    font-size: 14px;
-  }
-}
-
-.admin-sidebar-menu {
-  height: calc(100% - #{$header-height});
-
-  // Element Plus el-menu 深色主题覆盖
-  .el-menu {
-    border-right: none;
-    background-color: transparent;
-  }
-
-  .el-menu-item,
-  .el-sub-menu__title {
-    &:hover {
-      background-color: rgba(255, 255, 255, 0.05) !important;
-    }
-  }
-
-  .el-menu-item.is-active {
-    background-color: $sidebar-active-bg !important;
-    color: $sidebar-active-text !important;
-  }
-}
-
-.admin-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.admin-header {
-  height: $header-height;
-  background-color: $header-bg;
-  border-bottom: 1px solid $header-border;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  flex-shrink: 0;
-}
-
-.admin-header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.admin-header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.collapse-btn {
-  font-size: 20px;
-  cursor: pointer;
-  color: #606266;
-  transition: color 0.2s;
-
-  &:hover {
-    color: $primary-color;
-  }
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  color: #606266;
-  font-size: 14px;
-}
-
-.admin-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: $content-padding;
-  background-color: $content-bg;
 }
 
 /* ProTable 样式 */
@@ -179,11 +39,4 @@ body,
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
-}
-
-/* 公众门户布局 */
-.public-layout {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
