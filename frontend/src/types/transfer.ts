@@ -51,7 +51,7 @@ export interface TransferItem {
   seqNo: number
   inputTitle: string
   pageCount?: number
-  retentionPeriod: RetentionPeriodValue
+  retentionPeriod: RetentionPeriodValue | ''
   carrierStatus: CarrierStatusValue | ''
   securityLevel: number
   openStatus: OpenStatusValue
