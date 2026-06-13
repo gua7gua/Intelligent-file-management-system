@@ -1,26 +1,25 @@
-/** 用户基本信息 */
+/** 用户信息（对齐接口文档 §3.1 返回的 user 对象） */
 export interface UserInfo {
   id: number
-  username: string
   realName: string
-  phone: string
+  username?: string
+  userType: 'internal' | 'public'
+  roles: string[]
   organizationId: number
-  organizationName: string
-  department: string
-  securityLevel: number
+  maxSecurityLevel: number
   dataScope: string
 }
 
-/** 登录请求参数 */
+/** 登录请求参数（对齐接口文档 §3.1） */
 export interface LoginParams {
-  username: string
+  loginName: string
   password: string
+  portal: string
 }
 
-/** 登录响应数据 */
+/** 登录响应数据（对齐接口文档 §3.1） */
 export interface LoginResult {
   token: string
   user: UserInfo
-  roles: string[]
-  permissions: string[]
+  defaultRoute: string
 }

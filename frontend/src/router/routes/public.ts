@@ -26,6 +26,11 @@ export const publicRoutes: RouteRecordRaw = {
       meta: { title: '公众注册' },
     },
     {
+      path: 'forgot-password',
+      component: () => import('@/views/public/forgot-password/index.vue'),
+      meta: { title: '忘记密码' },
+    },
+    {
       path: 'overview',
       component: () => import('@/views/public/overview/index.vue'),
       meta: { title: '公众概览', requiresAuth: true },

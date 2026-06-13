@@ -13,7 +13,7 @@ export function usePermission() {
   }
 
   function isAdmin(): boolean {
-    return authStore.hasAnyRole('front_admin', 'back_admin', 'leader', 'sys_admin')
+    return authStore.hasAnyRole('front_archivist', 'back_archivist', 'director', 'sys_admin')
   }
 
   return { hasRole, hasAnyRole, isAdmin }
