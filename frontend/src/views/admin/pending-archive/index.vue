@@ -160,6 +160,7 @@ import {
   getPendingBatches,
   getPendingBatchDetail,
   startAiCompletion,
+  getAiTask,
   confirmItem,
   archiveItem,
   shelveBatch,
