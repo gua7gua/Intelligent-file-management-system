@@ -26,7 +26,12 @@ public class AuthContext {
     }
 
     public static boolean isAuthenticated() {
-        return StpUtil.isLogin();
+        try {
+            return StpUtil.isLogin();
+        } catch (Exception e) {
+            // 异步线程等无 SaToken 上下文场景视为未登录
+            return false;
+        }
     }
 
     @SuppressWarnings("unchecked")
