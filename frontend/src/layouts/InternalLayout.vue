@@ -13,6 +13,9 @@
         <router-link to="/internal/search" class="nav-link" :class="{ active: route.path === '/internal/search' }">
           档案检索利用
         </router-link>
+        <router-link to="/internal/borrow-requests" class="nav-link" :class="{ active: route.path === '/internal/borrow-requests' }">
+          我的借阅申请
+        </router-link>
       </nav>
     </aside>
 
