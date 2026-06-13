@@ -16,5 +16,15 @@ export const internalRoutes: RouteRecordRaw = {
       component: () => import('@/views/internal/search/index.vue'),
       meta: { title: '档案检索利用' },
     },
+    {
+      path: 'archives/:id',
+      component: () => import('@/views/internal/archives/detail.vue'),
+      meta: { title: '档案详情' },
+    },
+    {
+      path: 'borrow-requests',
+      component: () => import('@/views/internal/borrow-requests/index.vue'),
+      meta: { title: '我的借阅申请' },
+    },
   ],
 }
