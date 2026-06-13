@@ -97,6 +97,7 @@ public class MinioService {
         try {
             return minioClient.getPresignedObjectUrl(
                     io.minio.GetPresignedObjectUrlArgs.builder()
+                            .method(io.minio.http.Method.GET)
                             .bucket(bucket)
                             .object(objectKey)
                             .expiry(60 * 60) // 1 小时有效

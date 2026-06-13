@@ -138,6 +138,8 @@ public class ArchiveFileService {
         archiveFileMapper.updateById(file);
 
         auditService.log("M05", "delete_file", "archive_file", fileId,
-                Map.of("archiveId", file.getArchiveId(), "reason", reason));
+                reason != null
+                        ? Map.of("archiveId", file.getArchiveId(), "reason", reason)
+                        : Map.of("archiveId", file.getArchiveId()));
     }
 }

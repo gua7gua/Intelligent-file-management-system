@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:archive_db}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:archive_db}?stringtype=unspecified
     username: ${DB_USER:archive_user}
     password: ${DB_PASSWORD:archive_pass_2024}
     driver-class-name: org.postgresql.Driver

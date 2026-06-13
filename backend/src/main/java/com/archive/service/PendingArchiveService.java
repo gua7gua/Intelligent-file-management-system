@@ -520,7 +520,7 @@ public class PendingArchiveService {
         r.setSecurityLevel(item.getSecurityLevel());
         r.setRetentionPeriod(item.getRetentionPeriod() != null ? item.getRetentionPeriod().getDbValue() : null);
         r.setFileMatchStatus(item.getFileMatchStatus() != null ? item.getFileMatchStatus().name() : null);
-        r.setAiSuggestion(item.getAiSuggestion());
+        r.setAiSuggestion(item.getAiSuggestion() != null ? item.getAiSuggestion().toString() : null);
         r.setConfirmedTitle(item.getConfirmedTitle());
         r.setConfirmedResponsibleText(item.getConfirmedResponsibleText());
         r.setConfirmedFormedDate(item.getConfirmedFormedDate());
