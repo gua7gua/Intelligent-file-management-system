@@ -725,7 +725,7 @@ public class IntakeBatchService {
         resp.setStatusText(resolveItemStatusText(item.getStatus()));
         resp.setInputTitle(item.getInputTitle());
         resp.setPageCount(item.getPageCount());
-        resp.setRetentionPeriod(item.getRetentionPeriod() != null ? item.getRetentionPeriod().name() : null);
+        resp.setRetentionPeriod(item.getRetentionPeriod() != null ? item.getRetentionPeriod().getDbValue() : null);
         resp.setCarrierStatus(item.getCarrierStatus() != null ? item.getCarrierStatus().name() : null);
         resp.setSecurityLevel(item.getSecurityLevel());
         resp.setOpenStatus(item.getOpenStatus());

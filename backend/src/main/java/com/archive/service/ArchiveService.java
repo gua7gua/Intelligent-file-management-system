@@ -395,7 +395,7 @@ public class ArchiveService {
         resp.setOrganizationId(archive.getOrganizationId());
         resp.setFondsId(archive.getFondsId());
         resp.setCarrierStatus(archive.getCarrierStatus() != null ? archive.getCarrierStatus().name() : null);
-        resp.setRetentionPeriod(archive.getRetentionPeriod() != null ? archive.getRetentionPeriod().name() : null);
+        resp.setRetentionPeriod(archive.getRetentionPeriod() != null ? archive.getRetentionPeriod().getDbValue() : null);
         resp.setRetentionUntil(archive.getRetentionUntil());
         resp.setSecurityLevel(archive.getSecurityLevel());
         resp.setOpenStatus(archive.getOpenStatus());

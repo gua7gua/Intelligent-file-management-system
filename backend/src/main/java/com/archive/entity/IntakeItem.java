@@ -59,8 +59,7 @@ public class IntakeItem extends BaseEntity {
     @EnumValue
     private FileMatchStatus fileMatchStatus;
 
-    /** AI 补全建议 JSON。 */
-    @TableField(typeHandler = JacksonTypeHandler.class)
+    /** AI 补全建议 JSON 原始字符串。 */
     private String aiSuggestion;
 
     private String confirmedTitle;
