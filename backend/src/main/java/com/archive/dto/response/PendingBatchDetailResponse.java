@@ -1,0 +1,56 @@
+package com.archive.dto.response;
+
+import com.archive.dto.response.PendingItemResponse;
+import lombok.Data;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+
+/**
+ * 入库批次详情（9.2）。
+ */
+@Data
+public class PendingBatchDetailResponse {
+
+    private Long id;
+
+    private String batchNo;
+
+    private String sourceType;
+
+    private String title;
+
+    private String status;
+
+    private String organizationName;
+
+    private String contactName;
+
+    private OffsetDateTime acceptedAt;
+
+    private List<PendingItemResponse> items;
+
+    /** 可用档案盒摘要（boxNo + categoryId + fondsId + usedCount/capacity）。 */
+    private List<AvailableBoxSummary> availableBoxes;
+
+    /** 可用架位摘要（locationCode + roomId）。 */
+    private List<AvailableLocationSummary> availableLocations;
+
+    @Data
+    public static class AvailableBoxSummary {
+        private Long id;
+        private String boxNo;
+        private Integer categoryId;
+        private Long fondsId;
+        private Integer usedCount;
+        private Integer capacity;
+    }
+
+    @Data
+    public static class AvailableLocationSummary {
+        private Long id;
+        private String locationCode;
+        private Long roomId;
+        private String roomNo;
+    }
+}

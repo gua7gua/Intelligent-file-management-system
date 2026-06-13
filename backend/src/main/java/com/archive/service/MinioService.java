@@ -87,6 +87,26 @@ public class MinioService {
     }
 
     /**
+     * 生成预签名访问 URL（用于文件预览/下载）。
+     *
+     * @param bucket    bucket 名称
+     * @param objectKey 对象路径
+     * @return 预签名 URL 字符串
+     */
+    public String getPresignedUrl(String bucket, String objectKey) {
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    io.minio.GetPresignedObjectUrlArgs.builder()
+                            .bucket(bucket)
+                            .object(objectKey)
+                            .expiry(60 * 60) // 1 小时有效
+                            .build());
+        } catch (Exception e) {
+            throw new RuntimeException("生成预签名 URL 失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * 复制对象（暂存转正式时使用，本期预留）。
      */
     public void copyObject(String srcBucket, String srcKey,
