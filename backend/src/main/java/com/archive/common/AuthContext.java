@@ -26,7 +26,12 @@ public class AuthContext {
     }
 
     public static boolean isAuthenticated() {
-        return StpUtil.isLogin();
+        try {
+            return StpUtil.isLogin();
+        } catch (Exception e) {
+            // 异步线程等无 SaToken 上下文场景视为未登录
+            return false;
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -59,7 +64,13 @@ public class AuthContext {
 
     public static DataScope getDataScope() {
         Object val = StpUtil.getSession().get(SESSION_KEY_DATA_SCOPE);
-        return val != null ? (DataScope) val : DataScope.own_org;
+        if (val == null) return DataScope.own_org;
+        if (val instanceof DataScope ds) return ds;
+        // AuthService 以 name() 字符串存入 session，需兼容字符串
+        if (val instanceof String s) {
+            try { return DataScope.valueOf(s); } catch (IllegalArgumentException e) { return DataScope.own_org; }
+        }
+        return DataScope.own_org;
     }
 
     public static Long getOrganizationId() {
