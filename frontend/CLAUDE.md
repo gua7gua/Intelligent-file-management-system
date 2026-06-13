@@ -13,19 +13,26 @@
 | 接口文档 | [doc/接口文档.md](../doc/接口文档.md) | REST API 规范，请与后端保持一致 |
 | 页面原型 | [doc/prototype/](../doc/prototype/) | 管理后台、公众端、移交端的页面参考 |
 
-生成页面时请参考 doc/prototype 的页面原型，确保布局、交互和字段与原型一致。
-
 > **注意**：模块说明中列出了每个页面的路由规划，但实际路由以 `src/router/` 中的配置为准。两者存在少量命名差异（如 `/admin/users` vs `/admin/user-management`），以实际代码为准。
 
 ## 页面开发工作流
 
 每个原型页面对应三件套产物（设计文档 → HTML → 验收文档），开发时按以下步骤逐页完成：
 
+### 还原原则
+
+将原型还原为 Vue 页面时，**视觉布局以 HTML 原型为准，字段定义以接口文档为准**，两者合并产出完整的 Vue 组件：
+
+- **布局和样式**：照搬 HTML 原型（`doc/prototype/{portal}/xxx.html`）的页面结构、CSS 类名和交互模式。HTML 原型是视觉基准，不要自行调整布局。
+- **字段名称和类型**：以 `doc/接口文档.md` 中定义的请求/响应字段为准。HTML 原型中的字段名是设计阶段的示意（如 `org`、`status: '启用'`），实际开发时必须替换为接口文档中的真实字段名（如 `organizationName`、`status: 'active'`）。
+- **原型设计文档的定位**：`*-原型设计.md` 用于理解业务场景、操作流程和异常路径，**不作为字段来源**。当原型设计文档中的字段描述与接口文档不一致时，以接口文档为准。
+- **交互逻辑**：HTML 原型中的 JS 逻辑作为交互参考，但校验规则、状态枚举、错误提示等业务细节以接口文档和验收文档为准。
+
 ### 步骤
 
-1. **读设计文档**：阅读 `doc/prototype/{portal}/xxx-原型设计.md`，理解业务场景、字段、交互逻辑和异常路径。
-2. **圈定接口**：对照 `doc/接口文档.md`，列出该页面需要的 API 端点。在 `src/api/` 下创建接口函数文件，在 `src/mock/modules/` 下创建对应的 mock 数据文件。
-3. **搬原型到 Vue**：打开原型 HTML（`doc/prototype/{portal}/xxx.html`），将 `<body>` 内容区搬入 `.vue` 的 `<template>`，页面内 `<style>` 搬入 `<style scoped>`，JS 逻辑转为 `<script setup>` 的响应式状态和事件处理。
+1. **读设计文档**：阅读 `doc/prototype/{portal}/xxx-原型设计.md`，理解业务场景、操作流程和异常路径。
+2. **圈定接口**：对照 `doc/接口文档.md`，列出该页面需要的 API 端点。**仔细阅读每个端点的请求参数和响应字段定义**——这是后续 Vue 组件中数据模型和表单字段的唯一权威来源。然后在 `src/api/` 下创建接口函数文件，在 `src/mock/modules/` 下创建对应的 mock 数据文件，mock 数据的字段名和类型必须与接口文档一致。
+3. **搬原型到 Vue**：打开原型 HTML（`doc/prototype/{portal}/xxx.html`），将 `<body>` 内容区搬入 `.vue` 的 `<template>`，页面内 `<style>` 搬入 `<style scoped>`，JS 逻辑转为 `<script setup>` 的响应式状态和事件处理。搬入时将 HTML 中的示意性字段名替换为接口文档中的真实字段名。
 4. **验证页面**：确认页面在 mock 数据下能正常渲染和交互。
 5. **自查验收**：对照 `doc/prototype/{portal}/xxx-验收.md` 逐项检查。
 
