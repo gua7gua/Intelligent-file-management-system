@@ -1,5 +1,4 @@
 // src/mock/modules/archive.ts
-import type { PageData } from '@/types/api'
 import type {
   PendingBatch,
   PendingBatchDetail,
