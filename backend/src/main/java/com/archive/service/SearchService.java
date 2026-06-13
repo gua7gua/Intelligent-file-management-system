@@ -27,7 +27,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import com.archive.dto.response.ArchiveSearchDetailResponse;
+import com.archive.dto.response.AiQueryResponse;
+import com.archive.dto.response.InternalDashboardResponse;
 import com.archive.enums.FileStatus;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.beans.factory.annotation.Autowired;
+import java.util.ArrayList;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.OffsetDateTime;
 import java.util.stream.Collectors;
@@ -50,6 +57,14 @@ public class SearchService {
     private final JdbcTemplate jdbcTemplate;
     private final MinioService minioService;
     private final AiClient aiClient;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    /** 单元测试注入用。 */
+    void setObjectMapper(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     // ==================== 5.2 公众检索 ====================
 
@@ -310,5 +325,138 @@ public class SearchService {
             return xff.split(",")[0].trim();
         }
         return req.getRemoteAddr();
+    }
+
+    // ==================== 5.6 / 11.4 AI 检索 JSON 生成 ====================
+
+    public AiQueryResponse publicAiQuery(String text) {
+        if (!aiClient.isAvailable()) {
+            throw new BusinessException(ErrorCode.EXTERNAL_SERVICE_ERROR, "AI 功能未启用");
+        }
+        if (!isPublicSearchEnabled()) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "公众检索未开放");
+        }
+        List<String> tags = loadVisibleTagsForPublic();
+        JsonNode result = callSearchAiWithRetry(buildSearchSystemPrompt(),
+                buildSearchUserMessage(text, tags));
+        ObjectNode conditions = ensureObjectNode(result.get("conditions"));
+        conditions.put("securityLevelMax", 0);     // 公众强制
+        conditions.put("openStatus", "open");      // 公众强制
+        return new AiQueryResponse("query", conditions, result);
+    }
+
+    public AiQueryResponse internalAiQuery(String text, int maxSecurityLevel,
+                                           DataScope dataScope, Long organizationId) {
+        if (!aiClient.isAvailable()) {
+            throw new BusinessException(ErrorCode.EXTERNAL_SERVICE_ERROR, "AI 功能未启用");
+        }
+        List<String> tags = loadVisibleTagsForInternal(maxSecurityLevel, dataScope, organizationId);
+        JsonNode result = callSearchAiWithRetry(buildSearchSystemPrompt(),
+                buildSearchUserMessage(text, tags));
+        JsonNode conditions = result.get("conditions") != null
+                ? result.get("conditions") : objectMapper.createObjectNode();
+        return new AiQueryResponse("query", conditions, result);
+    }
+
+    /**
+     * 同步调用 AI 并校验 ruleType；AiClient 抛异常不重试（直接传播），
+     * 仅 ruleType != query 时重试，最多 searchMaxRetries 次。
+     */
+    JsonNode callSearchAiWithRetry(String systemPrompt, String userMessage) {
+        int max = aiClient.getSearchMaxRetries();
+        for (int i = 0; i < max; i++) {
+            JsonNode result = aiClient.callAndExtractJson(systemPrompt, userMessage);
+            JsonNode ruleType = result.get("ruleType");
+            if (ruleType != null && "query".equals(ruleType.asText())) {
+                return result;
+            }
+        }
+        throw new BusinessException(ErrorCode.EXTERNAL_SERVICE_ERROR, "AI 检索结果格式异常，请改用普通筛选");
+    }
+
+    private String buildSearchSystemPrompt() {
+        return """
+                你是档案管理系统的 AI 助手，将用户的自然语言检索需求转换为结构化查询条件。
+
+                约束：
+                - 分类必须从系统给定分类中选择（document/technology/accounting/audio_video/personnel）。
+                - 标签必须优先从系统给定的可见标签集合中选择。
+                - 日期格式统一为 yyyy-MM-dd。
+                - 如用户为公众用户，必须附加 securityLevelMax = 0 且 openStatus = "open"。
+                - 你只生成查询条件，不执行查询。
+
+                输出格式：
+                <JSON>
+                {
+                  "ruleType": "query",
+                  "conditions": {
+                    "keywords": ["关键词"],
+                    "category": "分类code",
+                    "formedDateRange": ["yyyy-MM-dd","yyyy-MM-dd"],
+                    "responsible": "责任者",
+                    "securityLevelMax": 0,
+                    "openStatus": "open",
+                    "carrierStatus": "electronic / paper_electronic / paper"
+                  }
+                }
+                </JSON>
+                """;
+    }
+
+    private String buildSearchUserMessage(String text, List<String> tags) {
+        return "用户检索需求：" + text + "\n" +
+                "可用分类：document/technology/accounting/audio_video/personnel\n" +
+                "可见标签：" + String.join("、", tags);
+    }
+
+    private ObjectNode ensureObjectNode(JsonNode node) {
+        if (node instanceof ObjectNode on) return on;
+        return objectMapper.createObjectNode();
+    }
+
+    /** 公众可见标签：非密公开正常档案的 distinct tag_name。 */
+    private List<String> loadVisibleTagsForPublic() {
+        return jdbcTemplate.queryForList(
+                "SELECT DISTINCT t.tag_name FROM tags t " +
+                "JOIN archive_tags at ON at.tag_id = t.id " +
+                "JOIN archives a ON a.id = at.archive_id " +
+                "WHERE a.security_level = 0 AND a.open_status = 'open' AND a.lifecycle_status = 'normal'",
+                String.class);
+    }
+
+    /** 内部可见标签：按密级上限 + 数据范围 + 生命周期过滤后的 distinct tag_name。 */
+    private List<String> loadVisibleTagsForInternal(int maxSecurityLevel, DataScope scope, Long organizationId) {
+        String orgFilter = (scope == DataScope.all || organizationId == null) ? ""
+                : (scope == DataScope.own_org
+                    ? " AND a.organization_id = " + organizationId
+                    : " AND a.fonds_id IN (SELECT id FROM fonds WHERE organization_id = " + organizationId + ")");
+        return jdbcTemplate.queryForList(
+                "SELECT DISTINCT t.tag_name FROM tags t " +
+                "JOIN archive_tags at ON at.tag_id = t.id " +
+                "JOIN archives a ON a.id = at.archive_id " +
+                "WHERE a.lifecycle_status = 'normal' AND a.security_level <= " + maxSecurityLevel + orgFilter,
+                String.class);
+    }
+
+    // ==================== 11.1 内部工作台 ====================
+
+    public InternalDashboardResponse getInternalDashboard(Long userId) {
+        List<InternalDashboardResponse.RecentView> recentViews = new ArrayList<>();
+        for (Map<String, Object> row : accessLogMapper.findRecentViews(userId)) {
+            recentViews.add(new InternalDashboardResponse.RecentView(
+                    toLong(row.get("archiveId")),
+                    (String) row.get("archiveNo"),
+                    (String) row.get("title"),
+                    row.get("accessedAt") instanceof OffsetDateTime odt ? odt : null));
+        }
+        // 借阅部分本次返回空占位，待 feat/borrow-liu
+        return new InternalDashboardResponse(
+                recentViews, List.of(), List.of(), List.of());
+    }
+
+    private Long toLong(Object o) {
+        if (o == null) return null;
+        if (o instanceof Number n) return n.longValue();
+        try { return Long.parseLong(o.toString()); } catch (NumberFormatException e) { return null; }
     }
 }
