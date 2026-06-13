@@ -29,8 +29,8 @@ describe('internal api mock mode', () => {
     expect(detail.title).toContain('智慧城市')
     expect(detail.canBorrow).toBe(true)
     expect(detail.files.length).toBeGreaterThan(0)
-    expect((detail as Record<string, unknown>).locationCode).toBeUndefined()
-    expect((detail as Record<string, unknown>).boxNo).toBeUndefined()
+    expect((detail as unknown as Record<string, unknown>).locationCode).toBeUndefined()
+    expect((detail as unknown as Record<string, unknown>).boxNo).toBeUndefined()
   })
 
   it('archive detail throws for unknown id', async () => {
