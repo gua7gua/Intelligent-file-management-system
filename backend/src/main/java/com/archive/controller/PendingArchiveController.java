@@ -9,6 +9,8 @@ import com.archive.dto.response.ArchiveResultResponse;
 import com.archive.dto.response.PendingBatchDetailResponse;
 import com.archive.dto.response.PendingBatchResponse;
 import com.archive.dto.response.PendingItemResponse;
+import com.archive.dto.response.AiTaskStartResponse;
+import com.archive.service.AiTaskService;
 import com.archive.service.PendingArchiveService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 public class PendingArchiveController {
 
     private final PendingArchiveService pendingArchiveService;
+    private final AiTaskService aiTaskService;
 
     @GetMapping("/batches")
     @Operation(summary = "查询待入库批次")
@@ -69,5 +72,11 @@ public class PendingArchiveController {
         pendingArchiveService.shelveBatch(batchId,
                 req != null ? req : new BatchShelveRequest());
         return R.ok(null);
+    }
+
+    @PostMapping("/batches/{batchId}/ai-completion")
+    @Operation(summary = "启动 AI 补全")
+    public R<AiTaskStartResponse> startAiCompletion(@PathVariable Long batchId) {
+        return R.ok(aiTaskService.startIntakeCompletion(batchId));
     }
 }
