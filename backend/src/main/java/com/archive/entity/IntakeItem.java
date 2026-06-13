@@ -14,6 +14,7 @@ import lombok.EqualsAndHashCode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 移交/征集清单条目。
@@ -59,9 +60,9 @@ public class IntakeItem extends BaseEntity {
     @EnumValue
     private FileMatchStatus fileMatchStatus;
 
-    /** AI 补全建议 JSON。 */
+    /** AI 补全建议 JSON。JacksonTypeHandler 以 Map 形式读写 JSONB。 */
     @TableField(typeHandler = JacksonTypeHandler.class)
-    private String aiSuggestion;
+    private Map<String, Object> aiSuggestion;
 
     private String confirmedTitle;
 

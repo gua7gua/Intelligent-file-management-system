@@ -3,13 +3,14 @@ package com.archive.enums;
 import lombok.Getter;
 
 /**
- * 清单来源类型：移交或征集。
+ * 来源类型：移交、征集、编研。
  */
 @Getter
 public enum SourceType {
 
     transfer("移交"),
-    collection("征集");
+    collection("征集"),
+    compilation("编研");
 
     private final String displayName;
 
