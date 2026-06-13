@@ -5,3 +5,4 @@ export { mockReceptionBatches, mockBatchDetail, mockUploadResult } from './modul
 export { mockCollectionBatches } from './modules/collection'
 export * from './modules/transfer'
 export * from './modules/public'
+export * from './modules/archive'

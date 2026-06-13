@@ -1,3 +1,20 @@
+
+---
+
+### Task 5: 档案管理页面 — `src/views/admin/archive-management/index.vue`
+
+**Files:**
+- Modify: `src/views/admin/archive-management/index.vue`
+
+**关键参考：** 原型 `doc/prototype/admin/archive-management.html`、接口文档 §10。
+
+页面核心逻辑：三栏布局，左栏分类树、中栏筛选+列表、右栏详情抽屉。支持元数据编辑（仅非受保护字段）、密级/开放调整审批发起。
+
+- [ ] **Step 1: 实现完整页面组件**
+
+将 `src/views/admin/archive-management/index.vue` 替换为以下完整代码：
+
+```vue
 <template>
   <div class="archive-management">
     <section>
@@ -148,7 +165,7 @@
             <div class="field">
               <label>分类</label>
               <select v-model="editForm.categoryId">
-                <option v-for="cat in categoryTree.filter(c => c.id > 0)" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                <option v-for="cat in categoryTree" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
               </select>
             </div>
           </div>
@@ -287,7 +304,7 @@ function syncEditForm(d: ArchiveDetail) {
 async function loadArchives() {
   listLoading.value = true
   try {
-    const params: Record<string, unknown> = { pageNo: 1, pageSize: 50 }
+    const params: Record<string, any> = { pageNo: 1, pageSize: 50 }
     if (query.keyword) params.keyword = query.keyword
     if (query.year) { params.formedYearStart = query.year; params.formedYearEnd = query.year }
     if (query.securityLevel !== '') params.securityLevel = Number(query.securityLevel)
@@ -346,9 +363,8 @@ async function handleSaveMeta() {
     })
     detail.value = updated
     ElMessage.success('元数据已保存，变更来源 manual_edit 写入 archive_change_logs。')
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : '保存失败'
-    ElMessage.error(msg)
+  } catch (e: any) {
+    ElMessage.error(e.message || '保存失败')
   }
 }
 
@@ -374,9 +390,8 @@ async function handleSecurityAdjust() {
       reason: approvalForm.reason,
     })
     ElMessage.success('密级调整申请已生成审批单，目标字段在馆领导审批通过前保持不变。')
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : '提交失败'
-    ElMessage.error(msg)
+  } catch (e: any) {
+    ElMessage.error(e.message || '提交失败')
   }
 }
 
@@ -389,9 +404,8 @@ async function handleOpenAdjust() {
       reason: approvalForm.reason,
     })
     ElMessage.success('开放调整申请已生成审批单，目标字段在馆领导审批通过前保持不变。')
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : '提交失败'
-    ElMessage.error(msg)
+  } catch (e: any) {
+    ElMessage.error(e.message || '提交失败')
   }
 }
 
@@ -560,3 +574,45 @@ tr.row-active {
   .form-grid { grid-template-columns: 1fr; }
 }
 </style>
+```
+
+- [ ] **Step 2: 验证构建通过**
+
+Run: `cd frontend && npx vite build 2>&1 | tail -5`
+Expected: 构建成功
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add src/views/admin/archive-management/index.vue
+git commit -m "feat(archive-hu): 实现档案管理页面"
+```
+
+---
+
+### Task 6: 最终验证与构建
+
+- [ ] **Step 1: 运行类型检查**
+
+Run: `cd frontend && npx vue-tsc --noEmit 2>&1 | tail -10`
+Expected: 无新增类型错误
+
+- [ ] **Step 2: 运行生产构建**
+
+Run: `cd frontend && npx vite build 2>&1 | tail -10`
+Expected: 构建成功，产出 dist 目录
+
+- [ ] **Step 3: 确认无遗留问题**
+
+检查以下内容：
+- `src/types/archive.ts` 中所有类型被 `src/api/archive.ts` 和两个页面正确引用
+- `src/mock/index.ts` 已注册 archive 模块
+- 两个页面路由已存在于 `src/router/routes/admin.ts`（无需修改）
+- 无未使用的 import 或变量
+
+- [ ] **Step 4: 最终提交（如有遗漏修复）**
+
+```bash
+git add -A
+git commit -m "fix(archive-hu): 修复构建和类型检查问题"
+```
