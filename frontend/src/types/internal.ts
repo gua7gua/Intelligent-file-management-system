@@ -111,6 +111,8 @@ export interface BorrowRequest {
   dueAt?: string
   returnedAt?: string
   overdue?: boolean
+  voucherNo?: string
+  voucherIssuedAt?: string
 }
 
 /** 借阅申请详情 */
@@ -119,8 +121,6 @@ export interface BorrowRequestDetail extends BorrowRequest {
   contactPhone: string
   opinion?: string
   rejectReason?: string
-  voucherNo?: string
-  voucherIssuedAt?: string
   returnCheckResult?: string
   returnNote?: string
 }
