@@ -7,7 +7,7 @@ import type {
   DestructionPhoto,
 } from '@/types/destruction'
 import type { ApprovalRequest } from '@/types/approval'
-import { mockApprovalDetail, resolveDestructionListSummary } from './approval'
+import { mockApprovalDetail } from './approval'
 
 // 清册 10：待销毁（已审批通过，approval 25）
 const list10Items = [
@@ -18,6 +18,21 @@ const list10Items = [
     titleSnapshot: '2014 年设备档案',
     categorySnapshot: '设备档案',
     pageCountSnapshot: 80,
+    retentionSnapshot: '10y',
+    securityLevelSnapshot: 0,
+    appraisalOpinionSnapshot: '到期无保存价值',
+    fileDeleteStatus: 'not_started' as const,
+  },
+]
+
+const list11Items = [
+  {
+    id: 9002,
+    archiveId: 301,
+    archiveNoSnapshot: 'ARC-000301',
+    titleSnapshot: '2014 年基建档案',
+    categorySnapshot: '基建档案',
+    pageCountSnapshot: 120,
     retentionSnapshot: '10y',
     securityLevelSnapshot: 0,
     appraisalOpinionSnapshot: '到期无保存价值',
@@ -37,7 +52,6 @@ const lists: DestructionListDetail[] = [
     itemCount: 1,
     createdAt: '2026-06-13T12:00:00+08:00',
     items: list10Items,
-    approval: mockApprovalDetail(25) as ApprovalRequest,
     photos: [
       { id: 7001, fileName: 'scene-1.jpg', fileSize: 204800, uploadedAt: '2026-06-15T16:00:00+08:00' },
     ],
@@ -52,8 +66,7 @@ const lists: DestructionListDetail[] = [
     approvalRequestId: 22,
     itemCount: 1,
     createdAt: '2026-06-15T11:00:00+08:00',
-    items: resolveDestructionListSummary(11)!.items,
-    approval: mockApprovalDetail(22) as ApprovalRequest,
+    items: list11Items,
     photos: [],
   },
   {
@@ -130,7 +143,15 @@ export function mockDestructionLists(params?: DestructionListParams): {
 export function mockDestructionListDetail(id: number): DestructionListDetail {
   const found = lists.find((l) => l.id === id)
   if (!found) throw new Error('销毁清册不存在')
-  return JSON.parse(JSON.stringify(found))
+  const detail: DestructionListDetail = JSON.parse(JSON.stringify(found))
+  if (detail.approvalRequestId) {
+    try {
+      detail.approval = mockApprovalDetail(detail.approvalRequestId)
+    } catch {
+      detail.approval = undefined
+    }
+  }
+  return detail
 }
 
 let nextApprovalId = 26
@@ -185,4 +206,65 @@ export function mockConfirmDestruction(id: number, data: DestructionConfirmData)
     fileDeletedAt: '2026-06-15T19:00:00+08:00',
   }))
   return detail
+}
+
+let nextListId = 14
+
+/** 鉴定完成时注入新生成的销毁清册（供 appraisal mock 调用，解决联动 A） */
+export function seedGeneratedList(
+  appraisalBatchId: number,
+  appraisalBatchNo: string,
+  sourceItems: Array<{
+    archiveId: number
+    archiveNo: string
+    title: string
+    categoryName: string
+    retentionPeriod: string
+    opinion?: string
+  }>,
+): { id: number; listNo: string } {
+  const id = nextListId++
+  const listNo = `DES-0${id}`
+  const items = sourceItems.map((it, idx) => ({
+    id: 9000 + idx,
+    archiveId: it.archiveId,
+    archiveNoSnapshot: it.archiveNo,
+    titleSnapshot: it.title,
+    categorySnapshot: it.categoryName,
+    retentionSnapshot: it.retentionPeriod,
+    securityLevelSnapshot: 0,
+    appraisalOpinionSnapshot: it.opinion || '',
+    fileDeleteStatus: 'not_started' as const,
+  }))
+  const newList: DestructionListDetail = {
+    id,
+    listNo,
+    listName: `${appraisalBatchNo} 销毁清册`,
+    appraisalBatchId,
+    appraisalBatchNo,
+    status: 'draft',
+    itemCount: items.length,
+    createdAt: '2026-06-15T17:00:00+08:00',
+    items,
+    approval: undefined,
+    photos: [],
+  }
+  lists.push(newList)
+  return { id, listNo }
+}
+
+/** 销毁审批通过 → 清册进入待销毁（供 approval mock 调用，解决联动 B） */
+export function markListPendingDestroy(listId: number): void {
+  const target = lists.find((l) => l.id === listId)
+  if (target && target.status === 'pending_approval') {
+    target.status = 'pending_destroy'
+  }
+}
+
+/** 销毁审批退回 → 清册回到草稿（供 approval mock 调用） */
+export function resetListToDraft(listId: number): void {
+  const target = lists.find((l) => l.id === listId)
+  if (target && target.status === 'pending_approval') {
+    target.status = 'draft'
+  }
 }

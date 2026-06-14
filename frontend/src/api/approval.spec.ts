@@ -53,4 +53,12 @@ describe('approval api mock mode', () => {
     expect(detail.status).toBe('rejected')
     expect(detail.approvalOpinion).toBe('凭证不匹配，退回')
   })
+
+  it('approving a destruction approval advances the linked list to pending_destroy', async () => {
+    const { getDestructionListDetail } = await import('./destruction')
+    await approveApproval(22, { opinion: '同意销毁' })
+    const list = await getDestructionListDetail(11)
+    expect(list.status).toBe('pending_destroy')
+    expect(list.approval?.status).toBe('approved')
+  })
 })

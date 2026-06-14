@@ -1,12 +1,12 @@
 // src/mock/modules/approval.ts
 import type {
-  ApprovalDestructionListSummary,
   ApprovalOpinionData,
   ApprovalParams,
   ApprovalRequest,
   ApprovalRequestDetail,
 } from '@/types/approval'
 import type { DestructionItem } from '@/types/destruction'
+import { markListPendingDestroy, resetListToDraft } from './destruction'
 
 const destructionItems: DestructionItem[] = [
   {
@@ -209,23 +209,25 @@ export function mockApprovalDetail(id: number): ApprovalRequestDetail {
 }
 
 export function mockApproveApproval(id: number, data: ApprovalOpinionData): ApprovalRequestDetail {
-  const detail = mockApprovalDetail(id)
-  detail.status = 'approved'
-  detail.approvalOpinion = data.opinion
-  detail.approvedAt = '2026-06-15T18:00:00+08:00'
-  return detail
+  const source = approvals.find((a) => a.id === id)
+  if (!source) throw new Error('审批单不存在')
+  source.status = 'approved'
+  source.approvalOpinion = data.opinion
+  source.approvedAt = '2026-06-15T18:00:00+08:00'
+  if (source.approvalType === 'destruction' && source.targetType === 'destruction_list') {
+    markListPendingDestroy(source.targetId)
+  }
+  return JSON.parse(JSON.stringify(source))
 }
 
 export function mockRejectApproval(id: number, data: ApprovalOpinionData): ApprovalRequestDetail {
-  const detail = mockApprovalDetail(id)
-  detail.status = 'rejected'
-  detail.approvalOpinion = data.opinion
-  detail.approvedAt = '2026-06-15T18:00:00+08:00'
-  return detail
-}
-
-/** 销毁审批通过时联动更新清册状态（供 destruction mock 引用） */
-export function resolveDestructionListSummary(id: number): ApprovalDestructionListSummary | undefined {
-  const a = approvals.find((x) => x.approvalType === 'destruction' && x.targetId === id)
-  return a?.destructionList
+  const source = approvals.find((a) => a.id === id)
+  if (!source) throw new Error('审批单不存在')
+  source.status = 'rejected'
+  source.approvalOpinion = data.opinion
+  source.approvedAt = '2026-06-15T18:00:00+08:00'
+  if (source.approvalType === 'destruction' && source.targetType === 'destruction_list') {
+    resetListToDraft(source.targetId)
+  }
+  return JSON.parse(JSON.stringify(source))
 }

@@ -7,6 +7,7 @@ import type {
   AppraisalItem,
   AppraisalItemsSaveData,
 } from '@/types/appraisal'
+import { seedGeneratedList } from './destruction'
 
 const baseItem = (
   archiveId: number,
@@ -178,13 +179,13 @@ export function mockSaveAppraisalItems(id: number, data: AppraisalItemsSaveData)
   return detail
 }
 
-let nextListNo = 14
 export function mockCompleteAppraisalBatch(id: number): AppraisalBatchDetail {
   const detail = mockAppraisalBatchDetail(id)
   detail.status = 'completed'
   detail.completedAt = '2026-06-15T17:00:00+08:00'
-  detail.generatedListId = nextListNo
-  detail.generatedListNo = `DES-0${nextListNo}`
-  nextListNo++
+  const destroyItems = detail.items.filter((i) => i.appraisalResult === 'destroy')
+  const generated = seedGeneratedList(detail.id, detail.batchNo, destroyItems)
+  detail.generatedListId = generated.id
+  detail.generatedListNo = generated.listNo
   return detail
 }

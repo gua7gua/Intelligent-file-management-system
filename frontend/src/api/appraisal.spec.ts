@@ -64,4 +64,14 @@ describe('appraisal api mock mode', () => {
     expect(detail.status).toBe('completed')
     expect(detail.generatedListNo).toContain('DES-')
   })
+
+  it('completed batch generates a destruction list resolvable via destruction detail', async () => {
+    const { getDestructionListDetail } = await import('./destruction')
+    const detail = await completeAppraisalBatch(1)
+    expect(detail.generatedListId).toBeTruthy()
+    const list = await getDestructionListDetail(detail.generatedListId!)
+    expect(list.appraisalBatchId).toBe(1)
+    expect(list.status).toBe('draft')
+    expect(list.items.length).toBeGreaterThan(0)
+  })
 })
