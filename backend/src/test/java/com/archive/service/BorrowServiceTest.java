@@ -4,6 +4,7 @@ import com.archive.common.AuthContext;
 import com.archive.common.PageResult;
 import com.archive.dto.request.BorrowApplyRequest;
 import com.archive.dto.request.BorrowApproveRequest;
+import com.archive.dto.request.BorrowCheckoutRequest;
 import com.archive.dto.request.BorrowRequestQuery;
 import com.archive.dto.response.BorrowRequestResponse;
 import com.archive.entity.Archive;
@@ -31,6 +32,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -326,5 +328,85 @@ class BorrowServiceTest {
                 assertThatThrownBy(() -> service.exportVoucher(1L))
                         .isInstanceOf(BusinessException.class)
                         .hasMessageContaining("无权"));
+    }
+
+    // ---- 12.4 checkout ----
+
+    @Test
+    void checkout_凭证匹配则出库成功档案置on_loan() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.voucher_issued);
+        b.setVoucherNo("VCH-000001");
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+        when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
+        when(archiveMapper.update(any(com.archive.entity.Archive.class), any())).thenReturn(1);
+
+        BorrowCheckoutRequest req = new BorrowCheckoutRequest();
+        req.setVoucherNo("VCH-000001");
+        req.setDueAt(OffsetDateTime.now().plusDays(7));
+
+        asRole(RoleCode.back_archivist, 2L, () -> {
+            BorrowRequestResponse resp = service.checkout(1L, req);
+            assertThat(resp.getStatus()).isEqualTo("checked_out");
+        });
+        verify(archiveMapper).update(any(com.archive.entity.Archive.class), any());
+    }
+
+    @Test
+    void checkout_凭证号不匹配抛CONFLICT() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.voucher_issued);
+        b.setVoucherNo("VCH-000001");
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+
+        BorrowCheckoutRequest req = new BorrowCheckoutRequest();
+        req.setVoucherNo("VCH-999999");
+        req.setDueAt(OffsetDateTime.now().plusDays(7));
+
+        asRole(RoleCode.back_archivist, 2L, () ->
+                assertThatThrownBy(() -> service.checkout(1L, req))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("凭证号不匹配"));
+    }
+
+    @Test
+    void checkout_应还时间不晚于当前抛VALIDATION_FAILED() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.voucher_issued);
+        b.setVoucherNo("VCH-000001");
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+
+        BorrowCheckoutRequest req = new BorrowCheckoutRequest();
+        req.setVoucherNo("VCH-000001");
+        req.setDueAt(OffsetDateTime.now().minusDays(1));
+
+        asRole(RoleCode.back_archivist, 2L, () ->
+                assertThatThrownBy(() -> service.checkout(1L, req))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("应还时间"));
+    }
+
+    @Test
+    void checkout_非可出库状态抛CONFLICT() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.applied);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+
+        BorrowCheckoutRequest req = new BorrowCheckoutRequest();
+        req.setVoucherNo("VCH-000001");
+        req.setDueAt(OffsetDateTime.now().plusDays(7));
+
+        asRole(RoleCode.back_archivist, 2L, () ->
+                assertThatThrownBy(() -> service.checkout(1L, req))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("当前状态"));
+    }
+
+    @Test
+    void checkout_无权限角色抛FORBIDDEN() {
+        BorrowCheckoutRequest req = new BorrowCheckoutRequest();
+        req.setVoucherNo("VCH-000001");
+        req.setDueAt(OffsetDateTime.now().plusDays(7));
+
+        asRole(RoleCode.internal_reader, 4L, () ->
+                assertThatThrownBy(() -> service.checkout(1L, req))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("无操作权限"));
     }
 }

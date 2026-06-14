@@ -5,6 +5,7 @@ import com.archive.common.ErrorCode;
 import com.archive.common.PageResult;
 import com.archive.dto.request.BorrowApplyRequest;
 import com.archive.dto.request.BorrowApproveRequest;
+import com.archive.dto.request.BorrowCheckoutRequest;
 import com.archive.dto.request.BorrowRequestQuery;
 import com.archive.dto.response.BorrowRequestResponse;
 import com.archive.entity.Archive;
@@ -12,6 +13,7 @@ import com.archive.entity.BorrowRequest;
 import com.archive.entity.Organization;
 import com.archive.entity.User;
 import com.archive.enums.BorrowStatus;
+import com.archive.enums.LoanStatus;
 import com.archive.enums.RoleCode;
 import com.archive.exception.BusinessException;
 import com.archive.mapper.ArchiveMapper;
@@ -21,6 +23,7 @@ import com.archive.mapper.UserMapper;
 import com.archive.util.BorrowNoUtil;
 import com.archive.util.PdfGenerator;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -198,6 +201,51 @@ public class BorrowService {
         Organization org = (borrower != null && borrower.getOrganizationId() != null)
                 ? organizationMapper.selectById(borrower.getOrganizationId()) : null;
         return pdfGenerator.generateBorrowVoucherPdf(b, archive, borrower, org);
+    }
+
+    // ==================== 12.4 核验凭证并确认出库 ====================
+
+    @Transactional
+    public BorrowRequestResponse checkout(Long requestId, BorrowCheckoutRequest req) {
+        requireRole(RoleCode.front_archivist, RoleCode.back_archivist);
+        long operator = AuthContext.getCurrentUserId();
+
+        BorrowRequest b = mustGet(requestId);
+        BorrowStatus st = b.getStatus();
+        if (st != BorrowStatus.approved && st != BorrowStatus.voucher_issued) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "当前状态不允许出库");
+        }
+        if (b.getVoucherNo() == null || !b.getVoucherNo().equals(req.getVoucherNo())) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "凭证号不匹配");
+        }
+        if (req.getDueAt() == null || !req.getDueAt().isAfter(OffsetDateTime.now())) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "应还时间必须晚于当前时间");
+        }
+
+        // 出库复校可借状态与盘点范围
+        eligibilityChecker.checkBorrowable(b.getArchiveId());
+
+        OffsetDateTime now = OffsetDateTime.now();
+        b.setCheckedOutBy(operator);
+        b.setCheckedOutAt(now);
+        b.setDueAt(req.getDueAt());
+        b.setStatus(BorrowStatus.checked_out);
+        borrowRequestMapper.updateById(b);
+
+        // 条件更新档案为借出中（充当乐观锁，并发时 updated=0 即冲突）
+        Archive patch = new Archive();
+        patch.setLoanStatus(LoanStatus.on_loan);
+        UpdateWrapper<Archive> uw = new UpdateWrapper<>();
+        uw.eq("id", b.getArchiveId()).eq("loan_status", LoanStatus.available.name());
+        int updated = archiveMapper.update(patch, uw);
+        if (updated == 0) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "档案状态已变更，出库失败");
+        }
+
+        auditService.log("M09", "checkout", "borrow_request", b.getId(),
+                Map.of("voucherNo", req.getVoucherNo(), "dueAt", String.valueOf(req.getDueAt())));
+
+        return toResponse(b, true, true);
     }
 
     // ==================== 公共辅助 ====================
