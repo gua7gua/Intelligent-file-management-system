@@ -144,8 +144,8 @@ public class BorrowService {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "当前状态不允许审批");
         }
 
-        // 审批前重新校验可借状态与盘点范围
-        eligibilityChecker.checkBorrowable(b.getArchiveId());
+        // 审批前重新校验可借状态与盘点范围（排除当前申请自身，避免复校误拦）
+        eligibilityChecker.checkBorrowable(b.getArchiveId(), requestId);
 
         OffsetDateTime now = OffsetDateTime.now();
         b.setApprovedBy(reviewer);
@@ -226,8 +226,8 @@ public class BorrowService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "应还时间必须晚于当前时间");
         }
 
-        // 出库复校可借状态与盘点范围
-        eligibilityChecker.checkBorrowable(b.getArchiveId());
+        // 出库复校可借状态与盘点范围（排除当前申请自身，避免复校误拦）
+        eligibilityChecker.checkBorrowable(b.getArchiveId(), requestId);
 
         OffsetDateTime now = OffsetDateTime.now();
         b.setCheckedOutBy(operator);

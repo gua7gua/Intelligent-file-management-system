@@ -128,6 +128,20 @@ class BorrowEligibilityCheckerTest {
     }
 
     @Test
+    void 排除当前申请时条件7不误拦() {
+        when(archiveMapper.selectById(ARCHIVE_ID)).thenReturn(borrowableArchive());
+        // 模拟：当前申请（id=77）是唯一未结束申请；排除它后 count=0 → 通过
+        when(borrowRequestMapper.selectCount(any(QueryWrapper.class))).thenReturn(0L);
+        assertThatCode(() -> checker.checkBorrowable(ARCHIVE_ID, 77L)).doesNotThrowAnyException();
+
+        // 不排除时（apply 场景）count=1 → 拒绝
+        when(borrowRequestMapper.selectCount(any(QueryWrapper.class))).thenReturn(1L);
+        assertThatThrownBy(() -> checker.checkBorrowable(ARCHIVE_ID, null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("未结束的借阅申请");
+    }
+
+    @Test
     void 全部条件满足通过() {
         when(archiveMapper.selectById(ARCHIVE_ID)).thenReturn(borrowableArchive());
         assertThatCode(() -> checker.checkBorrowable(ARCHIVE_ID)).doesNotThrowAnyException();

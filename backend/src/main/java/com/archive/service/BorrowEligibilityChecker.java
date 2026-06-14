@@ -46,6 +46,14 @@ public class BorrowEligibilityChecker {
             "WHERE status = 'running' AND room_id = ? AND category_id = ?";
 
     public void checkBorrowable(Long archiveId) {
+        checkBorrowable(archiveId, null);
+    }
+
+    /**
+     * 校验档案可借。复校场景（审批/出库）传入 excludeRequestId 排除当前申请自身，
+     * 避免条件 7（无未结束申请）误把当前申请计入。
+     */
+    public void checkBorrowable(Long archiveId, Long excludeRequestId) {
         Archive archive = archiveMapper.selectById(archiveId);
         if (archive == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "档案不存在");
@@ -86,6 +94,9 @@ public class BorrowEligibilityChecker {
                   BorrowStatus.approved.name(),
                   BorrowStatus.voucher_issued.name(),
                   BorrowStatus.checked_out.name());
+        if (excludeRequestId != null) {
+            qw.ne("id", excludeRequestId);
+        }
         Long openCount = borrowRequestMapper.selectCount(qw);
         if (openCount != null && openCount > 0) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT,
