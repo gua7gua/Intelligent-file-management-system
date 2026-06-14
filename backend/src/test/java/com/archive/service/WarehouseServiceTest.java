@@ -1,8 +1,10 @@
 package com.archive.service;
 
 import com.archive.common.ErrorCode;
+import com.archive.dto.request.ArchiveBoxCreateRequest;
 import com.archive.dto.request.LocationStatusRequest;
 import com.archive.dto.request.WarehouseRoomCreateRequest;
+import com.archive.dto.response.ArchiveBoxResponse;
 import com.archive.dto.response.WarehouseRoomResponse;
 import com.archive.entity.StorageLocation;
 import com.archive.exception.BusinessException;
@@ -281,5 +283,68 @@ class WarehouseServiceTest {
         verify(storageLocationMapper).updateById(any(com.archive.entity.StorageLocation.class));
         verify(auditService).log(eq("M07"), eq("update_location_status"),
                 eq("storage_location"), eq(10L), any());
+    }
+
+    @Test
+    void createBox_架位已占用抛冲突() {
+        com.archive.entity.StorageLocation loc = new com.archive.entity.StorageLocation();
+        loc.setId(10L);
+        loc.setStatus("active");
+        when(storageLocationMapper.selectById(10L)).thenReturn(loc);
+        when(archiveBoxMapper.selectCount(any())).thenReturn(1L);
+
+        ArchiveBoxCreateRequest req = new ArchiveBoxCreateRequest();
+        req.setLocationId(10L);
+
+        assertThatThrownBy(() -> service.createBox(req))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.BUSINESS_CONFLICT);
+    }
+
+    @Test
+    void createBox_停用架位抛冲突() {
+        com.archive.entity.StorageLocation loc = new com.archive.entity.StorageLocation();
+        loc.setId(10L);
+        loc.setStatus("disabled");
+        when(storageLocationMapper.selectById(10L)).thenReturn(loc);
+
+        ArchiveBoxCreateRequest req = new ArchiveBoxCreateRequest();
+        req.setLocationId(10L);
+
+        assertThatThrownBy(() -> service.createBox(req))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.BUSINESS_CONFLICT);
+    }
+
+    @Test
+    void createBox_空闲启用架位成功并生成盒号() {
+        com.archive.entity.StorageLocation loc = new com.archive.entity.StorageLocation();
+        loc.setId(10L);
+        loc.setRoomId(1L);
+        loc.setLocationCode("401-01-01-01");
+        loc.setStatus("active");
+        when(storageLocationMapper.selectById(10L)).thenReturn(loc);
+        when(archiveBoxMapper.selectCount(any())).thenReturn(0L);
+        when(boxNoUtil.generate()).thenReturn("BOX-000001");
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(1L);
+        room.setRoomNo("401");
+        when(warehouseRoomMapper.selectById(1L)).thenReturn(room);
+
+        ArchiveBoxCreateRequest req = new ArchiveBoxCreateRequest();
+        req.setLocationId(10L);
+        req.setCategoryId(3);
+        req.setYearLabel("2025");
+        req.setCapacity(30);
+
+        ArchiveBoxResponse resp = service.createBox(req);
+
+        assertThat(resp.getBoxNo()).isEqualTo("BOX-000001");
+        assertThat(resp.getLocationCode()).isEqualTo("401-01-01-01");
+        assertThat(resp.getRoomNo()).isEqualTo("401");
+        assertThat(resp.getUsedCount()).isEqualTo(0);
+        assertThat(resp.getStatus()).isEqualTo("normal");
+        verify(archiveBoxMapper).insert(any(com.archive.entity.ArchiveBox.class));
+        verify(auditService).log(eq("M07"), eq("create_box"), eq("archive_box"), any(), any());
     }
 }

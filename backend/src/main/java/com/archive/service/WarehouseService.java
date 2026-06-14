@@ -2,9 +2,11 @@ package com.archive.service;
 
 import com.archive.common.ErrorCode;
 import com.archive.common.PageResult;
+import com.archive.dto.request.ArchiveBoxCreateRequest;
 import com.archive.dto.request.LocationStatusRequest;
 import com.archive.dto.request.WarehouseRoomCreateRequest;
 import com.archive.dto.request.WarehouseRoomUpdateRequest;
+import com.archive.dto.response.ArchiveBoxResponse;
 import com.archive.dto.response.StorageLocationResponse;
 import com.archive.dto.response.WarehouseRoomResponse;
 import com.archive.entity.ArchiveBox;
@@ -264,6 +266,60 @@ public class WarehouseService {
         w.in("status", java.util.List.of("normal", "full"));
         w.last("LIMIT 1");
         return archiveBoxMapper.selectOne(w);
+    }
+
+    // ==================== 16.8 新增档案盒 ====================
+
+    public ArchiveBoxResponse createBox(ArchiveBoxCreateRequest req) {
+        StorageLocation loc = storageLocationMapper.selectById(req.getLocationId());
+        if (loc == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "架位不存在");
+        }
+        if (!"active".equals(loc.getStatus())) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "目标架位已停用");
+        }
+        if (isLocationOccupied(req.getLocationId())) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "目标架位已被占用");
+        }
+
+        ArchiveBox box = new ArchiveBox();
+        box.setBoxNo(boxNoUtil.generate());
+        box.setLocationId(req.getLocationId());
+        box.setCategoryId(req.getCategoryId());
+        box.setFondsId(req.getFondsId());
+        box.setYearLabel(req.getYearLabel());
+        box.setSpineText(req.getSpineText());
+        box.setCapacity(req.getCapacity());
+        box.setUsedCount(0);
+        box.setStatus("normal");
+        archiveBoxMapper.insert(box);
+
+        auditService.log("M07", "create_box", "archive_box", box.getId(),
+                Map.of("boxNo", box.getBoxNo(), "locationId", req.getLocationId()));
+
+        return toBoxResponse(box, loc);
+    }
+
+    private ArchiveBoxResponse toBoxResponse(ArchiveBox box, StorageLocation loc) {
+        ArchiveBoxResponse resp = new ArchiveBoxResponse();
+        resp.setId(box.getId());
+        resp.setBoxNo(box.getBoxNo());
+        resp.setLocationId(box.getLocationId());
+        resp.setCategoryId(box.getCategoryId());
+        resp.setFondsId(box.getFondsId());
+        resp.setYearLabel(box.getYearLabel());
+        resp.setSpineText(box.getSpineText());
+        resp.setCapacity(box.getCapacity());
+        resp.setUsedCount(box.getUsedCount());
+        resp.setStatus(box.getStatus());
+        if (loc != null) {
+            resp.setLocationCode(loc.getLocationCode());
+            WarehouseRoom room = warehouseRoomMapper.selectById(loc.getRoomId());
+            if (room != null) {
+                resp.setRoomNo(room.getRoomNo());
+            }
+        }
+        return resp;
     }
 
     /** 按库房结构生成固定架位，编码 {roomNo}-{rack:02d}-{layer:02d}-{slot:02d}。 */
