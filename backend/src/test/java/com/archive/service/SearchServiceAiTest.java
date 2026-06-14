@@ -33,6 +33,7 @@ class SearchServiceAiTest {
     private ArchiveAccessLogMapper accessLogMapper;
     private JdbcTemplate jdbcTemplate;
     private AiClient aiClient;
+    private BorrowService borrowService;
     private final ObjectMapper om = new ObjectMapper();
 
     @BeforeEach
@@ -41,8 +42,12 @@ class SearchServiceAiTest {
         accessLogMapper = mock(ArchiveAccessLogMapper.class);
         jdbcTemplate = mock(JdbcTemplate.class);
         aiClient = mock(AiClient.class);
+        borrowService = mock(BorrowService.class);
+        when(borrowService.dashboardMine(anyLong(), anyInt())).thenReturn(List.of());
+        when(borrowService.dashboardCurrent(anyLong(), anyInt())).thenReturn(List.of());
+        when(borrowService.dashboardOverdue(anyLong(), anyInt())).thenReturn(List.of());
         service = new SearchService(archiveMapper, mock(ArchiveFileMapper.class), accessLogMapper,
-                mock(CategoryMapper.class), mock(TagMapper.class), jdbcTemplate, null, aiClient);
+                mock(CategoryMapper.class), mock(TagMapper.class), jdbcTemplate, null, aiClient, borrowService);
         service.setObjectMapper(om);
     }
 

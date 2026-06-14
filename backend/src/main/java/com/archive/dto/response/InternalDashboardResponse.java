@@ -11,12 +11,12 @@ import java.util.List;
 public class InternalDashboardResponse {
     /** 最近查阅（来自 archive_access_logs） */
     private List<RecentView> recentViews;
-    /** 我的借阅申请 —— 本次返回空，待 feat/borrow-liu 补齐 */
-    private List<Object> myBorrowRequests;
-    /** 当前借阅 —— 本次返回空 */
-    private List<Object> currentBorrows;
-    /** 逾期提示 —— 本次返回空 */
-    private List<Object> overdueReminders;
+    /** 我的借阅申请 */
+    private List<BorrowSummaryItem> myBorrowRequests;
+    /** 当前借阅 */
+    private List<BorrowSummaryItem> currentBorrows;
+    /** 逾期提示 */
+    private List<BorrowSummaryItem> overdueReminders;
 
     @Data
     @AllArgsConstructor
