@@ -3,6 +3,7 @@ package com.archive.service;
 import com.archive.common.ErrorCode;
 import com.archive.common.PageResult;
 import com.archive.dto.request.ArchiveBoxCreateRequest;
+import com.archive.dto.request.ArchiveBoxMoveRequest;
 import com.archive.dto.request.LocationStatusRequest;
 import com.archive.dto.request.WarehouseRoomCreateRequest;
 import com.archive.dto.request.WarehouseRoomUpdateRequest;
@@ -320,6 +321,38 @@ public class WarehouseService {
             }
         }
         return resp;
+    }
+
+    // ==================== 16.9 移动档案盒 ====================
+
+    @Transactional
+    public ArchiveBoxResponse moveBox(Long boxId, ArchiveBoxMoveRequest req) {
+        ArchiveBox box = archiveBoxMapper.selectById(boxId);
+        if (box == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "档案盒不存在");
+        }
+        if ("destroyed".equals(box.getStatus())) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "档案盒已销毁，不可移动");
+        }
+        StorageLocation target = storageLocationMapper.selectById(req.getTargetLocationId());
+        if (target == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "目标架位不存在");
+        }
+        if (!"active".equals(target.getStatus())) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "目标架位已停用");
+        }
+        if (isLocationOccupied(req.getTargetLocationId())) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "目标架位已被占用");
+        }
+
+        box.setLocationId(req.getTargetLocationId());
+        archiveBoxMapper.updateById(box);
+
+        auditService.log("M07", "move_box", "archive_box", boxId,
+                Map.of("targetLocationId", req.getTargetLocationId(),
+                        "reason", req.getReason() != null ? req.getReason() : ""));
+
+        return toBoxResponse(box, target);
     }
 
     /** 按库房结构生成固定架位，编码 {roomNo}-{rack:02d}-{layer:02d}-{slot:02d}。 */

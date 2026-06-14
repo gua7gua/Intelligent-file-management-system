@@ -2,6 +2,7 @@ package com.archive.service;
 
 import com.archive.common.ErrorCode;
 import com.archive.dto.request.ArchiveBoxCreateRequest;
+import com.archive.dto.request.ArchiveBoxMoveRequest;
 import com.archive.dto.request.LocationStatusRequest;
 import com.archive.dto.request.WarehouseRoomCreateRequest;
 import com.archive.dto.response.ArchiveBoxResponse;
@@ -346,5 +347,71 @@ class WarehouseServiceTest {
         assertThat(resp.getStatus()).isEqualTo("normal");
         verify(archiveBoxMapper).insert(any(com.archive.entity.ArchiveBox.class));
         verify(auditService).log(eq("M07"), eq("create_box"), eq("archive_box"), any(), any());
+    }
+
+    @Test
+    void moveBox_已销毁盒不可移动() {
+        com.archive.entity.ArchiveBox box = new com.archive.entity.ArchiveBox();
+        box.setId(5L);
+        box.setStatus("destroyed");
+        when(archiveBoxMapper.selectById(5L)).thenReturn(box);
+
+        ArchiveBoxMoveRequest req = new ArchiveBoxMoveRequest();
+        req.setTargetLocationId(10L);
+
+        assertThatThrownBy(() -> service.moveBox(5L, req))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.BUSINESS_CONFLICT);
+    }
+
+    @Test
+    void moveBox_目标架位被占用抛冲突() {
+        com.archive.entity.ArchiveBox box = new com.archive.entity.ArchiveBox();
+        box.setId(5L);
+        box.setStatus("normal");
+        com.archive.entity.StorageLocation target = new com.archive.entity.StorageLocation();
+        target.setId(20L);
+        target.setStatus("active");
+        when(archiveBoxMapper.selectById(5L)).thenReturn(box);
+        when(storageLocationMapper.selectById(20L)).thenReturn(target);
+        when(archiveBoxMapper.selectCount(any())).thenReturn(1L); // 目标已占用
+
+        ArchiveBoxMoveRequest req = new ArchiveBoxMoveRequest();
+        req.setTargetLocationId(20L);
+
+        assertThatThrownBy(() -> service.moveBox(5L, req))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.BUSINESS_CONFLICT);
+    }
+
+    @Test
+    void moveBox_移动到空闲架位成功() {
+        com.archive.entity.ArchiveBox box = new com.archive.entity.ArchiveBox();
+        box.setId(5L);
+        box.setBoxNo("BOX-000001");
+        box.setLocationId(10L);
+        box.setStatus("normal");
+        com.archive.entity.StorageLocation target = new com.archive.entity.StorageLocation();
+        target.setId(20L);
+        target.setRoomId(1L);
+        target.setLocationCode("401-02-01-01");
+        target.setStatus("active");
+        when(archiveBoxMapper.selectById(5L)).thenReturn(box);
+        when(storageLocationMapper.selectById(20L)).thenReturn(target);
+        when(archiveBoxMapper.selectCount(any())).thenReturn(0L);
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(1L);
+        room.setRoomNo("401");
+        when(warehouseRoomMapper.selectById(1L)).thenReturn(room);
+
+        ArchiveBoxMoveRequest req = new ArchiveBoxMoveRequest();
+        req.setTargetLocationId(20L);
+        req.setReason("库房整理");
+
+        ArchiveBoxResponse resp = service.moveBox(5L, req);
+
+        assertThat(resp.getLocationId()).isEqualTo(20L);
+        assertThat(resp.getLocationCode()).isEqualTo("401-02-01-01");
+        verify(archiveBoxMapper).updateById(any(com.archive.entity.ArchiveBox.class));
     }
 }
