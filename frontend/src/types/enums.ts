@@ -460,3 +460,83 @@ export const ConfigValueTypeLabel: Record<string, string> = {
   boolean: 'boolean',
   json: 'json',
 }
+
+/** 编研成果状态（对齐 DB compilations.status） */
+export const CompilationStatus = {
+  DRAFT: 'draft',
+  GENERATED: 'generated',
+  ARCHIVED: 'archived',
+} as const
+
+/** 研判任务状态（对齐 DB analysis_tasks.status） */
+export const AnalysisTaskStatus = {
+  RUNNING: 'running',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+} as const
+
+/** 研判任务类型（§20.5 taskType） */
+export const AnalysisTaskType = {
+  RULE: 'rule',
+  AI: 'ai',
+  MIXED: 'mixed',
+} as const
+
+/** 研判建议处理状态（对齐 DB analysis_items.status） */
+export const AnalysisItemStatus = {
+  PENDING: 'pending',
+  ADOPTED: 'adopted',
+  REJECTED: 'rejected',
+} as const
+
+/** 研判问题类型 */
+export const AnalysisProblemType = {
+  MISSING_FIELD: 'missing_field',
+  CATEGORY_CONFLICT: 'category_conflict',
+  TAG_SUGGESTION: 'tag_suggestion',
+  DATE_ABNORMAL: 'date_abnormal',
+  DUPLICATE: 'duplicate',
+} as const
+
+/** 研判建议处理动作（§20.7 action） */
+export const AnalysisHandleAction = {
+  ADOPTED: 'adopted',
+  REJECTED: 'rejected',
+} as const
+
+// 派生值类型（编研/研判）
+export type CompilationStatusValue = (typeof CompilationStatus)[keyof typeof CompilationStatus]
+export type AnalysisTaskStatusValue = (typeof AnalysisTaskStatus)[keyof typeof AnalysisTaskStatus]
+export type AnalysisTaskTypeValue = (typeof AnalysisTaskType)[keyof typeof AnalysisTaskType]
+export type AnalysisItemStatusValue = (typeof AnalysisItemStatus)[keyof typeof AnalysisItemStatus]
+export type AnalysisProblemTypeValue = (typeof AnalysisProblemType)[keyof typeof AnalysisProblemType]
+export type AnalysisHandleActionValue = (typeof AnalysisHandleAction)[keyof typeof AnalysisHandleAction]
+
+// 中文映射（编研/研判）
+export const CompilationStatusLabel: Record<string, string> = {
+  draft: '草稿',
+  generated: '已生成',
+  archived: '已入库',
+}
+export const AnalysisTaskStatusLabel: Record<string, string> = {
+  running: '执行中',
+  completed: '已完成',
+  failed: '失败',
+}
+export const AnalysisTaskTypeLabel: Record<string, string> = {
+  rule: '规则扫描',
+  ai: 'AI 建议',
+  mixed: '规则 + AI',
+}
+export const AnalysisItemStatusLabel: Record<string, string> = {
+  pending: '待处理',
+  adopted: '已采纳',
+  rejected: '已不采纳',
+}
+export const AnalysisProblemTypeLabel: Record<string, string> = {
+  missing_field: '缺失字段',
+  category_conflict: '分类冲突',
+  tag_suggestion: '标签建议',
+  date_abnormal: '日期异常',
+  duplicate: '疑似重复',
+}
