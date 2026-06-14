@@ -9,6 +9,7 @@ import com.archive.dto.request.BorrowCheckoutRequest;
 import com.archive.dto.request.BorrowReturnRequest;
 import com.archive.dto.request.BorrowRequestQuery;
 import com.archive.dto.response.BorrowRequestResponse;
+import com.archive.dto.response.BorrowSummaryItem;
 import com.archive.entity.Archive;
 import com.archive.entity.BorrowRequest;
 import com.archive.entity.Organization;
@@ -290,6 +291,91 @@ public class BorrowService {
                 Map.of("returnCheckResult", req.getReturnCheckResult().name(), "abnormal", abnormal));
 
         return toResponse(b, true, true);
+    }
+
+    // ==================== 12.1 管理端查询借阅申请 ====================
+
+    public PageResult<BorrowRequestResponse> adminList(BorrowRequestQuery query) {
+        requireRole(RoleCode.front_archivist, RoleCode.back_archivist);
+
+        Page<BorrowRequest> page = new Page<>(query.getPageNo(), query.getPageSize());
+        QueryWrapper<BorrowRequest> w = new QueryWrapper<>();
+        w.isNull("deleted_at");
+        if (query.getStatus() != null && !query.getStatus().isBlank()) {
+            w.eq("status", query.getStatus());
+        }
+        if (query.getBorrowerKeyword() != null && !query.getBorrowerKeyword().isBlank()) {
+            String kw = "%" + query.getBorrowerKeyword() + "%";
+            w.apply("borrower_id IN (SELECT id FROM users WHERE deleted_at IS NULL AND "
+                    + "(real_name LIKE {0} OR login_name LIKE {0} OR employee_no LIKE {0}))", kw);
+        }
+        if (query.getArchiveKeyword() != null && !query.getArchiveKeyword().isBlank()) {
+            String kw = "%" + query.getArchiveKeyword() + "%";
+            w.apply("archive_id IN (SELECT id FROM archives WHERE deleted_at IS NULL AND "
+                    + "(title LIKE {0} OR archive_no LIKE {0}))", kw);
+        }
+        if (Boolean.TRUE.equals(query.getOverdue())) {
+            w.eq("status", BorrowStatus.checked_out.name())
+             .isNotNull("due_at").lt("due_at", OffsetDateTime.now());
+        }
+        w.orderByDesc("created_at");
+
+        Page<BorrowRequest> result = borrowRequestMapper.selectPage(page, w);
+        List<BorrowRequestResponse> items = result.getRecords().stream()
+                .map(b -> toResponse(b, true, false))
+                .collect(Collectors.toList());
+        return new PageResult<>(items, query.getPageNo(), query.getPageSize(), result.getTotal());
+    }
+
+    // ==================== 12.2 管理端申请详情 ====================
+
+    public BorrowRequestResponse adminGet(Long requestId) {
+        requireRole(RoleCode.front_archivist, RoleCode.back_archivist);
+        BorrowRequest b = mustGet(requestId);
+        return toResponse(b, true, true);
+    }
+
+    // ==================== 11.1 内部工作台借阅摘要 ====================
+
+    public List<BorrowSummaryItem> dashboardMine(long userId, int limit) {
+        Page<BorrowRequest> page = new Page<>(1, limit);
+        QueryWrapper<BorrowRequest> w = new QueryWrapper<>();
+        w.eq("borrower_id", userId).isNull("deleted_at").orderByDesc("created_at");
+        return borrowRequestMapper.selectPage(page, w).getRecords().stream()
+                .map(this::toSummary).collect(Collectors.toList());
+    }
+
+    public List<BorrowSummaryItem> dashboardCurrent(long userId, int limit) {
+        Page<BorrowRequest> page = new Page<>(1, limit);
+        QueryWrapper<BorrowRequest> w = new QueryWrapper<>();
+        w.eq("borrower_id", userId).eq("status", BorrowStatus.checked_out.name())
+         .isNull("deleted_at").orderByAsc("due_at");
+        return borrowRequestMapper.selectPage(page, w).getRecords().stream()
+                .map(this::toSummary).collect(Collectors.toList());
+    }
+
+    public List<BorrowSummaryItem> dashboardOverdue(long userId, int limit) {
+        Page<BorrowRequest> page = new Page<>(1, limit);
+        QueryWrapper<BorrowRequest> w = new QueryWrapper<>();
+        w.eq("borrower_id", userId).eq("status", BorrowStatus.checked_out.name())
+         .isNull("deleted_at").isNotNull("due_at").lt("due_at", OffsetDateTime.now())
+         .orderByAsc("due_at");
+        return borrowRequestMapper.selectPage(page, w).getRecords().stream()
+                .map(this::toSummary).collect(Collectors.toList());
+    }
+
+    private BorrowSummaryItem toSummary(BorrowRequest b) {
+        String archiveNo = null;
+        String title = null;
+        if (b.getArchiveId() != null) {
+            Archive a = archiveMapper.selectById(b.getArchiveId());
+            if (a != null) {
+                archiveNo = a.getArchiveNo();
+                title = a.getTitle();
+            }
+        }
+        return new BorrowSummaryItem(b.getRequestNo(), b.getArchiveId(), archiveNo, title,
+                b.getStatus().name(), b.getDueAt(), b.getCreatedAt());
     }
 
     // ==================== 公共辅助 ====================

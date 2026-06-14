@@ -8,6 +8,7 @@ import com.archive.dto.request.BorrowCheckoutRequest;
 import com.archive.dto.request.BorrowReturnRequest;
 import com.archive.dto.request.BorrowRequestQuery;
 import com.archive.dto.response.BorrowRequestResponse;
+import com.archive.dto.response.BorrowSummaryItem;
 import com.archive.entity.Archive;
 import com.archive.entity.BorrowRequest;
 import com.archive.enums.BorrowStatus;
@@ -33,6 +34,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -40,6 +42,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -479,5 +482,88 @@ class BorrowServiceTest {
                 assertThatThrownBy(() -> service.returnBorrow(1L, req))
                         .isInstanceOf(BusinessException.class)
                         .hasMessageContaining("无操作权限"));
+    }
+
+    // ---- 12.1 adminList ----
+
+    @Test
+    void adminList_管理端响应带borrower摘要() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.applied);
+        Page<BorrowRequest> page = new Page<>(1, 20);
+        page.setRecords(List.of(b));
+        page.setTotal(1L);
+        when(borrowRequestMapper.selectPage(any(), any())).thenReturn(page);
+        when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
+        com.archive.entity.User u = new com.archive.entity.User();
+        u.setId(4L);
+        u.setRealName("小李");
+        when(userMapper.selectById(4L)).thenReturn(u);
+
+        asRole(RoleCode.back_archivist, 2L, () -> {
+            BorrowRequestQuery q = new BorrowRequestQuery();
+            PageResult<BorrowRequestResponse> r = service.adminList(q);
+            assertThat(r.getRecords()).hasSize(1);
+            assertThat(r.getRecords().get(0).getBorrower()).isNotNull();
+            assertThat(r.getRecords().get(0).getBorrower().getRealName()).isEqualTo("小李");
+        });
+    }
+
+    @Test
+    void adminList_非管理端角色抛FORBIDDEN() {
+        asRole(RoleCode.internal_reader, 4L, () ->
+                assertThatThrownBy(() -> service.adminList(new BorrowRequestQuery()))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("无操作权限"));
+    }
+
+    // ---- 12.2 adminGet ----
+
+    @Test
+    void adminGet_带盒位架位location() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.applied);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+        when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
+        when(userMapper.selectById(any())).thenReturn(new com.archive.entity.User());
+        BorrowRequestResponse.LocationSummary loc =
+                new BorrowRequestResponse.LocationSummary("BOX-000001", "401-01-02-03");
+        when(jdbcTemplate.queryForObject(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(loc);
+
+        asRole(RoleCode.back_archivist, 2L, () -> {
+            BorrowRequestResponse resp = service.adminGet(1L);
+            assertThat(resp.getLocation()).isNotNull();
+            assertThat(resp.getLocation().getBoxNo()).isEqualTo("BOX-000001");
+        });
+    }
+
+    // ---- 工作台 dashboard 方法（不需角色校验，由 SearchService 已认证用户调用） ----
+
+    @Test
+    void dashboardMine_返回用户最近申请摘要() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.applied);
+        Page<BorrowRequest> page = new Page<>(1, 5);
+        page.setRecords(List.of(b));
+        page.setTotal(1L);
+        when(borrowRequestMapper.selectPage(any(), any())).thenReturn(page);
+        when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
+
+        List<BorrowSummaryItem> items = service.dashboardMine(4L, 5);
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).getRequestNo()).isEqualTo("BRW-000001");
+        assertThat(items.get(0).getTitle()).isEqualTo("测试档案");
+    }
+
+    @Test
+    void dashboardOverdue_只返回逾期借阅() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.checked_out);
+        b.setDueAt(java.time.OffsetDateTime.now().minusDays(2));
+        Page<BorrowRequest> page = new Page<>(1, 5);
+        page.setRecords(List.of(b));
+        page.setTotal(1L);
+        when(borrowRequestMapper.selectPage(any(), any())).thenReturn(page);
+        when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
+
+        List<BorrowSummaryItem> items = service.dashboardOverdue(4L, 5);
+        assertThat(items).hasSize(1);
     }
 }
