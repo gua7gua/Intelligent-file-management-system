@@ -4,6 +4,7 @@ import com.archive.common.PageRequest;
 import com.archive.common.PageResult;
 import com.archive.common.R;
 import com.archive.dto.request.UserCreateRequest;
+import com.archive.dto.request.UserStatusRequest;
 import com.archive.dto.request.UserUpdateRequest;
 import com.archive.dto.response.UserInfoResponse;
 import com.archive.service.UserService;
@@ -13,43 +14,59 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
-@Tag(name = "用户管理", description = "用户增删改查（管理员）")
+@Tag(name = "用户管理", description = "用户、角色、状态（系统管理员）")
 public class UserController {
 
     private final UserService userService;
 
     @GetMapping
-    @Operation(summary = "用户列表（分页）")
-    public R<PageResult<UserInfoResponse>> list(@Valid PageRequest page,
-                                                 @RequestParam(required = false) String keyword,
-                                                 @RequestParam(required = false) String status) {
-        return R.ok(userService.listUsers(page.getPageNo(), page.getPageSize(), keyword, status));
+    @Operation(summary = "查询用户列表")
+    public R<PageResult<UserInfoResponse>> list(
+            @Valid PageRequest page,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String userType,
+            @RequestParam(required = false) String roleCode,
+            @RequestParam(required = false) Long organizationId) {
+        return R.ok(userService.listUsers(page.getPageNo(), page.getPageSize(),
+                keyword, status, userType, roleCode, organizationId));
     }
 
     @PostMapping
-    @Operation(summary = "新增用户")
+    @Operation(summary = "创建用户")
     public R<UserInfoResponse> create(@Valid @RequestBody UserCreateRequest req) {
         return R.ok(userService.createUser(req));
     }
 
-    @PutMapping("/{id}")
-    @Operation(summary = "编辑用户")
-    public R<UserInfoResponse> update(@PathVariable Long id,
-                                      @Valid @RequestBody UserUpdateRequest req) {
-        return R.ok(userService.updateUser(id, req));
+    @GetMapping("/{userId}")
+    @Operation(summary = "获取用户详情")
+    public R<UserInfoResponse> detail(@PathVariable Long userId) {
+        return R.ok(userService.getUserDetail(userId));
     }
 
-    @PostMapping("/{id}/reset-password")
-    @Operation(summary = "重置密码")
-    public R<Void> resetPassword(@PathVariable Long id,
-                                  @RequestBody(required = false) Map<String, String> body) {
+    @PutMapping("/{userId}")
+    @Operation(summary = "更新用户")
+    public R<UserInfoResponse> update(@PathVariable Long userId,
+                                      @Valid @RequestBody UserUpdateRequest req) {
+        return R.ok(userService.updateUser(userId, req));
+    }
+
+    @PutMapping("/{userId}/status")
+    @Operation(summary = "启用或禁用用户")
+    public R<UserInfoResponse> updateStatus(@PathVariable Long userId,
+                                            @RequestBody @Valid UserStatusRequest req) {
+        return R.ok(userService.updateStatus(userId, req));
+    }
+
+    @PostMapping("/{userId}/reset-password")
+    @Operation(summary = "重置内部用户密码")
+    public R<Void> resetPassword(@PathVariable Long userId,
+                                 @RequestBody(required = false) java.util.Map<String, String> body) {
         String newPassword = body != null ? body.get("newPassword") : null;
-        userService.resetPassword(id, newPassword);
+        userService.resetPassword(userId, newPassword);
         return R.ok();
     }
 }
