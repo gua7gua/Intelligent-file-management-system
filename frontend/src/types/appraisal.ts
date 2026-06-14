@@ -3,8 +3,8 @@ import type {
   AppraisalBatchStatusValue,
   AppraisalResultValue,
   ArchiveLifecycleStatusValue,
-  RetentionPeriodValue,
 } from './enums'
+import type { RetentionPeriodValue } from './transfer'
 
 /** 鉴定批次查询参数（§14.1） */
 export interface AppraisalBatchParams extends PageParams {

@@ -233,7 +233,6 @@ export type ApprovalTypeValue = (typeof ApprovalType)[keyof typeof ApprovalType]
 export type ApprovalTargetTypeValue = (typeof ApprovalTargetType)[keyof typeof ApprovalTargetType]
 export type ApprovalStatusValue = (typeof ApprovalStatus)[keyof typeof ApprovalStatus]
 export type SecurityLevelValue = number
-export type RetentionPeriodValue = (typeof RetentionPeriod)[keyof typeof RetentionPeriod]
 export type ArchiveLifecycleStatusValue = (typeof ArchiveLifecycleStatus)[keyof typeof ArchiveLifecycleStatus]
 
 // 中文映射
