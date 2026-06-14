@@ -5,6 +5,7 @@ import com.archive.dto.request.ArchiveBoxCreateRequest;
 import com.archive.dto.request.ArchiveBoxMoveRequest;
 import com.archive.dto.request.LocationStatusRequest;
 import com.archive.dto.request.WarehouseRoomCreateRequest;
+import com.archive.dto.response.ArchiveBoxDetailResponse;
 import com.archive.dto.response.ArchiveBoxResponse;
 import com.archive.dto.response.WarehouseRoomResponse;
 import com.archive.entity.StorageLocation;
@@ -413,5 +414,85 @@ class WarehouseServiceTest {
         assertThat(resp.getLocationId()).isEqualTo(20L);
         assertThat(resp.getLocationCode()).isEqualTo("401-02-01-01");
         verify(archiveBoxMapper).updateById(any(com.archive.entity.ArchiveBox.class));
+    }
+
+    @Test
+    void listBoxes_回填架位编码与库房号() {
+        com.archive.entity.ArchiveBox box = new com.archive.entity.ArchiveBox();
+        box.setId(5L);
+        box.setBoxNo("BOX-000001");
+        box.setLocationId(10L);
+        box.setStatus("normal");
+        box.setUsedCount(2);
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<com.archive.entity.ArchiveBox> page =
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(1, 20);
+        page.setRecords(List.of(box));
+        page.setTotal(1L);
+        when(archiveBoxMapper.selectPage(any(), any())).thenReturn(page);
+
+        com.archive.entity.StorageLocation loc = new com.archive.entity.StorageLocation();
+        loc.setId(10L);
+        loc.setRoomId(1L);
+        loc.setLocationCode("401-01-01-01");
+        when(storageLocationMapper.selectById(10L)).thenReturn(loc);
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(1L);
+        room.setRoomNo("401");
+        when(warehouseRoomMapper.selectById(1L)).thenReturn(room);
+
+        com.archive.common.PageResult<ArchiveBoxResponse> result =
+                service.listBoxes(null, null, null, null, null, 1, 20);
+
+        assertThat(result.getRecords()).hasSize(1);
+        ArchiveBoxResponse r = result.getRecords().get(0);
+        assertThat(r.getBoxNo()).isEqualTo("BOX-000001");
+        assertThat(r.getLocationCode()).isEqualTo("401-01-01-01");
+        assertThat(r.getRoomNo()).isEqualTo("401");
+    }
+
+    @Test
+    void getBoxDetail_返回盒内条目与档案信息() {
+        com.archive.entity.ArchiveBox box = new com.archive.entity.ArchiveBox();
+        box.setId(5L);
+        box.setBoxNo("BOX-000001");
+        box.setLocationId(10L);
+        box.setStatus("normal");
+        box.setUsedCount(1);
+        when(archiveBoxMapper.selectById(5L)).thenReturn(box);
+
+        com.archive.entity.StorageLocation loc = new com.archive.entity.StorageLocation();
+        loc.setId(10L);
+        loc.setRoomId(1L);
+        loc.setLocationCode("401-01-01-01");
+        when(storageLocationMapper.selectById(10L)).thenReturn(loc);
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(1L);
+        room.setRoomNo("401");
+        when(warehouseRoomMapper.selectById(1L)).thenReturn(room);
+
+        com.archive.entity.ArchiveBoxItem item = new com.archive.entity.ArchiveBoxItem();
+        item.setBoxId(5L);
+        item.setArchiveId(100L);
+        item.setSortNo(1);
+        item.setPageCount(30);
+        item.setPhysicalStatus("normal");
+        when(archiveBoxItemMapper.selectList(any())).thenReturn(List.of(item));
+
+        com.archive.entity.Archive archive = new com.archive.entity.Archive();
+        archive.setId(100L);
+        archive.setArchiveNo("ARC-000100");
+        archive.setTitle("2025 年度会计凭证");
+        when(archiveMapper.selectBatchIds(any())).thenReturn(List.of(archive));
+
+        ArchiveBoxDetailResponse resp = service.getBoxDetail(5L);
+
+        assertThat(resp.getBoxNo()).isEqualTo("BOX-000001");
+        assertThat(resp.getLocationCode()).isEqualTo("401-01-01-01");
+        assertThat(resp.getRoomNo()).isEqualTo("401");
+        assertThat(resp.getItems()).hasSize(1);
+        ArchiveBoxDetailResponse.BoxItemView v = resp.getItems().get(0);
+        assertThat(v.getArchiveNo()).isEqualTo("ARC-000100");
+        assertThat(v.getTitle()).isEqualTo("2025 年度会计凭证");
+        assertThat(v.getSortNo()).isEqualTo(1);
     }
 }

@@ -7,9 +7,11 @@ import com.archive.dto.request.ArchiveBoxMoveRequest;
 import com.archive.dto.request.LocationStatusRequest;
 import com.archive.dto.request.WarehouseRoomCreateRequest;
 import com.archive.dto.request.WarehouseRoomUpdateRequest;
+import com.archive.dto.response.ArchiveBoxDetailResponse;
 import com.archive.dto.response.ArchiveBoxResponse;
 import com.archive.dto.response.StorageLocationResponse;
 import com.archive.dto.response.WarehouseRoomResponse;
+import com.archive.entity.Archive;
 import com.archive.entity.ArchiveBox;
 import com.archive.entity.ArchiveBoxItem;
 import com.archive.entity.StorageLocation;
@@ -353,6 +355,115 @@ public class WarehouseService {
                         "reason", req.getReason() != null ? req.getReason() : ""));
 
         return toBoxResponse(box, target);
+    }
+
+    // ==================== 16.6 查询档案盒列表 ====================
+
+    public PageResult<ArchiveBoxResponse> listBoxes(
+            String boxNo, Long roomId, Integer categoryId, Long fondsId, String status,
+            int pageNo, int pageSize) {
+
+        QueryWrapper<ArchiveBox> w = new QueryWrapper<>();
+        if (boxNo != null && !boxNo.isBlank()) {
+            w.like("box_no", boxNo);
+        }
+        if (categoryId != null) {
+            w.eq("category_id", categoryId);
+        }
+        if (fondsId != null) {
+            w.eq("fonds_id", fondsId);
+        }
+        if (status != null && !status.isBlank()) {
+            w.eq("status", status);
+        }
+        if (roomId != null) {
+            QueryWrapper<StorageLocation> lw = new QueryWrapper<>();
+            lw.eq("room_id", roomId);
+            lw.select("id");
+            List<StorageLocation> roomLocs = storageLocationMapper.selectList(lw);
+            List<Long> locIds = roomLocs.stream()
+                    .map(StorageLocation::getId).collect(Collectors.toList());
+            if (locIds.isEmpty()) {
+                return new PageResult<>(java.util.Collections.emptyList(), pageNo, pageSize, 0L);
+            }
+            w.in("location_id", locIds);
+        }
+        w.orderByDesc("id");
+
+        Page<ArchiveBox> page = archiveBoxMapper.selectPage(new Page<>(pageNo, pageSize), w);
+        List<ArchiveBoxResponse> records = page.getRecords().stream()
+                .map(box -> {
+                    StorageLocation loc = box.getLocationId() != null
+                            ? storageLocationMapper.selectById(box.getLocationId()) : null;
+                    return toBoxResponse(box, loc);
+                })
+                .collect(Collectors.toList());
+        return new PageResult<>(records, pageNo, pageSize, page.getTotal());
+    }
+
+    // ==================== 16.7 档案盒详情 ====================
+
+    public ArchiveBoxDetailResponse getBoxDetail(Long boxId) {
+        ArchiveBox box = archiveBoxMapper.selectById(boxId);
+        if (box == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "档案盒不存在");
+        }
+        StorageLocation loc = box.getLocationId() != null
+                ? storageLocationMapper.selectById(box.getLocationId()) : null;
+        WarehouseRoom room = loc != null ? warehouseRoomMapper.selectById(loc.getRoomId()) : null;
+
+        ArchiveBoxDetailResponse resp = new ArchiveBoxDetailResponse();
+        resp.setId(box.getId());
+        resp.setBoxNo(box.getBoxNo());
+        resp.setLocationId(box.getLocationId());
+        resp.setCategoryId(box.getCategoryId());
+        resp.setFondsId(box.getFondsId());
+        resp.setYearLabel(box.getYearLabel());
+        resp.setSpineText(box.getSpineText());
+        resp.setCapacity(box.getCapacity());
+        resp.setUsedCount(box.getUsedCount());
+        resp.setStatus(box.getStatus());
+        if (loc != null) {
+            resp.setLocationCode(loc.getLocationCode());
+        }
+        if (room != null) {
+            resp.setRoomNo(room.getRoomNo());
+        }
+
+        // 盒内条目 + 档案信息
+        QueryWrapper<ArchiveBoxItem> iw = new QueryWrapper<>();
+        iw.eq("box_id", boxId);
+        iw.orderByAsc("sort_no");
+        List<ArchiveBoxItem> items = archiveBoxItemMapper.selectList(iw);
+
+        List<Long> archiveIds = items.stream()
+                .map(ArchiveBoxItem::getArchiveId).filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+        Map<Long, Archive> archiveMap = new HashMap<>();
+        if (!archiveIds.isEmpty()) {
+            List<Archive> archives = archiveMapper.selectBatchIds(archiveIds);
+            for (Archive a : archives) {
+                archiveMap.put(a.getId(), a);
+            }
+        }
+
+        List<ArchiveBoxDetailResponse.BoxItemView> views = items.stream()
+                .map(it -> {
+                    ArchiveBoxDetailResponse.BoxItemView v = new ArchiveBoxDetailResponse.BoxItemView();
+                    v.setArchiveId(it.getArchiveId());
+                    v.setSortNo(it.getSortNo());
+                    v.setPageCount(it.getPageCount());
+                    v.setPhysicalStatus(it.getPhysicalStatus());
+                    Archive a = archiveMap.get(it.getArchiveId());
+                    if (a != null) {
+                        v.setArchiveNo(a.getArchiveNo());
+                        v.setTitle(a.getTitle());
+                    }
+                    return v;
+                })
+                .collect(Collectors.toList());
+        resp.setItems(views);
+        return resp;
     }
 
     /** 按库房结构生成固定架位，编码 {roomNo}-{rack:02d}-{layer:02d}-{slot:02d}。 */
