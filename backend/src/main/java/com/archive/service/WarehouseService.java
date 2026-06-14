@@ -11,6 +11,7 @@ import com.archive.dto.response.ArchiveBoxDetailResponse;
 import com.archive.dto.response.ArchiveBoxResponse;
 import com.archive.dto.response.StorageLocationResponse;
 import com.archive.dto.response.WarehouseRoomResponse;
+import com.archive.dto.response.WarehouseWarningResponse;
 import com.archive.entity.Archive;
 import com.archive.entity.ArchiveBox;
 import com.archive.entity.ArchiveBoxItem;
@@ -464,6 +465,38 @@ public class WarehouseService {
                 .collect(Collectors.toList());
         resp.setItems(views);
         return resp;
+    }
+
+    // ==================== 概览：库房告警查询 ====================
+
+    public List<WarehouseWarningResponse> listWarningRooms() {
+        QueryWrapper<WarehouseRoom> w = new QueryWrapper<>();
+        w.eq("status", "active");
+        List<WarehouseRoom> rooms = warehouseRoomMapper.selectList(w);
+
+        List<WarehouseWarningResponse> result = new ArrayList<>();
+        for (WarehouseRoom room : rooms) {
+            int occupied = countOccupiedSlots(room.getId());
+            int capacity = room.getCapacity() != null ? room.getCapacity() : 0;
+            BigDecimal rate = capacity > 0
+                    ? BigDecimal.valueOf(occupied)
+                            .divide(BigDecimal.valueOf(capacity), 4, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO;
+            BigDecimal threshold = room.getWarningThreshold() != null
+                    ? room.getWarningThreshold() : DEFAULT_WARNING_THRESHOLD;
+            if (rate.compareTo(threshold) >= 0) {
+                WarehouseWarningResponse r = new WarehouseWarningResponse();
+                r.setRoomId(room.getId());
+                r.setRoomNo(room.getRoomNo());
+                r.setRoomName(room.getRoomName());
+                r.setOccupiedSlots(occupied);
+                r.setCapacity(capacity);
+                r.setOccupancyRate(rate);
+                r.setWarningThreshold(threshold);
+                result.add(r);
+            }
+        }
+        return result;
     }
 
     /** 按库房结构生成固定架位，编码 {roomNo}-{rack:02d}-{layer:02d}-{slot:02d}。 */

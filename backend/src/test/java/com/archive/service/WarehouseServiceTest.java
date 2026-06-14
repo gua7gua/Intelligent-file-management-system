@@ -495,4 +495,33 @@ class WarehouseServiceTest {
         assertThat(v.getTitle()).isEqualTo("2025 年度会计凭证");
         assertThat(v.getSortNo()).isEqualTo(1);
     }
+
+    @Test
+    void listWarningRooms_仅返回超阈值库房() {
+        com.archive.entity.WarehouseRoom over = new com.archive.entity.WarehouseRoom();
+        over.setId(1L);
+        over.setRoomNo("401");
+        over.setRoomName("A");
+        over.setCapacity(100);
+        over.setWarningThreshold(new BigDecimal("0.85"));
+        over.setStatus("active");
+        com.archive.entity.WarehouseRoom under = new com.archive.entity.WarehouseRoom();
+        under.setId(2L);
+        under.setRoomNo("402");
+        under.setRoomName("B");
+        under.setCapacity(100);
+        under.setWarningThreshold(new BigDecimal("0.85"));
+        under.setStatus("active");
+        when(warehouseRoomMapper.selectList(any())).thenReturn(List.of(over, under));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(1L))).thenReturn(90L);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(2L))).thenReturn(50L);
+
+        List<com.archive.dto.response.WarehouseWarningResponse> result =
+                service.listWarningRooms();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getRoomId()).isEqualTo(1L);
+        assertThat(result.get(0).getOccupiedSlots()).isEqualTo(90);
+        assertThat(result.get(0).getOccupancyRate()).isEqualByComparingTo(new BigDecimal("0.9000"));
+    }
 }
