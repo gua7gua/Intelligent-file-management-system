@@ -55,13 +55,13 @@ export interface AppraisalBatch {
   destroyCount?: number
   extendCount?: number
   createdAt: string
+  generatedListId?: number
+  generatedListNo?: string
 }
 
 /** 鉴定批次详情（§14.3） */
 export interface AppraisalBatchDetail extends AppraisalBatch {
   items: AppraisalItem[]
-  generatedListId?: number
-  generatedListNo?: string
 }
 
 /** 保存鉴定明细请求（§14.4） */

@@ -50,7 +50,7 @@
           </div>
           <div class="batch-meta">
             <span>命中 {{ b.hitCount }} 件</span>
-            <span v-if="b.status === 'completed' && (b as AppraisalBatchDetail).generatedListNo" class="link" @click.stop="goDestruction((b as AppraisalBatchDetail).generatedListId!)">→ {{ (b as AppraisalBatchDetail).generatedListNo }}</span>
+            <span v-if="b.status === 'completed' && b.generatedListNo" class="link" @click.stop="goDestruction(b.generatedListId!)">→ {{ b.generatedListNo }}</span>
           </div>
         </div>
       </aside>
