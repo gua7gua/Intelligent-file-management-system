@@ -435,8 +435,8 @@ git commit -m "feat(storage-guo): 新增盘点任务与明细类型定义"
 
 ```typescript
 import type { PageData, PageParams } from './api'
-import type { BorrowRequestDetail } from './internal'
-import type { BorrowStatusValue, ReturnCheckResultValue } from './enums'
+import type { BorrowRequestDetail, BorrowStatusValue } from './internal'
+import type { ReturnCheckResultValue } from './enums'
 
 /** 管理侧借阅申请查询参数（§12.1） */
 export interface BorrowApprovalParams extends PageParams {
