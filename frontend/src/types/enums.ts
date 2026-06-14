@@ -351,3 +351,112 @@ export const ReturnCheckResultLabel: Record<string, string> = {
   missing_page: '缺页',
   other: '其他',
 }
+
+/** 备份范围（对齐 DB 11.1 backup_scope） */
+export const BackupScope = {
+  DATABASE: 'database',
+  FILES: 'files',
+  BOTH: 'both',
+} as const
+
+/** 备份任务状态（对齐 DB 11.1 status） */
+export const BackupTaskStatus = {
+  RUNNING: 'running',
+  SUCCESS: 'success',
+  FAILED: 'failed',
+} as const
+
+/** 四性检测类型（对齐接口文档 §21.4 checkTypes） */
+export const CheckType = {
+  INTEGRITY: 'integrity',
+  USABILITY: 'usability',
+  AUTHENTICITY: 'authenticity',
+  SECURITY: 'security',
+} as const
+
+/** 四性检测结果 */
+export const CheckResult = {
+  PASSED: 'passed',
+  FAILED: 'failed',
+  NOT_CONFIGURED: 'not_configured',
+} as const
+
+/** 用户类型（对齐 DB 4.3） */
+export const UserType = {
+  INTERNAL: 'internal',
+  PUBLIC: 'public',
+} as const
+
+/** 数据范围（对齐 DB 4.3 data_scope） */
+export const DataScope = {
+  OWN_ORG: 'own_org',
+  OWN_FONDS: 'own_fonds',
+  ALL: 'all',
+} as const
+
+/** 用户状态（对齐 DB 4.3 status） */
+export const UserStatus = {
+  ACTIVE: 'active',
+  DISABLED: 'disabled',
+} as const
+
+/** 配置项值类型（对齐接口文档 §22.9 valueType） */
+export const ConfigValueType = {
+  STRING: 'string',
+  NUMBER: 'number',
+  BOOLEAN: 'boolean',
+  JSON: 'json',
+} as const
+
+// 派生值类型（保存/用户/配置）
+export type BackupScopeValue = (typeof BackupScope)[keyof typeof BackupScope]
+export type BackupTaskStatusValue = (typeof BackupTaskStatus)[keyof typeof BackupTaskStatus]
+export type CheckTypeValue = (typeof CheckType)[keyof typeof CheckType]
+export type CheckResultValue = (typeof CheckResult)[keyof typeof CheckResult]
+export type UserTypeValue = (typeof UserType)[keyof typeof UserType]
+export type DataScopeValue = (typeof DataScope)[keyof typeof DataScope]
+export type UserStatusValue = (typeof UserStatus)[keyof typeof UserStatus]
+export type ConfigValueTypeValue = (typeof ConfigValueType)[keyof typeof ConfigValueType]
+
+// 中文映射（保存/用户/配置）
+export const BackupScopeLabel: Record<string, string> = {
+  database: '数据库',
+  files: '电子文件',
+  both: '同时',
+}
+export const BackupTaskStatusLabel: Record<string, string> = {
+  running: '执行中',
+  success: '成功',
+  failed: '失败',
+}
+export const CheckTypeLabel: Record<string, string> = {
+  integrity: '完整性',
+  usability: '可用性',
+  authenticity: '真实性',
+  security: '安全性',
+}
+// 四性检测结果保留原值展示（原型以 passed/failed/not_configured 原文呈现）
+export const CheckResultLabel: Record<string, string> = {
+  passed: 'passed',
+  failed: 'failed',
+  not_configured: 'not_configured',
+}
+export const UserTypeLabel: Record<string, string> = {
+  internal: '内部',
+  public: '公众',
+}
+export const DataScopeLabel: Record<string, string> = {
+  own_org: '本单位',
+  own_fonds: '本全宗',
+  all: '全部',
+}
+export const UserStatusLabel: Record<string, string> = {
+  active: '启用',
+  disabled: '禁用',
+}
+export const ConfigValueTypeLabel: Record<string, string> = {
+  string: 'string',
+  number: 'number',
+  boolean: 'boolean',
+  json: 'json',
+}
