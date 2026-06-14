@@ -25,4 +25,7 @@ public class UserCreateRequest {
     private String departmentName;
     private Integer maxSecurityLevel = 0;
     private String dataScope = "own_org";
+
+    /** 角色码列表，如 ["front_archivist"]。 */
+    private java.util.List<String> roleCodes;
 }

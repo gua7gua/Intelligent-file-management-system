@@ -12,4 +12,7 @@ public class UserUpdateRequest {
     private Integer maxSecurityLevel;
     private String dataScope;
     private String status;
+
+    /** 角色码列表；非空时整体覆盖用户角色。 */
+    private java.util.List<String> roleCodes;
 }

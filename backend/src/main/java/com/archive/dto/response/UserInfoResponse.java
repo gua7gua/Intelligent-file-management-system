@@ -22,4 +22,14 @@ public class UserInfoResponse {
     private String status;
     private List<String> roles;
     private OffsetDateTime createdAt;
+
+    /** 最近操作摘要（仅用户详情接口填充）。 */
+    private List<RecentOperation> recentOperations;
+
+    @lombok.Data
+    public static class RecentOperation {
+        private String moduleName;
+        private String operationType;
+        private OffsetDateTime operatedAt;
+    }
 }
