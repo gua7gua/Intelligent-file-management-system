@@ -265,3 +265,89 @@ export const ApprovalTypeLabel: Record<string, string> = {
   open_adjust: '开放调整',
   destruction: '销毁审批',
 }
+
+/** 库房状态 */
+export const WarehouseRoomStatus = {
+  ACTIVE: 'active',
+  DISABLED: 'disabled',
+} as const
+
+/** 架位状态 */
+export const LocationStatus = {
+  ACTIVE: 'active',
+  DISABLED: 'disabled',
+} as const
+
+/** 档案盒状态（对齐数据库设计 7.3） */
+export const BoxStatus = {
+  NORMAL: 'normal',
+  FULL: 'full',
+  MOVED: 'moved',
+  DESTROYED: 'destroyed',
+} as const
+
+/** 盘点任务状态（对齐数据库设计 10.1） */
+export const InventoryTaskStatus = {
+  DRAFT: 'draft',
+  RUNNING: 'running',
+  COMPLETED: 'completed',
+} as const
+
+/** 盘点结果（对齐数据库设计 10.2 check_result） */
+export const InventoryCheckResult = {
+  NORMAL: 'normal',
+  MISSING: 'missing',
+  MISPLACED: 'misplaced',
+  DAMAGED: 'damaged',
+  ON_LOAN: 'on_loan',
+} as const
+
+/** 归还检查结果（对齐数据库设计 9.1 return_check_result） */
+export const ReturnCheckResult = {
+  NORMAL: 'normal',
+  DAMAGED: 'damaged',
+  MISSING_PAGE: 'missing_page',
+  OTHER: 'other',
+} as const
+
+// 派生值类型
+export type WarehouseRoomStatusValue = (typeof WarehouseRoomStatus)[keyof typeof WarehouseRoomStatus]
+export type LocationStatusValue = (typeof LocationStatus)[keyof typeof LocationStatus]
+export type BoxStatusValue = (typeof BoxStatus)[keyof typeof BoxStatus]
+export type InventoryTaskStatusValue = (typeof InventoryTaskStatus)[keyof typeof InventoryTaskStatus]
+export type InventoryCheckResultValue = (typeof InventoryCheckResult)[keyof typeof InventoryCheckResult]
+export type ReturnCheckResultValue = (typeof ReturnCheckResult)[keyof typeof ReturnCheckResult]
+
+// 中文映射
+export const WarehouseRoomStatusLabel: Record<string, string> = {
+  active: '启用',
+  disabled: '停用',
+}
+export const LocationStatusLabel: Record<string, string> = {
+  active: '启用',
+  disabled: '停用',
+}
+export const BoxStatusLabel: Record<string, string> = {
+  normal: '正常',
+  full: '满盒',
+  moved: '已移动',
+  destroyed: '已销毁',
+}
+export const InventoryTaskStatusLabel: Record<string, string> = {
+  draft: '草稿',
+  running: '进行中',
+  completed: '已完成',
+}
+export const InventoryCheckResultLabel: Record<string, string> = {
+  normal: '正常',
+  missing: '缺失',
+  misplaced: '错位',
+  damaged: '损坏',
+  on_loan: '借出中',
+}
+export const ReturnCheckResultLabel: Record<string, string> = {
+  normal: '正常',
+  damaged: '破损',
+  missing_page: '缺页',
+  other: '其他',
+}
