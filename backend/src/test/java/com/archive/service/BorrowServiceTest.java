@@ -5,6 +5,7 @@ import com.archive.common.PageResult;
 import com.archive.dto.request.BorrowApplyRequest;
 import com.archive.dto.request.BorrowApproveRequest;
 import com.archive.dto.request.BorrowCheckoutRequest;
+import com.archive.dto.request.BorrowReturnRequest;
 import com.archive.dto.request.BorrowRequestQuery;
 import com.archive.dto.response.BorrowRequestResponse;
 import com.archive.entity.Archive;
@@ -14,6 +15,7 @@ import com.archive.enums.CarrierStatus;
 import com.archive.enums.ConditionStatus;
 import com.archive.enums.LifecycleStatus;
 import com.archive.enums.LoanStatus;
+import com.archive.enums.ReturnCheckResult;
 import com.archive.enums.RoleCode;
 import com.archive.exception.BusinessException;
 import com.archive.mapper.ArchiveMapper;
@@ -406,6 +408,75 @@ class BorrowServiceTest {
 
         asRole(RoleCode.internal_reader, 4L, () ->
                 assertThatThrownBy(() -> service.checkout(1L, req))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("无操作权限"));
+    }
+
+    // ---- 12.5 returnBorrow ----
+
+    @Test
+    void returnBorrow_正常归还则状态returned且档案恢复可借() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.checked_out);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+        when(archiveMapper.update(any(Archive.class), any())).thenReturn(1);
+        when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
+
+        BorrowReturnRequest req = new BorrowReturnRequest();
+        req.setReturnCheckResult(ReturnCheckResult.normal);
+
+        asRole(RoleCode.back_archivist, 2L, () -> {
+            BorrowRequestResponse resp = service.returnBorrow(1L, req);
+            assertThat(resp.getStatus()).isEqualTo("returned");
+        });
+
+        ArgumentCaptor<Archive> cap = ArgumentCaptor.forClass(Archive.class);
+        verify(archiveMapper).update(cap.capture(), any());
+        assertThat(cap.getValue().getLoanStatus()).isEqualTo(LoanStatus.available);
+        assertThat(cap.getValue().getConditionStatus()).isNull(); // 正常归还不改实体状态
+    }
+
+    @Test
+    void returnBorrow_异常归还则状态abnormal_return且档案置damaged() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.checked_out);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+        when(archiveMapper.update(any(Archive.class), any())).thenReturn(1);
+
+        BorrowReturnRequest req = new BorrowReturnRequest();
+        req.setReturnCheckResult(ReturnCheckResult.damaged);
+        req.setReturnNote("缺页2页");
+
+        asRole(RoleCode.back_archivist, 2L, () -> {
+            BorrowRequestResponse resp = service.returnBorrow(1L, req);
+            assertThat(resp.getStatus()).isEqualTo("abnormal_return");
+            assertThat(resp.getReturnCheckResult()).isEqualTo("damaged");
+        });
+
+        ArgumentCaptor<Archive> cap = ArgumentCaptor.forClass(Archive.class);
+        verify(archiveMapper).update(cap.capture(), any());
+        assertThat(cap.getValue().getConditionStatus()).isEqualTo(ConditionStatus.damaged);
+    }
+
+    @Test
+    void returnBorrow_非checked_out状态抛CONFLICT() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.applied);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+
+        BorrowReturnRequest req = new BorrowReturnRequest();
+        req.setReturnCheckResult(ReturnCheckResult.normal);
+
+        asRole(RoleCode.back_archivist, 2L, () ->
+                assertThatThrownBy(() -> service.returnBorrow(1L, req))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("已出库"));
+    }
+
+    @Test
+    void returnBorrow_无权限角色抛FORBIDDEN() {
+        BorrowReturnRequest req = new BorrowReturnRequest();
+        req.setReturnCheckResult(ReturnCheckResult.normal);
+
+        asRole(RoleCode.internal_reader, 4L, () ->
+                assertThatThrownBy(() -> service.returnBorrow(1L, req))
                         .isInstanceOf(BusinessException.class)
                         .hasMessageContaining("无操作权限"));
     }

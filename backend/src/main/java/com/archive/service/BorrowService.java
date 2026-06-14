@@ -6,6 +6,7 @@ import com.archive.common.PageResult;
 import com.archive.dto.request.BorrowApplyRequest;
 import com.archive.dto.request.BorrowApproveRequest;
 import com.archive.dto.request.BorrowCheckoutRequest;
+import com.archive.dto.request.BorrowReturnRequest;
 import com.archive.dto.request.BorrowRequestQuery;
 import com.archive.dto.response.BorrowRequestResponse;
 import com.archive.entity.Archive;
@@ -13,7 +14,9 @@ import com.archive.entity.BorrowRequest;
 import com.archive.entity.Organization;
 import com.archive.entity.User;
 import com.archive.enums.BorrowStatus;
+import com.archive.enums.ConditionStatus;
 import com.archive.enums.LoanStatus;
+import com.archive.enums.ReturnCheckResult;
 import com.archive.enums.RoleCode;
 import com.archive.exception.BusinessException;
 import com.archive.mapper.ArchiveMapper;
@@ -244,6 +247,47 @@ public class BorrowService {
 
         auditService.log("M09", "checkout", "borrow_request", b.getId(),
                 Map.of("voucherNo", req.getVoucherNo(), "dueAt", String.valueOf(req.getDueAt())));
+
+        return toResponse(b, true, true);
+    }
+
+    // ==================== 12.5 确认归还 ====================
+
+    @Transactional
+    public BorrowRequestResponse returnBorrow(Long requestId, BorrowReturnRequest req) {
+        requireRole(RoleCode.front_archivist, RoleCode.back_archivist);
+        long operator = AuthContext.getCurrentUserId();
+
+        BorrowRequest b = mustGet(requestId);
+        if (b.getStatus() != BorrowStatus.checked_out) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "只有已出库申请可归还");
+        }
+
+        OffsetDateTime now = OffsetDateTime.now();
+        b.setReturnedBy(operator);
+        b.setReturnedAt(now);
+        b.setReturnCheckResult(req.getReturnCheckResult());
+        b.setReturnNote(req.getReturnNote());
+
+        boolean abnormal = req.getReturnCheckResult() != ReturnCheckResult.normal;
+        b.setStatus(abnormal ? BorrowStatus.abnormal_return : BorrowStatus.returned);
+        borrowRequestMapper.updateById(b);
+
+        // 档案恢复可借；异常归还时实体状态置 damaged（条件更新充当乐观锁）
+        Archive patch = new Archive();
+        patch.setLoanStatus(LoanStatus.available);
+        if (abnormal) {
+            patch.setConditionStatus(ConditionStatus.damaged);
+        }
+        UpdateWrapper<Archive> uw = new UpdateWrapper<>();
+        uw.eq("id", b.getArchiveId()).eq("loan_status", LoanStatus.on_loan.name());
+        int updated = archiveMapper.update(patch, uw);
+        if (updated == 0) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "档案状态已变更，归还失败");
+        }
+
+        auditService.log("M09", "return", "borrow_request", b.getId(),
+                Map.of("returnCheckResult", req.getReturnCheckResult().name(), "abnormal", abnormal));
 
         return toResponse(b, true, true);
     }
