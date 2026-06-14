@@ -267,7 +267,7 @@ class WarehouseServiceTest {
         loc.setStatus("active");
         when(storageLocationMapper.selectById(10L)).thenReturn(loc);
         when(archiveBoxMapper.selectCount(any())).thenReturn(0L);
-        when(archiveBoxMapper.selectList(any())).thenReturn(java.util.Collections.emptyList());
+        when(archiveBoxMapper.selectOne(any())).thenReturn(null);
 
         LocationStatusRequest req = new LocationStatusRequest();
         req.setStatus("disabled");
