@@ -45,6 +45,12 @@ public class WarehouseService {
 
     private static final BigDecimal DEFAULT_WARNING_THRESHOLD = new BigDecimal("0.85");
 
+    /** 按库房统计已占用盒位数（架位上有活动档案盒）。 */
+    private static final String COUNT_OCCUPIED_BY_ROOM_SQL =
+            "SELECT COUNT(*) FROM archive_boxes " +
+            "WHERE location_id IN (SELECT id FROM storage_locations WHERE room_id = ?) " +
+            "AND status IN ('normal','full')";
+
     // ==================== 16.2 新增库房 ====================
 
     @Transactional
@@ -85,6 +91,31 @@ public class WarehouseService {
                 Map.of("roomNo", req.getRoomNo(), "capacity", capacity));
 
         return toRoomResponse(room, 0);
+    }
+
+    // ==================== 16.1 查询库房列表 ====================
+
+    public List<WarehouseRoomResponse> listRooms(String status, String keyword) {
+        QueryWrapper<WarehouseRoom> w = new QueryWrapper<>();
+        if (status != null && !status.isBlank()) {
+            w.eq("status", status);
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            w.and(q -> q.like("room_no", keyword).or().like("room_name", keyword));
+        }
+        w.orderByAsc("room_no");
+
+        List<WarehouseRoom> rooms = warehouseRoomMapper.selectList(w);
+        return rooms.stream()
+                .map(room -> toRoomResponse(room, countOccupiedSlots(room.getId())))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /** 统计某库房当前被活动档案盒占用的盒位数。 */
+    private int countOccupiedSlots(Long roomId) {
+        Long count = jdbcTemplate.queryForObject(
+                COUNT_OCCUPIED_BY_ROOM_SQL, Long.class, roomId);
+        return count != null ? count.intValue() : 0;
     }
 
     /** 按库房结构生成固定架位，编码 {roomNo}-{rack:02d}-{layer:02d}-{slot:02d}。 */

@@ -22,6 +22,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class WarehouseServiceTest {
@@ -106,5 +108,43 @@ class WarehouseServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.VALIDATION_FAILED);
+    }
+
+    @Test
+    void listRooms_计算占用率与告警状态() {
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(1L);
+        room.setRoomNo("401");
+        room.setRoomName("综合库房");
+        room.setCapacity(100);
+        room.setWarningThreshold(new BigDecimal("0.85"));
+        room.setStatus("active");
+        when(warehouseRoomMapper.selectList(any())).thenReturn(List.of(room));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(1L))).thenReturn(90L);
+
+        List<WarehouseRoomResponse> result = service.listRooms(null, null);
+
+        assertThat(result).hasSize(1);
+        WarehouseRoomResponse r = result.get(0);
+        assertThat(r.getOccupiedSlots()).isEqualTo(90);
+        assertThat(r.getOccupancyRate()).isEqualByComparingTo(new BigDecimal("0.9000"));
+        assertThat(r.getWarning()).isTrue();
+    }
+
+    @Test
+    void listRooms_未达阈值不告警() {
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(2L);
+        room.setRoomNo("402");
+        room.setCapacity(100);
+        room.setWarningThreshold(new BigDecimal("0.85"));
+        room.setStatus("active");
+        when(warehouseRoomMapper.selectList(any())).thenReturn(List.of(room));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(2L))).thenReturn(50L);
+
+        List<WarehouseRoomResponse> result = service.listRooms(null, null);
+
+        assertThat(result.get(0).getWarning()).isFalse();
+        assertThat(result.get(0).getOccupiedSlots()).isEqualTo(50);
     }
 }
