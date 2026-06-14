@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest'
 import InternalOverview from './index.vue'
 
 async function waitForAsyncData() {
-  await new Promise((r) => setTimeout(r, 50))
-  await flushPromises()
+  // 全量并发下 jsdom environment 初始化较慢，轮询 flush 容忍 onMounted 异步链延迟
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 100))
+    await flushPromises()
+  }
 }
 
 describe('InternalOverview', () => {
