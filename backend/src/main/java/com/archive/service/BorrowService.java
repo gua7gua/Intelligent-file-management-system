@@ -247,7 +247,9 @@ public class BorrowService {
         }
 
         auditService.log("M09", "checkout", "borrow_request", b.getId(),
-                Map.of("voucherNo", req.getVoucherNo(), "dueAt", String.valueOf(req.getDueAt())));
+                Map.of("voucherNo", req.getVoucherNo(),
+                        "dueAt", String.valueOf(req.getDueAt()),
+                        "note", req.getNote() != null ? req.getNote() : ""));
 
         return toResponse(b, true, true);
     }
