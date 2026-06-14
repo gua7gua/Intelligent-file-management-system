@@ -175,3 +175,94 @@ export const OpenStatusLabel: Record<string, string> = {
   open: '公开',
   closed: '不公开',
 }
+
+/** 鉴定结论 */
+export const AppraisalResult = {
+  EXTEND: 'extend',
+  DESTROY: 'destroy',
+} as const
+
+/** 鉴定批次状态 */
+export const AppraisalBatchStatus = {
+  DRAFT: 'draft',
+  COMPLETED: 'completed',
+} as const
+
+/** 销毁清册状态 */
+export const DestructionListStatus = {
+  DRAFT: 'draft',
+  PENDING_APPROVAL: 'pending_approval',
+  PENDING_DESTROY: 'pending_destroy',
+  DESTROYED: 'destroyed',
+} as const
+
+/** 销毁方式 */
+export const DestroyMethod = {
+  SHREDDING: 'shredding',
+  BURNING: 'burning',
+  ENTRUSTED: 'entrusted',
+} as const
+
+/** 电子文件删除状态 */
+export const FileDeleteStatus = {
+  NOT_STARTED: 'not_started',
+  DELETED: 'deleted',
+  FAILED: 'failed',
+} as const
+
+/** 审批类型 */
+export const ApprovalType = {
+  SECURITY_ADJUST: 'security_adjust',
+  OPEN_ADJUST: 'open_adjust',
+  DESTRUCTION: 'destruction',
+} as const
+
+/** 审批目标类型 */
+export const ApprovalTargetType = {
+  ARCHIVE: 'archive',
+  DESTRUCTION_LIST: 'destruction_list',
+} as const
+
+// 派生值类型
+export type AppraisalResultValue = (typeof AppraisalResult)[keyof typeof AppraisalResult]
+export type AppraisalBatchStatusValue = (typeof AppraisalBatchStatus)[keyof typeof AppraisalBatchStatus]
+export type DestructionListStatusValue = (typeof DestructionListStatus)[keyof typeof DestructionListStatus]
+export type DestroyMethodValue = (typeof DestroyMethod)[keyof typeof DestroyMethod]
+export type FileDeleteStatusValue = (typeof FileDeleteStatus)[keyof typeof FileDeleteStatus]
+export type ApprovalTypeValue = (typeof ApprovalType)[keyof typeof ApprovalType]
+export type ApprovalTargetTypeValue = (typeof ApprovalTargetType)[keyof typeof ApprovalTargetType]
+export type ApprovalStatusValue = (typeof ApprovalStatus)[keyof typeof ApprovalStatus]
+export type SecurityLevelValue = number
+export type RetentionPeriodValue = (typeof RetentionPeriod)[keyof typeof RetentionPeriod]
+export type ArchiveLifecycleStatusValue = (typeof ArchiveLifecycleStatus)[keyof typeof ArchiveLifecycleStatus]
+
+// 中文映射
+export const AppraisalResultLabel: Record<string, string> = {
+  extend: '延长保存',
+  destroy: '待销毁',
+}
+export const AppraisalBatchStatusLabel: Record<string, string> = {
+  draft: '草稿',
+  completed: '已完成',
+}
+export const DestructionListStatusLabel: Record<string, string> = {
+  draft: '待提交',
+  pending_approval: '待审批',
+  pending_destroy: '待销毁',
+  destroyed: '已销毁',
+}
+export const DestroyMethodLabel: Record<string, string> = {
+  shredding: '粉碎',
+  burning: '焚毁',
+  entrusted: '委托销毁',
+}
+export const FileDeleteStatusLabel: Record<string, string> = {
+  not_started: '未开始',
+  deleted: '已删除',
+  failed: '删除失败',
+}
+export const ApprovalTypeLabel: Record<string, string> = {
+  security_adjust: '密级调整',
+  open_adjust: '开放调整',
+  destruction: '销毁审批',
+}
