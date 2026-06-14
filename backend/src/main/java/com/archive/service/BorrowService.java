@@ -164,6 +164,42 @@ public class BorrowService {
         return toResponse(b, true, false);
     }
 
+    // ==================== 11.10 导出借阅凭证 ====================
+
+    @Transactional
+    public byte[] exportVoucher(Long requestId) {
+        requireRole(RoleCode.internal_reader);
+        BorrowRequest b = mustGet(requestId);
+        if (!b.getBorrowerId().equals(AuthContext.getCurrentUserId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "无权导出该借阅凭证");
+        }
+
+        BorrowStatus st = b.getStatus();
+        if (st != BorrowStatus.approved && st != BorrowStatus.voucher_issued
+                && st != BorrowStatus.checked_out) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "申请尚未审批通过，无法导出凭证");
+        }
+
+        boolean firstIssue = b.getVoucherNo() == null;
+        if (firstIssue) {
+            b.setVoucherNo(borrowNoUtil.nextVoucherNo());
+            b.setVoucherIssuedAt(OffsetDateTime.now());
+            b.setStatus(BorrowStatus.voucher_issued);
+            borrowRequestMapper.updateById(b);
+            auditService.log("M09", "issue_voucher", "borrow_request", b.getId(),
+                    Map.of("voucherNo", b.getVoucherNo(), "firstIssue", true));
+        } else {
+            auditService.log("M09", "issue_voucher", "borrow_request", b.getId(),
+                    Map.of("voucherNo", b.getVoucherNo(), "firstIssue", false));
+        }
+
+        Archive archive = archiveMapper.selectById(b.getArchiveId());
+        User borrower = userMapper.selectById(b.getBorrowerId());
+        Organization org = (borrower != null && borrower.getOrganizationId() != null)
+                ? organizationMapper.selectById(borrower.getOrganizationId()) : null;
+        return pdfGenerator.generateBorrowVoucherPdf(b, archive, borrower, org);
+    }
+
     // ==================== 公共辅助 ====================
 
     private BorrowRequest mustGet(Long requestId) {

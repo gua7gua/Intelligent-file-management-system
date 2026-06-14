@@ -26,6 +26,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -266,5 +267,64 @@ class BorrowServiceTest {
                 assertThatThrownBy(() -> service.approve(1L, req))
                         .isInstanceOf(BusinessException.class)
                         .hasMessageContaining("无操作权限"));
+    }
+
+    // ---- 11.10 exportVoucher ----
+
+    @Test
+    void exportVoucher_首次导出生成凭证号并置voucher_issued() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.approved);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+        when(borrowNoUtil.nextVoucherNo()).thenReturn("VCH-000001");
+        when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
+        when(userMapper.selectById(any())).thenReturn(new com.archive.entity.User());
+        when(pdfGenerator.generateBorrowVoucherPdf(any(), any(), any(), any()))
+                .thenReturn(new byte[]{1, 2, 3});
+
+        asRole(RoleCode.internal_reader, 4L, () -> {
+            byte[] pdf = service.exportVoucher(1L);
+            assertThat(pdf).isNotEmpty();
+        });
+
+        ArgumentCaptor<BorrowRequest> cap = ArgumentCaptor.forClass(BorrowRequest.class);
+        verify(borrowRequestMapper).updateById(cap.capture());
+        assertThat(cap.getValue().getStatus()).isEqualTo(BorrowStatus.voucher_issued);
+        assertThat(cap.getValue().getVoucherNo()).isEqualTo("VCH-000001");
+    }
+
+    @Test
+    void exportVoucher_重复导出复用凭证号不更新() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.voucher_issued);
+        b.setVoucherNo("VCH-000001");
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+        when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
+        when(userMapper.selectById(any())).thenReturn(new com.archive.entity.User());
+        when(pdfGenerator.generateBorrowVoucherPdf(any(), any(), any(), any()))
+                .thenReturn(new byte[]{1});
+
+        asRole(RoleCode.internal_reader, 4L, () -> service.exportVoucher(1L));
+
+        verify(borrowNoUtil, never()).nextVoucherNo();
+        verify(borrowRequestMapper, never()).updateById(any(BorrowRequest.class));
+    }
+
+    @Test
+    void exportVoucher_未审批通过抛BUSINESS_CONFLICT() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.applied);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+        asRole(RoleCode.internal_reader, 4L, () ->
+                assertThatThrownBy(() -> service.exportVoucher(1L))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("审批通过"));
+    }
+
+    @Test
+    void exportVoucher_非本人抛FORBIDDEN() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 9L, BorrowStatus.approved);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+        asRole(RoleCode.internal_reader, 4L, () ->
+                assertThatThrownBy(() -> service.exportVoucher(1L))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("无权"));
     }
 }
