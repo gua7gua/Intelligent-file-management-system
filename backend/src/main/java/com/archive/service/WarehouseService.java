@@ -274,6 +274,7 @@ public class WarehouseService {
 
     // ==================== 16.8 新增档案盒 ====================
 
+    @Transactional
     public ArchiveBoxResponse createBox(ArchiveBoxCreateRequest req) {
         StorageLocation loc = storageLocationMapper.selectById(req.getLocationId());
         if (loc == null) {
