@@ -237,6 +237,34 @@ public class PdfGenerator {
         }
     }
 
+    /**
+     * 生成编研正文 PDF。把 contentHtml 去标签后按段落渲染，标题居中。
+     */
+    public byte[] generateCompilationPdf(String title, String contentHtml) {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Document doc = new Document(PageSize.A4, 50, 50, 50, 50);
+            PdfWriter.getInstance(doc, baos);
+            doc.open();
+            Font titleFont = getCnFont(18, Font.BOLD);
+            Font normalFont = getCnFont(11, Font.NORMAL);
+            Paragraph t = new Paragraph(title != null ? title : "编研成果", titleFont);
+            t.setAlignment(Element.ALIGN_CENTER);
+            t.setSpacingAfter(12);
+            doc.add(t);
+            String plain = contentHtml != null ? contentHtml : "";
+            for (String para : plain.split("(?i)</p>|<br\\s*/?>|\n")) {
+                String text = para.replaceAll("<[^>]+>", "").trim();
+                if (!text.isEmpty()) {
+                    doc.add(new Paragraph(text, normalFont));
+                }
+            }
+            doc.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("编研 PDF 生成失败: " + e.getMessage(), e);
+        }
+    }
+
     // ==================== 工具方法 ====================
 
     private Font getCnFont(float size, int style) {

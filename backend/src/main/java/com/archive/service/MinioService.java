@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * MinIO 对象存储操作封装。
@@ -126,5 +128,34 @@ public class MinioService {
         } catch (Exception e) {
             throw new RuntimeException("MinIO 复制失败: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * 读取对象为输入流（四性检测重算哈希 / 可读性校验用）。
+     */
+    public InputStream getObjectStream(String bucket, String objectKey) {
+        try {
+            return minioClient.getObject(
+                    GetObjectArgs.builder().bucket(bucket).object(objectKey).build());
+        } catch (Exception e) {
+            throw new RuntimeException("MinIO 读取失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 列举 bucket 下指定前缀的对象 key（备份 files 范围用）。
+     */
+    public List<String> listObjects(String bucket, String prefix) {
+        List<String> keys = new ArrayList<>();
+        try {
+            for (io.minio.Result<io.minio.messages.Item> r :
+                    minioClient.listObjects(ListObjectsArgs.builder()
+                            .bucket(bucket).prefix(prefix).recursive(true).build())) {
+                keys.add(r.get().objectName());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("MinIO 列举失败: " + e.getMessage(), e);
+        }
+        return keys;
     }
 }
