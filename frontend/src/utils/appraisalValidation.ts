@@ -20,7 +20,7 @@ export function validateAppraisalCompletion(items: AppraisalItem[]): string[] {
   const errors: string[] = []
   const unprocessed = items.filter((i) => !i.appraisalResult)
   if (unprocessed.length > 0) {
-    errors.push(`仍有未处理的鉴定条目，请逐条给出结论后再完成。`)
+    errors.push(`仍有 ${unprocessed.length} 条未处理的鉴定条目，请逐条给出结论后再完成。`)
   }
   items.forEach((item) => {
     const itemErrors = validateAppraisalItem(item)

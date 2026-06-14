@@ -44,7 +44,7 @@ describe('validateAppraisalCompletion', () => {
       mk({ archiveId: 1, appraisalResult: 'destroy' }),
       mk({ archiveId: 2, appraisalResult: '' }),
     ])
-    expect(errors.some((e) => e.includes('仍有未处理的鉴定条目'))).toBe(true)
+    expect(errors.some((e) => /仍有\s+\d+\s+条未处理的鉴定条目/.test(e))).toBe(true)
   })
 
   it('reports extend item missing new period', () => {
