@@ -3,6 +3,7 @@ package com.archive.entity;
 import com.archive.enums.DestroyMethod;
 import com.archive.enums.DestructionListStatus;
 import com.baomidou.mybatisplus.annotation.EnumValue;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -28,7 +29,9 @@ public class DestructionList extends BaseEntity {
     @EnumValue
     private DestroyMethod destroyMethod;
 
+    @TableField("supervisor_name_1")
     private String supervisorName1;
+    @TableField("supervisor_name_2")
     private String supervisorName2;
     private String destroyNote;
 }
