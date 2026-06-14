@@ -148,4 +148,51 @@ public class AiTaskService {
                 task.getTotalBatches(), task.getSuccessBatches(), task.getFailedBatches(),
                 task.getErrorMessage(), task.getStartedAt(), task.getCompletedAt());
     }
+
+    /** AI 是否可用（研判模块决定是否启动 AI 建议分支）。 */
+    public boolean aiAvailable() {
+        return aiClient.isAvailable();
+    }
+
+    /**
+     * 研判 AI 任务（task_type=archive_analysis）。仿 startIntakeCompletion：
+     * 按批次大小拆分档案 id，写 ai_tasks + ai_task_batches，触发异步执行。
+     *
+     * @param analysisTaskId 关联的研判任务 id（写入 ai_tasks.business_id）
+     * @param archiveIds     规则范围内待研判的档案 id
+     * @return 创建的 ai_tasks.id
+     */
+    public Long startArchiveAnalysis(Long analysisTaskId, List<Long> archiveIds) {
+        if (!aiClient.isAvailable()) {
+            throw new BusinessException(ErrorCode.EXTERNAL_SERVICE_ERROR, "AI 功能未启用");
+        }
+        int batchSize = aiClient.getBatchSize();
+        List<List<Long>> batches = splitIntoBatches(archiveIds, batchSize);
+
+        AiTask task = new AiTask();
+        task.setTaskNo(aiTaskNoUtil.generate());
+        task.setTaskType("archive_analysis");
+        task.setBusinessType("analysis_task");
+        task.setBusinessId(analysisTaskId);
+        task.setStatus("running");
+        task.setBatchSize(batchSize);
+        task.setTotalBatches(batches.size());
+        task.setSuccessBatches(0);
+        task.setFailedBatches(0);
+        task.setStartedAt(OffsetDateTime.now());
+        aiTaskMapper.insert(task);
+
+        for (int i = 0; i < batches.size(); i++) {
+            AiTaskBatch b = new AiTaskBatch();
+            b.setTaskId(task.getId());
+            b.setBatchNo(i + 1);
+            b.setStatus("pending");
+            b.setTargetIds(batches.get(i));
+            b.setAttemptCount(0);
+            aiTaskBatchMapper.insert(b);
+        }
+
+        asyncRunner.executeArchiveAnalysis(task.getId(), analysisTaskId);
+        return task.getId();
+    }
 }
