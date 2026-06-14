@@ -37,7 +37,7 @@ export function submitDestructionApproval(
   data: DestructionSubmitApprovalData,
 ): Promise<ApprovalRequest> {
   if (USE_MOCK) {
-    return import('@/mock/modules/destruction').then((m) => m.mockSubmitDestructionApproval(listId))
+    return import('@/mock/modules/destruction').then((m) => m.mockSubmitDestructionApproval(listId, data))
   }
   return request.post(`/admin/destruction-lists/${listId}/submit-approval`, data)
 }

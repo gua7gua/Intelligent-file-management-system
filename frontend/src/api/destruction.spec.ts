@@ -37,6 +37,7 @@ describe('destruction api mock mode', () => {
     expect(approval.approvalType).toBe('destruction')
     expect(approval.status).toBe('pending')
     expect(approval.targetId).toBe(13)
+    expect(approval.reason).toBe('到期销毁')
   })
 
   it('uploads photos and returns attachment list', async () => {

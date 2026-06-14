@@ -134,7 +134,10 @@ export function mockDestructionListDetail(id: number): DestructionListDetail {
 }
 
 let nextApprovalId = 26
-export function mockSubmitDestructionApproval(id: number): ApprovalRequest {
+export function mockSubmitDestructionApproval(
+  id: number,
+  data?: { reason?: string },
+): ApprovalRequest {
   const detail = mockDestructionListDetail(id)
   detail.status = 'pending_approval'
   detail.approvalRequestId = nextApprovalId
@@ -143,7 +146,7 @@ export function mockSubmitDestructionApproval(id: number): ApprovalRequest {
     approvalType: 'destruction',
     targetType: 'destruction_list',
     targetId: id,
-    reason: '到期鉴定后按制度提交销毁',
+    reason: data?.reason?.trim() || '到期鉴定后按制度提交销毁',
     status: 'pending',
     submittedBy: 2,
     submittedByName: '胡颖',
