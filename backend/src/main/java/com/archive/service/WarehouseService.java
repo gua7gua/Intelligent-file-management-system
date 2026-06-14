@@ -2,6 +2,7 @@ package com.archive.service;
 
 import com.archive.common.ErrorCode;
 import com.archive.dto.request.WarehouseRoomCreateRequest;
+import com.archive.dto.request.WarehouseRoomUpdateRequest;
 import com.archive.dto.response.WarehouseRoomResponse;
 import com.archive.entity.StorageLocation;
 import com.archive.entity.WarehouseRoom;
@@ -116,6 +117,30 @@ public class WarehouseService {
         Long count = jdbcTemplate.queryForObject(
                 COUNT_OCCUPIED_BY_ROOM_SQL, Long.class, roomId);
         return count != null ? count.intValue() : 0;
+    }
+
+    // ==================== 16.3 更新库房 ====================
+
+    public WarehouseRoomResponse updateRoom(Long roomId, WarehouseRoomUpdateRequest req) {
+        WarehouseRoom room = warehouseRoomMapper.selectById(roomId);
+        if (room == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "库房不存在");
+        }
+        if (req.getRoomName() != null) {
+            room.setRoomName(req.getRoomName());
+        }
+        if (req.getWarningThreshold() != null) {
+            if (req.getWarningThreshold().compareTo(BigDecimal.ZERO) <= 0
+                    || req.getWarningThreshold().compareTo(BigDecimal.ONE) > 0) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "告警阈值必须在 (0, 1] 范围内");
+            }
+            room.setWarningThreshold(req.getWarningThreshold());
+        }
+        if (req.getStatus() != null) {
+            room.setStatus(req.getStatus());
+        }
+        warehouseRoomMapper.updateById(room);
+        return toRoomResponse(room, countOccupiedSlots(roomId));
     }
 
     /** 按库房结构生成固定架位，编码 {roomNo}-{rack:02d}-{layer:02d}-{slot:02d}。 */

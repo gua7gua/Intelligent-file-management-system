@@ -147,4 +147,57 @@ class WarehouseServiceTest {
         assertThat(result.get(0).getWarning()).isFalse();
         assertThat(result.get(0).getOccupiedSlots()).isEqualTo(50);
     }
+
+    @Test
+    void updateRoom_仅修改名称阈值状态() {
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(1L);
+        room.setRoomNo("401");
+        room.setCapacity(100);
+        room.setWarningThreshold(new BigDecimal("0.85"));
+        room.setStatus("active");
+        when(warehouseRoomMapper.selectById(1L)).thenReturn(room);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(1L))).thenReturn(10L);
+
+        com.archive.dto.request.WarehouseRoomUpdateRequest req =
+                new com.archive.dto.request.WarehouseRoomUpdateRequest();
+        req.setRoomName("新名称");
+        req.setWarningThreshold(new BigDecimal("0.90"));
+        req.setStatus("disabled");
+
+        WarehouseRoomResponse resp = service.updateRoom(1L, req);
+
+        assertThat(resp.getRoomName()).isEqualTo("新名称");
+        assertThat(resp.getWarningThreshold()).isEqualByComparingTo(new BigDecimal("0.90"));
+        assertThat(resp.getStatus()).isEqualTo("disabled");
+        verify(warehouseRoomMapper).updateById(any(com.archive.entity.WarehouseRoom.class));
+    }
+
+    @Test
+    void updateRoom_库房不存在抛404() {
+        when(warehouseRoomMapper.selectById(99L)).thenReturn(null);
+        com.archive.dto.request.WarehouseRoomUpdateRequest req =
+                new com.archive.dto.request.WarehouseRoomUpdateRequest();
+        req.setRoomName("x");
+
+        assertThatThrownBy(() -> service.updateRoom(99L, req))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
+    @Test
+    void updateRoom_阈值越界抛校验失败() {
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(1L);
+        room.setCapacity(100);
+        room.setWarningThreshold(new BigDecimal("0.85"));
+        when(warehouseRoomMapper.selectById(1L)).thenReturn(room);
+        com.archive.dto.request.WarehouseRoomUpdateRequest req =
+                new com.archive.dto.request.WarehouseRoomUpdateRequest();
+        req.setWarningThreshold(new BigDecimal("2"));
+
+        assertThatThrownBy(() -> service.updateRoom(1L, req))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_FAILED);
+    }
 }
