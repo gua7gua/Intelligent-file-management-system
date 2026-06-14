@@ -84,6 +84,7 @@ export function mockCheckoutBorrowRequest(id: number, data: BorrowCheckoutData):
   if (!req) throw new Error('借阅申请不存在')
   if (req.status !== 'approved' && req.status !== 'voucher_issued') throw new Error('仅已批准申请可出库')
   if (!data.voucherNo.trim()) throw new Error('凭证号必填')
+  if (req.voucherNo && data.voucherNo !== req.voucherNo) throw new Error('凭证号与已导出凭证不匹配')
   req.status = 'checked_out'
   req.voucherNo = data.voucherNo
   req.checkedOutAt = '2026-06-15T14:00:00+08:00'

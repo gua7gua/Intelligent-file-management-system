@@ -60,7 +60,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ArchiveBoxDetail, ArchiveBoxCreateData, StorageLocation } from '@/types/warehouse'
 import { createArchiveBox, getArchiveBoxDetail, moveArchiveBox, updateLocationStatus } from '@/api/warehouse'
 
@@ -125,6 +125,11 @@ async function onMove() {
 }
 async function onDisable() {
   if (!props.location) return
+  try {
+    await ElMessageBox.confirm('停用后该架位不可上架档案，是否继续？', '停用架位', { type: 'warning' })
+  } catch {
+    return
+  }
   try {
     await updateLocationStatus(props.location.id, { status: 'disabled', reason: '维护停用' })
     ElMessage.success('架位已停用。')

@@ -265,6 +265,11 @@ async function onReturn() {
     return
   }
   try {
+    await ElMessageBox.confirm('确认归还后档案借阅状态恢复可借，是否继续？', '确认归还', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
     const updated = await returnBorrowRequest(detail.value.id, data)
     detail.value = updated
     ElMessage.success('归还检查已记录，档案借阅状态恢复可借。')

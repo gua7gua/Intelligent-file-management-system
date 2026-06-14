@@ -53,7 +53,7 @@
               <p class="hint">任务号：{{ detail.taskNo }} · 状态：{{ InventoryTaskStatusLabel[detail.status] }}<span v-if="detail.startedAt"> · 开始：{{ detail.startedAt }}</span></p>
             </div>
             <div class="actions">
-              <button v-if="detail.status === 'draft'" class="button" @click="onStart">开始盘点</button>
+              <button v-if="detail.status === 'draft'" class="button" :disabled="detail.items.length === 0" @click="onStart">开始盘点</button>
               <button v-if="detail.status === 'running'" class="button" @click="onComplete">提交盘点结果</button>
             </div>
           </div>
