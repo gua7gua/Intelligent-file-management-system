@@ -48,7 +48,7 @@ class SearchServiceSearchTest {
         tagMapper = mock(TagMapper.class);
         jdbcTemplate = mock(JdbcTemplate.class);
         service = new SearchService(archiveMapper, archiveFileMapper, accessLogMapper,
-                categoryMapper, tagMapper, jdbcTemplate, null, null);
+                categoryMapper, tagMapper, jdbcTemplate, null, null, mock(BorrowService.class));
     }
 
     @Test

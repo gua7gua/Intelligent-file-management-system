@@ -46,7 +46,8 @@ class SearchServiceAccessTest {
         req = mock(HttpServletRequest.class);
         when(req.getRemoteAddr()).thenReturn("192.168.1.1");
         service = new SearchService(archiveMapper, archiveFileMapper, accessLogMapper,
-                categoryMapper, mock(TagMapper.class), mock(JdbcTemplate.class), minioService, null);
+                categoryMapper, mock(TagMapper.class), mock(JdbcTemplate.class), minioService, null,
+                mock(BorrowService.class));
     }
 
     @Test

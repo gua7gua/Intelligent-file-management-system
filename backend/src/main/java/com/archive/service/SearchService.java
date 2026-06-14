@@ -57,6 +57,7 @@ public class SearchService {
     private final JdbcTemplate jdbcTemplate;
     private final MinioService minioService;
     private final AiClient aiClient;
+    private final BorrowService borrowService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -449,9 +450,11 @@ public class SearchService {
                     (String) row.get("title"),
                     row.get("accessedAt") instanceof OffsetDateTime odt ? odt : null));
         }
-        // 借阅部分本次返回空占位，待 feat/borrow-liu
         return new InternalDashboardResponse(
-                recentViews, List.of(), List.of(), List.of());
+                recentViews,
+                borrowService.dashboardMine(userId, 5),
+                borrowService.dashboardCurrent(userId, 5),
+                borrowService.dashboardOverdue(userId, 5));
     }
 
     private Long toLong(Object o) {
