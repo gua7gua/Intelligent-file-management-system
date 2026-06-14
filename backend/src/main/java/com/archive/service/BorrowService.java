@@ -4,6 +4,7 @@ import com.archive.common.AuthContext;
 import com.archive.common.ErrorCode;
 import com.archive.common.PageResult;
 import com.archive.dto.request.BorrowApplyRequest;
+import com.archive.dto.request.BorrowApproveRequest;
 import com.archive.dto.request.BorrowRequestQuery;
 import com.archive.dto.response.BorrowRequestResponse;
 import com.archive.entity.Archive;
@@ -122,6 +123,45 @@ public class BorrowService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看该借阅申请");
         }
         return toResponse(b, false, false);
+    }
+
+    // ==================== 12.3 审批借阅申请 ====================
+
+    @Transactional
+    public BorrowRequestResponse approve(Long requestId, BorrowApproveRequest req) {
+        requireRole(RoleCode.back_archivist);
+        long reviewer = AuthContext.getCurrentUserId();
+
+        BorrowRequest b = mustGet(requestId);
+        if (b.getStatus() != BorrowStatus.applied) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "当前状态不允许审批");
+        }
+
+        // 审批前重新校验可借状态与盘点范围
+        eligibilityChecker.checkBorrowable(b.getArchiveId());
+
+        OffsetDateTime now = OffsetDateTime.now();
+        b.setApprovedBy(reviewer);
+        b.setApprovedAt(now);
+
+        if (Boolean.TRUE.equals(req.getApproved())) {
+            b.setStatus(BorrowStatus.approved);
+            b.setRejectReason(null);
+            borrowRequestMapper.updateById(b);
+            auditService.log("M09", "approve", "borrow_request", b.getId(),
+                    Map.of("opinion", req.getOpinion() != null ? req.getOpinion() : ""));
+        } else {
+            String reason = req.getOpinion();
+            if (reason == null || reason.isBlank()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "拒绝时必须填写意见");
+            }
+            b.setStatus(BorrowStatus.rejected);
+            b.setRejectReason(reason);
+            borrowRequestMapper.updateById(b);
+            auditService.log("M09", "reject", "borrow_request", b.getId(),
+                    Map.of("rejectReason", reason));
+        }
+        return toResponse(b, true, false);
     }
 
     // ==================== 公共辅助 ====================

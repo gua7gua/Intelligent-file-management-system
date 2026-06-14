@@ -3,6 +3,7 @@ package com.archive.service;
 import com.archive.common.AuthContext;
 import com.archive.common.PageResult;
 import com.archive.dto.request.BorrowApplyRequest;
+import com.archive.dto.request.BorrowApproveRequest;
 import com.archive.dto.request.BorrowRequestQuery;
 import com.archive.dto.response.BorrowRequestResponse;
 import com.archive.entity.Archive;
@@ -189,5 +190,81 @@ class BorrowServiceTest {
                 assertThatThrownBy(() -> service.getMine(1L))
                         .isInstanceOf(BusinessException.class)
                         .hasMessageContaining("不存在"));
+    }
+
+    // ---- 12.3 approve ----
+
+    @Test
+    void approve_通过则状态变approved并记录处理人() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.applied);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+        when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
+
+        BorrowApproveRequest req = new BorrowApproveRequest();
+        req.setApproved(true);
+        req.setOpinion("同意借阅7天");
+
+        asRole(RoleCode.back_archivist, 2L, () -> {
+            BorrowRequestResponse resp = service.approve(1L, req);
+            assertThat(resp.getStatus()).isEqualTo("approved");
+            assertThat(resp.getApprovedBy()).isEqualTo(2L);
+            assertThat(resp.getRejectReason()).isNull();
+        });
+    }
+
+    @Test
+    void approve_拒绝则状态变rejected并写rejectReason() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.applied);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+        when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
+
+        BorrowApproveRequest req = new BorrowApproveRequest();
+        req.setApproved(false);
+        req.setOpinion("档案盘点中");
+
+        asRole(RoleCode.back_archivist, 2L, () -> {
+            BorrowRequestResponse resp = service.approve(1L, req);
+            assertThat(resp.getStatus()).isEqualTo("rejected");
+            assertThat(resp.getRejectReason()).isEqualTo("档案盘点中");
+        });
+    }
+
+    @Test
+    void approve_拒绝未填意见抛VALIDATION_FAILED() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.applied);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+
+        BorrowApproveRequest req = new BorrowApproveRequest();
+        req.setApproved(false);
+
+        asRole(RoleCode.back_archivist, 2L, () ->
+                assertThatThrownBy(() -> service.approve(1L, req))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("意见"));
+    }
+
+    @Test
+    void approve_非applied状态抛BUSINESS_CONFLICT() {
+        BorrowRequest b = sampleRequest(1L, "BRW-000001", 4L, BorrowStatus.checked_out);
+        when(borrowRequestMapper.selectById(1L)).thenReturn(b);
+
+        BorrowApproveRequest req = new BorrowApproveRequest();
+        req.setApproved(true);
+
+        asRole(RoleCode.back_archivist, 2L, () ->
+                assertThatThrownBy(() -> service.approve(1L, req))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("当前状态"));
+    }
+
+    @Test
+    void approve_非后台管理员抛FORBIDDEN() {
+        BorrowApproveRequest req = new BorrowApproveRequest();
+        req.setApproved(true);
+
+        asRole(RoleCode.internal_reader, 4L, () ->
+                assertThatThrownBy(() -> service.approve(1L, req))
+                        .isInstanceOf(BusinessException.class)
+                        .hasMessageContaining("无操作权限"));
     }
 }
