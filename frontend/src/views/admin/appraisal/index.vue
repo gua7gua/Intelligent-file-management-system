@@ -75,6 +75,15 @@
           <h3 class="section-title" style="margin-top:12px">鉴定明细</h3>
           <div class="table-wrap">
             <table>
+              <colgroup>
+                <col class="col-archive-no" />
+                <col class="col-title" />
+                <col class="col-period-orig" />
+                <col class="col-until" />
+                <col class="col-result" />
+                <col class="col-new-period" />
+                <col class="col-opinion" />
+              </colgroup>
               <thead>
                 <tr>
                   <th>档号</th>
@@ -98,11 +107,13 @@
                   </td>
                   <td>
                     <template v-if="it.appraisalResult === 'extend'">
-                      <select v-model="it.newRetentionPeriod" :disabled="batchDetail.status !== 'draft'">
-                        <option value="">选择期限</option>
-                        <option v-for="(label, val) in RetentionPeriodLabel" :key="val" :value="val">{{ label }}</option>
-                      </select>
-                      <input type="date" v-model="it.newRetentionUntil" :disabled="batchDetail.status !== 'draft'" />
+                      <div class="period-inputs">
+                        <select v-model="it.newRetentionPeriod" :disabled="batchDetail.status !== 'draft'">
+                          <option value="">选择期限</option>
+                          <option v-for="(label, val) in RetentionPeriodLabel" :key="val" :value="val">{{ label }}</option>
+                        </select>
+                        <input type="date" v-model="it.newRetentionUntil" :disabled="batchDetail.status !== 'draft'" />
+                      </div>
                     </template>
                     <span v-else-if="it.appraisalResult === 'destroy'" class="status danger">待销毁</span>
                     <span v-else class="hint">—</span>
@@ -334,11 +345,21 @@ onMounted(loadBatches)
 .detail-kv span { color: var(--muted); font-weight: 700; }
 
 .table-wrap { overflow-x: auto; margin-top: 8px; }
-.table-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.table-wrap th, .table-wrap td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.table-wrap table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+.col-archive-no { width: 12%; }
+.col-title { width: 20%; }
+.col-period-orig { width: 8%; }
+.col-until { width: 10%; }
+.col-result { width: 16%; }
+.col-new-period { width: 22%; }
+.col-opinion { width: 12%; }
+.table-wrap th, .table-wrap td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; word-break: break-word; }
 .table-wrap th { font-weight: 700; color: var(--muted); background: var(--bg); }
 .table-wrap input, .table-wrap select, .table-wrap textarea { width: 100%; min-height: 30px; padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; }
-.radio-inline { margin-right: 10px; font-size: 13px; }
+.radio-inline { display: inline-flex; align-items: center; gap: 4px; margin-right: 12px; font-size: 13px; cursor: pointer; }
+.radio-inline input[type="radio"] { width: auto; min-height: auto; margin: 0; }
+.period-inputs { display: flex; gap: 6px; }
+.period-inputs select, .period-inputs input { flex: 1; min-width: 0; width: auto; }
 
 .detail-empty { display: flex; align-items: center; justify-content: center; height: 220px; color: var(--muted); font-size: 14px; }
 .row-active { background: #f2f8f8; }
