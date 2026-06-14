@@ -191,8 +191,16 @@ public class AiTaskService {
             b.setAttemptCount(0);
             aiTaskBatchMapper.insert(b);
         }
-
-        asyncRunner.executeArchiveAnalysis(task.getId(), analysisTaskId);
+        // 注意：不在此触发异步——调用方须在事务提交后调用 startArchiveAnalysisAsync，
+        // 否则异步线程读不到未提交的 ai_task_batches（@Async + @Transactional 可见性竞态）。
         return task.getId();
+    }
+
+    /**
+     * 触发研判 AI 异步执行。必须在研判任务创建事务提交后调用（afterCommit），
+     * 以保证异步线程能读到已提交的批次行。
+     */
+    public void startArchiveAnalysisAsync(Long aiTaskId, Long analysisTaskId) {
+        asyncRunner.executeArchiveAnalysis(aiTaskId, analysisTaskId);
     }
 }

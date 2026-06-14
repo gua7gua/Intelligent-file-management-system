@@ -17,7 +17,6 @@ import com.archive.enums.AnalysisIssueType;
 import com.archive.enums.AnalysisItemStatus;
 import com.archive.enums.AnalysisTaskStatus;
 import com.archive.enums.AnalysisTaskType;
-import com.archive.enums.LifecycleStatus;
 import com.archive.enums.RoleCode;
 import com.archive.exception.BusinessException;
 import com.archive.mapper.AnalysisItemMapper;
@@ -30,6 +29,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -98,8 +99,9 @@ public class AnalysisService {
         runRuleScan(t.getId(), req.getTaskType(), archiveIds);
 
         boolean wantAi = Boolean.TRUE.equals(rule.getIncludeAiSuggestion());
+        Long aiTaskId = null;
         if (wantAi && aiTaskService.aiAvailable()) {
-            Long aiTaskId = aiTaskService.startArchiveAnalysis(t.getId(), archiveIds);
+            aiTaskId = aiTaskService.startArchiveAnalysis(t.getId(), archiveIds);
             t.setLatestAiTaskId(aiTaskId);
             t.setStatus(AnalysisTaskStatus.running);
         } else {
@@ -107,6 +109,23 @@ public class AnalysisService {
             t.setCompletedAt(OffsetDateTime.now());
         }
         taskMapper.updateById(t);
+
+        // 事务提交后再触发异步 AI，避免异步线程读不到未提交的 ai_task_batches
+        // （@Async + @Transactional 的可见性竞态）。
+        if (aiTaskId != null) {
+            final Long atid = t.getId();
+            final Long aiTid = aiTaskId;
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        aiTaskService.startArchiveAnalysisAsync(aiTid, atid);
+                    }
+                });
+            } else {
+                aiTaskService.startArchiveAnalysisAsync(aiTid, atid);
+            }
+        }
         auditService.log("M14", "create_analysis_task", "analysis_task", t.getId(),
                 Map.of("taskType", req.getTaskType().name(), "archives", archiveIds.size()));
         return toResponse(t);
