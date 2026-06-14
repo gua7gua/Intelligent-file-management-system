@@ -1,6 +1,7 @@
 package com.archive.service;
 
 import com.archive.common.ErrorCode;
+import com.archive.dto.request.LocationStatusRequest;
 import com.archive.dto.request.WarehouseRoomCreateRequest;
 import com.archive.dto.response.WarehouseRoomResponse;
 import com.archive.entity.StorageLocation;
@@ -239,5 +240,46 @@ class WarehouseServiceTest {
         com.archive.dto.response.StorageLocationResponse r2 = result.getRecords().get(1);
         assertThat(r2.getOccupied()).isFalse();
         assertThat(r2.getBoxItemCount()).isEqualTo(0);
+    }
+
+    @Test
+    void updateLocationStatus_停用已占用架位抛冲突() {
+        com.archive.entity.StorageLocation loc = new com.archive.entity.StorageLocation();
+        loc.setId(10L);
+        loc.setStatus("active");
+        when(storageLocationMapper.selectById(10L)).thenReturn(loc);
+        when(archiveBoxMapper.selectCount(any())).thenReturn(1L); // 已占用
+
+        LocationStatusRequest req = new LocationStatusRequest();
+        req.setStatus("disabled");
+
+        assertThatThrownBy(() -> service.updateLocationStatus(10L, req))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.BUSINESS_CONFLICT);
+    }
+
+    @Test
+    void updateLocationStatus_停用空闲架位成功() {
+        com.archive.entity.StorageLocation loc = new com.archive.entity.StorageLocation();
+        loc.setId(10L);
+        loc.setRoomId(1L);
+        loc.setLocationCode("401-01-01-01");
+        loc.setStatus("active");
+        when(storageLocationMapper.selectById(10L)).thenReturn(loc);
+        when(archiveBoxMapper.selectCount(any())).thenReturn(0L);
+        when(archiveBoxMapper.selectList(any())).thenReturn(java.util.Collections.emptyList());
+
+        LocationStatusRequest req = new LocationStatusRequest();
+        req.setStatus("disabled");
+        req.setReason("架位维修");
+
+        com.archive.dto.response.StorageLocationResponse resp =
+                service.updateLocationStatus(10L, req);
+
+        assertThat(resp.getStatus()).isEqualTo("disabled");
+        assertThat(resp.getOccupied()).isFalse();
+        verify(storageLocationMapper).updateById(any(com.archive.entity.StorageLocation.class));
+        verify(auditService).log(eq("M07"), eq("update_location_status"),
+                eq("storage_location"), eq(10L), any());
     }
 }

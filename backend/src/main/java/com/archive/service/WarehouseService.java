@@ -2,6 +2,7 @@ package com.archive.service;
 
 import com.archive.common.ErrorCode;
 import com.archive.common.PageResult;
+import com.archive.dto.request.LocationStatusRequest;
 import com.archive.dto.request.WarehouseRoomCreateRequest;
 import com.archive.dto.request.WarehouseRoomUpdateRequest;
 import com.archive.dto.response.StorageLocationResponse;
@@ -222,6 +223,47 @@ public class WarehouseService {
             resp.setBoxItemCount(0);
         }
         return resp;
+    }
+
+    // ==================== 16.5 停用/启用架位 ====================
+
+    public StorageLocationResponse updateLocationStatus(Long locationId, LocationStatusRequest req) {
+        StorageLocation loc = storageLocationMapper.selectById(locationId);
+        if (loc == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "架位不存在");
+        }
+        if ("disabled".equals(req.getStatus()) && isLocationOccupied(locationId)) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "已占用架位不得直接停用");
+        }
+        loc.setStatus(req.getStatus());
+        storageLocationMapper.updateById(loc);
+        auditService.log("M07", "update_location_status", "storage_location", locationId,
+                Map.of("status", req.getStatus(),
+                        "reason", req.getReason() != null ? req.getReason() : ""));
+
+        ArchiveBox box = findActiveBoxAt(locationId);
+        Map<Long, ArchiveBox> m = new HashMap<>();
+        if (box != null) {
+            m.put(locationId, box);
+        }
+        return toLocationResponse(loc, m);
+    }
+
+    /** 架位是否被活动档案盒占用。 */
+    private boolean isLocationOccupied(Long locationId) {
+        QueryWrapper<ArchiveBox> w = new QueryWrapper<>();
+        w.eq("location_id", locationId);
+        w.in("status", java.util.List.of("normal", "full"));
+        return archiveBoxMapper.selectCount(w) > 0;
+    }
+
+    /** 取某架位上当前的活动档案盒（至多一个）。 */
+    private ArchiveBox findActiveBoxAt(Long locationId) {
+        QueryWrapper<ArchiveBox> w = new QueryWrapper<>();
+        w.eq("location_id", locationId);
+        w.in("status", java.util.List.of("normal", "full"));
+        w.last("LIMIT 1");
+        return archiveBoxMapper.selectOne(w);
     }
 
     /** 按库房结构生成固定架位，编码 {roomNo}-{rack:02d}-{layer:02d}-{slot:02d}。 */
