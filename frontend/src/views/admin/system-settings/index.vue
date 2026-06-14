@@ -27,15 +27,17 @@
         <template v-else>
           <div class="card panel">
             <h2 class="section-title">文件上传配置</h2>
-            <div class="config-row">
+            <div class="config-row format-row">
               <div class="config-key"><strong>上传格式白名单</strong><span class="mono">upload.allowed_extensions</span></div>
-              <div>
+              <div class="format-content">
                 <div class="tag-list">
                   <span class="format-tag" v-for="ext in extensions" :key="ext">{{ ext }}</span>
                 </div>
-                <div class="field" style="margin-top:10px"><label>新增格式</label><input v-model="newExt" @keyup.enter="addFormat" /></div>
+                <div class="add-format-inline">
+                  <input v-model="newExt" placeholder="新增格式，如 tif" @keyup.enter="addFormat" />
+                  <el-button @click="addFormat">添加格式</el-button>
+                </div>
               </div>
-              <el-button @click="addFormat">添加格式</el-button>
             </div>
             <div class="config-row">
               <div class="config-key"><strong>最大上传大小</strong><span class="mono">upload.max_file_size_mb</span></div>
@@ -256,6 +258,11 @@ onMounted(loadAll)
 .field { display: grid; gap: 4px; }
 .field label { font-size: 12px; color: #909399; }
 .field input, .field textarea, .field select { padding: 6px 8px; border: 1px solid var(--border, #e4e7ed); border-radius: 6px; font-family: inherit; }
+.config-row.format-row { grid-template-columns: 220px minmax(0, 1fr); }
+.format-content { display: grid; gap: 10px; }
+.add-format-inline { display: flex; gap: 8px; align-items: center; }
+.add-format-inline input { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--border, #e4e7ed); border-radius: 6px; }
+.add-format-inline :deep(.el-button) { flex-shrink: 0; }
 .detail-empty { color: #909399; padding: 16px; text-align: center; }
 .link { background: none; border: none; color: var(--primary, #1f6f78); cursor: pointer; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }

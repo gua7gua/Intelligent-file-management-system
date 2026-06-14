@@ -35,6 +35,10 @@
           <div v-else-if="users.length === 0" class="detail-empty">暂无用户</div>
           <div v-else class="table-wrap">
             <table>
+              <colgroup>
+                <col /><col /><col /><col /><col /><col /><col />
+                <col style="width: 200px" />
+              </colgroup>
               <thead>
                 <tr><th>登录名</th><th>姓名</th><th>单位/部门</th><th>角色</th><th>数据范围</th><th>密级上限</th><th>状态</th><th>操作</th></tr>
               </thead>
@@ -331,6 +335,10 @@ onMounted(loadAll)
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 16px 0; }
 .actions { display: flex; gap: 8px; }
 .actions-left { display: flex; gap: 8px; align-items: center; }
+/* 操作列：固定单行、重置 Element Plus 按钮间默认 12px 外边距，避免阶梯/三角形错排 */
+.user-mgmt .table-wrap td .actions { flex-wrap: nowrap; gap: 6px; align-items: center; }
+.user-mgmt :deep(.table-wrap .el-button + .el-button) { margin-left: 0; }
+.user-mgmt :deep(.table-wrap .actions .el-button) { flex-shrink: 0; }
 .user-layout { display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 16px; align-items: start; }
 .stack { display: grid; gap: 16px; }
 .role-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
