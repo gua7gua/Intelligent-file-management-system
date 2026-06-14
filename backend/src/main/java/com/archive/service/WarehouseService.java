@@ -1,9 +1,13 @@
 package com.archive.service;
 
 import com.archive.common.ErrorCode;
+import com.archive.common.PageResult;
 import com.archive.dto.request.WarehouseRoomCreateRequest;
 import com.archive.dto.request.WarehouseRoomUpdateRequest;
+import com.archive.dto.response.StorageLocationResponse;
 import com.archive.dto.response.WarehouseRoomResponse;
+import com.archive.entity.ArchiveBox;
+import com.archive.entity.ArchiveBoxItem;
 import com.archive.entity.StorageLocation;
 import com.archive.entity.WarehouseRoom;
 import com.archive.exception.BusinessException;
@@ -14,6 +18,7 @@ import com.archive.mapper.StorageLocationMapper;
 import com.archive.mapper.WarehouseRoomMapper;
 import com.archive.util.BoxNoUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,8 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 库房管理服务。
@@ -141,6 +148,80 @@ public class WarehouseService {
         }
         warehouseRoomMapper.updateById(room);
         return toRoomResponse(room, countOccupiedSlots(roomId));
+    }
+
+    // ==================== 16.4 查询架位列表 ====================
+
+    public PageResult<StorageLocationResponse> listLocations(
+            Long roomId, Integer rackNo, String status, Boolean occupied,
+            int pageNo, int pageSize) {
+
+        QueryWrapper<StorageLocation> w = new QueryWrapper<>();
+        if (roomId != null) {
+            w.eq("room_id", roomId);
+        }
+        if (rackNo != null) {
+            w.eq("rack_no", rackNo);
+        }
+        if (status != null && !status.isBlank()) {
+            w.eq("status", status);
+        }
+        if (occupied != null) {
+            String sub = "SELECT location_id FROM archive_boxes WHERE status IN ('normal','full')";
+            if (occupied) {
+                w.inSql("id", sub);
+            } else {
+                w.notInSql("id", sub);
+            }
+        }
+        w.orderByAsc("location_code");
+
+        Page<StorageLocation> page = storageLocationMapper.selectPage(new Page<>(pageNo, pageSize), w);
+        List<StorageLocation> locs = page.getRecords();
+        if (locs.isEmpty()) {
+            return new PageResult<>(java.util.Collections.emptyList(), pageNo, pageSize, page.getTotal());
+        }
+
+        // 批量取本页架位上的活动档案盒
+        List<Long> locIds = locs.stream().map(StorageLocation::getId).collect(Collectors.toList());
+        QueryWrapper<ArchiveBox> bw = new QueryWrapper<>();
+        bw.in("location_id", locIds);
+        bw.in("status", java.util.List.of("normal", "full"));
+        List<ArchiveBox> boxes = archiveBoxMapper.selectList(bw);
+        Map<Long, ArchiveBox> boxByLoc = new HashMap<>();
+        for (ArchiveBox box : boxes) {
+            boxByLoc.put(box.getLocationId(), box);
+        }
+
+        List<StorageLocationResponse> records = locs.stream()
+                .map(loc -> toLocationResponse(loc, boxByLoc))
+                .collect(Collectors.toList());
+        return new PageResult<>(records, pageNo, pageSize, page.getTotal());
+    }
+
+    private StorageLocationResponse toLocationResponse(StorageLocation loc, Map<Long, ArchiveBox> boxByLoc) {
+        StorageLocationResponse resp = new StorageLocationResponse();
+        resp.setId(loc.getId());
+        resp.setRoomId(loc.getRoomId());
+        resp.setRackNo(loc.getRackNo());
+        resp.setLayerNo(loc.getLayerNo());
+        resp.setBoxSlotNo(loc.getBoxSlotNo());
+        resp.setLocationCode(loc.getLocationCode());
+        resp.setStatus(loc.getStatus());
+
+        ArchiveBox box = boxByLoc.get(loc.getId());
+        resp.setOccupied(box != null);
+        if (box != null) {
+            resp.setCurrentBoxId(box.getId());
+            resp.setCurrentBoxNo(box.getBoxNo());
+            QueryWrapper<ArchiveBoxItem> iw = new QueryWrapper<>();
+            iw.eq("box_id", box.getId());
+            Long c = archiveBoxItemMapper.selectCount(iw);
+            resp.setBoxItemCount(c != null ? c.intValue() : 0);
+        } else {
+            resp.setBoxItemCount(0);
+        }
+        return resp;
     }
 
     /** 按库房结构生成固定架位，编码 {roomNo}-{rack:02d}-{layer:02d}-{slot:02d}。 */

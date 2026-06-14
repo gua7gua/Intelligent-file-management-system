@@ -200,4 +200,44 @@ class WarehouseServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_FAILED);
     }
+
+    @Test
+    void listLocations_回填当前盒与盒内件数() {
+        com.archive.entity.StorageLocation loc1 = new com.archive.entity.StorageLocation();
+        loc1.setId(10L);
+        loc1.setRoomId(1L);
+        loc1.setLocationCode("401-01-01-01");
+        loc1.setStatus("active");
+        com.archive.entity.StorageLocation loc2 = new com.archive.entity.StorageLocation();
+        loc2.setId(11L);
+        loc2.setRoomId(1L);
+        loc2.setLocationCode("401-01-01-02");
+        loc2.setStatus("active");
+
+        com.baomidou.mybatisplus.extension.plugins.pagination.Page<com.archive.entity.StorageLocation> page =
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(1, 20);
+        page.setRecords(List.of(loc1, loc2));
+        page.setTotal(2L);
+        when(storageLocationMapper.selectPage(any(), any())).thenReturn(page);
+
+        com.archive.entity.ArchiveBox box = new com.archive.entity.ArchiveBox();
+        box.setId(5L);
+        box.setLocationId(10L);
+        box.setBoxNo("BOX-000001");
+        box.setStatus("normal");
+        when(archiveBoxMapper.selectList(any())).thenReturn(List.of(box));
+        when(archiveBoxItemMapper.selectCount(any())).thenReturn(3L);
+
+        com.archive.common.PageResult<com.archive.dto.response.StorageLocationResponse> result =
+                service.listLocations(1L, null, null, null, 1, 20);
+
+        assertThat(result.getRecords()).hasSize(2);
+        com.archive.dto.response.StorageLocationResponse r1 = result.getRecords().get(0);
+        assertThat(r1.getOccupied()).isTrue();
+        assertThat(r1.getCurrentBoxNo()).isEqualTo("BOX-000001");
+        assertThat(r1.getBoxItemCount()).isEqualTo(3);
+        com.archive.dto.response.StorageLocationResponse r2 = result.getRecords().get(1);
+        assertThat(r2.getOccupied()).isFalse();
+        assertThat(r2.getBoxItemCount()).isEqualTo(0);
+    }
 }
