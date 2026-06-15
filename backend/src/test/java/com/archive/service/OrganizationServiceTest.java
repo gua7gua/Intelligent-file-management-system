@@ -2,6 +2,7 @@ package com.archive.service;
 
 import com.archive.dto.request.OrganizationCreateRequest;
 import com.archive.dto.request.OrganizationQuery;
+import com.archive.dto.request.OrganizationUpdateRequest;
 import com.archive.dto.response.OrganizationResponse;
 import com.archive.entity.Organization;
 import com.archive.enums.OrgType;
@@ -96,5 +97,72 @@ class OrganizationServiceTest {
         var result = service.listOrganizations(q);
         assertThat(result.getRecords()).hasSize(1);
         assertThat(result.getRecords().get(0).getOrgName()).isEqualTo("苏州市财政局");
+    }
+
+    @Test
+    void updateOrganization_更新字段并写审计() {
+        Organization existing = new Organization();
+        existing.setId(1L);
+        existing.setOrgName("旧名");
+        existing.setOrgType(OrgType.government);
+        existing.setStatus("active");
+        when(organizationMapper.selectById(1L)).thenReturn(existing);
+        when(organizationMapper.selectOne(any())).thenReturn(null);
+        when(organizationMapper.updateById(any(Organization.class))).thenReturn(1);
+
+        OrganizationUpdateRequest req = new OrganizationUpdateRequest();
+        req.setOrgName("新名");
+        req.setContactName("李四");
+        OrganizationResponse resp = service.updateOrganization(1L, req);
+
+        assertThat(resp.getOrgName()).isEqualTo("新名");
+        verify(organizationMapper).updateById(any(Organization.class));
+        verify(auditService).log(eq("M06"), eq("update_organization"), eq("organization"), eq(1L), any());
+    }
+
+    @Test
+    void updateOrganization_仅传status停用() {
+        Organization existing = new Organization();
+        existing.setId(2L);
+        existing.setOrgName("某组织");
+        existing.setStatus("active");
+        when(organizationMapper.selectById(2L)).thenReturn(existing);
+        when(organizationMapper.updateById(any(Organization.class))).thenReturn(1);
+
+        OrganizationUpdateRequest req = new OrganizationUpdateRequest();
+        req.setStatus("disabled");
+        OrganizationResponse resp = service.updateOrganization(2L, req);
+
+        assertThat(resp.getStatus()).isEqualTo("disabled");
+        assertThat(resp.getOrgName()).isEqualTo("某组织"); // 未传字段保持原值
+    }
+
+    @Test
+    void updateOrganization_名称与他人重复抛冲突() {
+        Organization existing = new Organization();
+        existing.setId(1L);
+        existing.setOrgName("旧名");
+        when(organizationMapper.selectById(1L)).thenReturn(existing);
+        Organization other = new Organization();
+        other.setId(99L);
+        other.setOrgName("已占用名");
+        when(organizationMapper.selectOne(any())).thenReturn(other);
+
+        OrganizationUpdateRequest req = new OrganizationUpdateRequest();
+        req.setOrgName("已占用名");
+        assertThatThrownBy(() -> service.updateOrganization(1L, req))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("组织名称已存在");
+        verify(organizationMapper, never()).updateById(any(Organization.class));
+    }
+
+    @Test
+    void updateOrganization_不存在抛NOT_FOUND() {
+        when(organizationMapper.selectById(404L)).thenReturn(null);
+        OrganizationUpdateRequest req = new OrganizationUpdateRequest();
+        req.setStatus("disabled");
+        assertThatThrownBy(() -> service.updateOrganization(404L, req))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("组织不存在");
     }
 }

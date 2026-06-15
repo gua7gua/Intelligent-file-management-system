@@ -16,8 +16,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AuditLogQueryService {
 
-    private static final int EXPORT_MAX = 10000;
-
     private final AuditLogMapper auditLogMapper;
 
     /** 23.1 查询审计日志（游标分页） */
@@ -38,13 +36,6 @@ public class AuditLogQueryService {
             nextCursor = CursorCodec.encode(last.getOperatedAt(), last.getId());
         }
         return new CursorResult<>(records, nextCursor, hasNext);
-    }
-
-    /** 导出数据源（同筛选，无游标，上限 10000） */
-    public List<AuditLogResponse> listForExport(AuditLogQuery q) {
-        QueryWrapper<AuditLog> qw = baseFilters(q);
-        qw.orderByDesc("operated_at").orderByDesc("id").last("LIMIT " + EXPORT_MAX);
-        return auditLogMapper.selectList(qw).stream().map(this::toResponse).toList();
     }
 
     private QueryWrapper<AuditLog> baseFilters(AuditLogQuery q) {

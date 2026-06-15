@@ -6,6 +6,7 @@ import com.archive.common.PageResult;
 import com.archive.common.R;
 import com.archive.dto.request.OrganizationCreateRequest;
 import com.archive.dto.request.OrganizationQuery;
+import com.archive.dto.request.OrganizationUpdateRequest;
 import com.archive.dto.response.OrganizationResponse;
 import com.archive.enums.RoleCode;
 import com.archive.exception.BusinessException;
@@ -40,5 +41,15 @@ public class OrganizationController {
             throw new BusinessException(ErrorCode.FORBIDDEN, "仅系统管理员可新增组织");
         }
         return R.ok(organizationService.createOrganization(req));
+    }
+
+    @PutMapping("/{organizationId}")
+    @Operation(summary = "更新组织（仅系统管理员；支持停用）")
+    public R<OrganizationResponse> update(@PathVariable Long organizationId,
+                                          @Valid @RequestBody OrganizationUpdateRequest req) {
+        if (!AuthContext.hasRole(RoleCode.sys_admin)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "仅系统管理员可更新组织");
+        }
+        return R.ok(organizationService.updateOrganization(organizationId, req));
     }
 }
