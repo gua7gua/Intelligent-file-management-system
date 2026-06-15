@@ -1,0 +1,17 @@
+package com.archive.dto.response;
+
+import lombok.Data;
+import java.time.OffsetDateTime;
+
+@Data
+public class FondsResponse {
+    private Long id;
+    private String fondsNo;
+    private String fondsName;
+    private Long organizationId;
+    private String organizationName;
+    private String description;
+    private String status;
+    private Long archiveCount;
+    private OffsetDateTime createdAt;
+}
