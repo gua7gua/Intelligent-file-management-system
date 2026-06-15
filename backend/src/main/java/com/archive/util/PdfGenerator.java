@@ -237,6 +237,85 @@ public class PdfGenerator {
         }
     }
 
+    /**
+     * 生成编研正文 PDF。把 contentHtml 去标签后按段落渲染，标题居中。
+     */
+    public byte[] generateCompilationPdf(String title, String contentHtml) {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Document doc = new Document(PageSize.A4, 50, 50, 50, 50);
+            PdfWriter.getInstance(doc, baos);
+            doc.open();
+            Font titleFont = getCnFont(18, Font.BOLD);
+            Font normalFont = getCnFont(11, Font.NORMAL);
+            Paragraph t = new Paragraph(title != null ? title : "编研成果", titleFont);
+            t.setAlignment(Element.ALIGN_CENTER);
+            t.setSpacingAfter(12);
+            doc.add(t);
+            String plain = contentHtml != null ? contentHtml : "";
+            for (String para : plain.split("(?i)</p>|<br\\s*/?>|\n")) {
+                String text = para.replaceAll("<[^>]+>", "").trim();
+                if (!text.isEmpty()) {
+                    doc.add(new Paragraph(text, normalFont));
+                }
+            }
+            doc.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("编研 PDF 生成失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 生成统计报表 PDF（总览四项总量 + 分类维度）。
+     */
+    public byte[] generateStatisticsPdf(com.archive.dto.response.StatisticsOverviewResponse o,
+                                        com.archive.dto.response.StatisticsCategoryResponse c) {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Document doc = new Document(PageSize.A4, 40, 40, 40, 40);
+            PdfWriter.getInstance(doc, baos);
+            doc.open();
+            Font tf = getCnFont(16, Font.BOLD);
+            Font nf = getCnFont(10, Font.NORMAL);
+            Paragraph t = new Paragraph("档案统计报表", tf);
+            t.setAlignment(Element.ALIGN_CENTER);
+            t.setSpacingAfter(12);
+            doc.add(t);
+
+            PdfPTable tab = new PdfPTable(2);
+            tab.setWidthPercentage(100);
+            tab.setWidths(new float[]{3f, 2f});
+            addInfoRow(tab, "馆藏总量", String.valueOf(o.getTotals().getTotalArchives()),
+                    "公开数量", String.valueOf(o.getTotals().getOpenArchives()), nf);
+            addInfoRow(tab, "借阅量", String.valueOf(o.getTotals().getBorrowCount()),
+                    "销毁量", String.valueOf(o.getTotals().getDestroyedCount()), nf);
+            doc.add(tab);
+
+            doc.add(Chunk.NEWLINE);
+            doc.add(new Paragraph("分类维度：", getCnFont(11, Font.BOLD)));
+            appendGroup(doc, "按门类", c.getByCategory(), nf);
+            appendGroup(doc, "按年度", c.getByYear(), nf);
+            appendGroup(doc, "按来源", c.getBySource(), nf);
+            appendGroup(doc, "按载体", c.getByCarrier(), nf);
+            appendGroup(doc, "按密级", c.getBySecurity(), nf);
+            appendGroup(doc, "按公开状态", c.getByOpenStatus(), nf);
+
+            doc.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("统计 PDF 生成失败: " + e.getMessage(), e);
+        }
+    }
+
+    private void appendGroup(Document doc, String title,
+                             java.util.List<com.archive.dto.response.StatisticsCategoryResponse.Group> g, Font nf) throws Exception {
+        if (g == null || g.isEmpty()) return;
+        StringBuilder sb = new StringBuilder(title).append("：");
+        for (com.archive.dto.response.StatisticsCategoryResponse.Group x : g) {
+            sb.append(x.getLabel()).append("(").append(x.getCount()).append(") ");
+        }
+        doc.add(new Paragraph(sb.toString(), nf));
+    }
+
     // ==================== 工具方法 ====================
 
     private Font getCnFont(float size, int style) {

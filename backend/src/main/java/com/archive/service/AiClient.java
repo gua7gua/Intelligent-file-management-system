@@ -137,17 +137,24 @@ public class AiClient {
     }
 
     /**
-     * 从 AI 文本内容中提取 &lt;JSON&gt;...&lt;/JSON&gt; 标签内的字符串。
-     * 只提取第一组匹配。
+     * 从 AI 文本内容中提取 JSON 字符串。
+     * 优先匹配 &lt;JSON&gt;...&lt;/JSON&gt; 包裹；若缺失（部分模型如 DeepSeek 常省略包裹），
+     * 回退取第一个 '{' 到最后一个 '}' 之间的裸 JSON。
      */
     private String extractJsonBlock(String content) {
         int start = content.indexOf("<JSON>");
         int end = content.indexOf("</JSON>");
-        if (start < 0 || end < 0 || end <= start) {
-            log.error("AI 返回内容未包含有效的 <JSON> 标签: {}", content);
-            throw new BusinessException(ErrorCode.EXTERNAL_SERVICE_ERROR, "AI 返回内容未包含有效的 JSON 块");
+        if (start >= 0 && end > start) {
+            return content.substring(start + "<JSON>".length(), end).trim();
         }
-        return content.substring(start + "<JSON>".length(), end).trim();
+        // 容错：回退到裸 JSON（首 '{' 到末 '}'）
+        int braceStart = content.indexOf('{');
+        int braceEnd = content.lastIndexOf('}');
+        if (braceStart >= 0 && braceEnd > braceStart) {
+            return content.substring(braceStart, braceEnd + 1).trim();
+        }
+        log.error("AI 返回内容未包含有效的 JSON: {}", content);
+        throw new BusinessException(ErrorCode.EXTERNAL_SERVICE_ERROR, "AI 返回内容未包含有效的 JSON 块");
     }
 
     /**
