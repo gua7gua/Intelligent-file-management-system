@@ -77,3 +77,12 @@ minio:
 archive:
   backup:
     dir: ${ARCHIVE_BACKUP_DIR:./data/backups}
+
+aliyun:
+  sms-auth:
+    enabled: ${ALIYUN_SMS_ENABLED:false}
+    access-key-id: ${ALIYUN_SMS_ACCESS_KEY:}
+    access-key-secret: ${ALIYUN_SMS_SECRET:}
+    endpoint: dypnsapi.aliyuncs.com
+    sign-name: ${ALIYUN_SMS_SIGN_NAME:速通互联验证码}
+    template-code: ${ALIYUN_SMS_TEMPLATE_CODE:100003}

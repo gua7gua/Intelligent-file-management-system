@@ -26,6 +26,7 @@
         <minio.version>8.5.14</minio.version>
         <commons-io.version>2.18.0</commons-io.version>
         <poi.version>5.5.1</poi.version>
+        <aliyun-dypnsapi.version>1.2.3</aliyun-dypnsapi.version>
     </properties>
 
     <dependencies>
@@ -110,6 +111,13 @@
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
             <version>${poi.version}</version>
+        </dependency>
+
+        <!-- 阿里云短信认证（公众找回密码） -->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>dypnsapi20170525</artifactId>
+            <version>${aliyun-dypnsapi.version}</version>
         </dependency>
 
         <!-- Lombok -->
