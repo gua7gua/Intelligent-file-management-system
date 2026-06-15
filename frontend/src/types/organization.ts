@@ -3,6 +3,7 @@ import type { PageParams } from './api'
 /** 组织查询参数（§17.4，用户管理页只读 + 编辑表单下拉） */
 export interface OrganizationParams extends PageParams {
   status?: 'active' | 'disabled' | ''
+  orgType?: string
   keyword?: string
 }
 
@@ -15,4 +16,12 @@ export interface Organization {
   contactName?: string
   contactPhone?: string
   status: 'active' | 'disabled'
+}
+
+/** 新增组织请求体（§17.5） */
+export interface OrganizationCreate {
+  orgName: string
+  orgType: 'archive_org' | 'government' | 'enterprise' | 'public_institution'
+  contactName?: string
+  contactPhone?: string
 }
