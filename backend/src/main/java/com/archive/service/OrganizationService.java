@@ -4,6 +4,7 @@ import com.archive.common.ErrorCode;
 import com.archive.common.PageResult;
 import com.archive.dto.request.OrganizationCreateRequest;
 import com.archive.dto.request.OrganizationQuery;
+import com.archive.dto.request.OrganizationUpdateRequest;
 import com.archive.dto.response.OrganizationResponse;
 import com.archive.entity.Organization;
 import com.archive.enums.OrgType;
@@ -67,6 +68,42 @@ public class OrganizationService {
         auditService.log("M06", "create_organization", "organization", org.getId(),
                 Map.of("orgName", org.getOrgName(), "orgType", org.getOrgType().name()));
         return toResponse(org);
+    }
+
+    /** 17.6 更新组织（部分更新；名称唯一排除自身；停用不物理删除，保留历史档案归属） */
+    @Transactional
+    public OrganizationResponse updateOrganization(Long id, OrganizationUpdateRequest req) {
+        Organization existing = organizationMapper.selectById(id);
+        if (existing == null || existing.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "组织不存在");
+        }
+
+        if (req.getOrgName() != null && !req.getOrgName().equals(existing.getOrgName())) {
+            Organization conflict = organizationMapper.selectOne(
+                    new QueryWrapper<Organization>().eq("org_name", req.getOrgName()));
+            if (conflict != null && !conflict.getId().equals(id)) {
+                throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "组织名称已存在");
+            }
+            existing.setOrgName(req.getOrgName());
+        }
+        if (req.getOrgType() != null && !req.getOrgType().isBlank()) {
+            existing.setOrgType(OrgType.valueOf(req.getOrgType())); // 非法值抛 IllegalArgumentException → 全局 400
+        }
+        if (req.getContactName() != null) {
+            existing.setContactName(req.getContactName());
+        }
+        if (req.getContactPhone() != null) {
+            existing.setContactPhone(req.getContactPhone());
+        }
+        if (req.getStatus() != null) {
+            existing.setStatus(req.getStatus());
+        }
+        organizationMapper.updateById(existing);
+
+        auditService.log("M06", "update_organization", "organization", id,
+                Map.of("orgName", existing.getOrgName(),
+                        "status", existing.getStatus() != null ? existing.getStatus() : "active"));
+        return toResponse(existing);
     }
 
     private OrganizationResponse toResponse(Organization o) {

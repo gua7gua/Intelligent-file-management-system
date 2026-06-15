@@ -16,8 +16,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ArchiveAccessLogQueryService {
 
-    private static final int EXPORT_MAX = 10000;
-
     private final ArchiveAccessLogMapper archiveAccessLogMapper;
 
     /** 23.2 查询档案访问日志（游标分页） */
@@ -37,12 +35,6 @@ public class ArchiveAccessLogQueryService {
                         page.get(page.size() - 1).getId())
                 : null;
         return new CursorResult<>(records, nextCursor, hasNext);
-    }
-
-    public List<ArchiveAccessLogResponse> listForExport(ArchiveAccessLogQuery q) {
-        QueryWrapper<ArchiveAccessLog> qw = baseFilters(q);
-        qw.orderByDesc("accessed_at").orderByDesc("id").last("LIMIT " + EXPORT_MAX);
-        return archiveAccessLogMapper.selectList(qw).stream().map(this::toResponse).toList();
     }
 
     private QueryWrapper<ArchiveAccessLog> baseFilters(ArchiveAccessLogQuery q) {

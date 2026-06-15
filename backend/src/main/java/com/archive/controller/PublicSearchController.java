@@ -1,6 +1,7 @@
 package com.archive.controller;
 
 import com.archive.common.AuthContext;
+import com.archive.common.ErrorCode;
 import com.archive.common.PageResult;
 import com.archive.common.R;
 import com.archive.dto.request.AiQueryRequest;
@@ -8,6 +9,9 @@ import com.archive.dto.request.ArchiveSearchQuery;
 import com.archive.dto.response.AiQueryResponse;
 import com.archive.dto.response.ArchiveSearchDetailResponse;
 import com.archive.dto.response.ArchiveSummaryResponse;
+import com.archive.dto.response.PublicDashboardResponse;
+import com.archive.exception.BusinessException;
+import com.archive.service.PublicDashboardService;
 import com.archive.service.SearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +36,17 @@ import java.net.URI;
 public class PublicSearchController {
 
     private final SearchService searchService;
+    private final PublicDashboardService publicDashboardService;
+
+    @GetMapping("/dashboard")
+    @Operation(summary = "公众概览（需登录公众账号）")
+    public R<PublicDashboardResponse> dashboard() {
+        // /api/public/** 免登录，但概览需登录态取本人数据
+        if (!AuthContext.isAuthenticated()) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "请先登录");
+        }
+        return R.ok(publicDashboardService.overview());
+    }
 
     @GetMapping("/archives/search")
     @Operation(summary = "公开档案检索")

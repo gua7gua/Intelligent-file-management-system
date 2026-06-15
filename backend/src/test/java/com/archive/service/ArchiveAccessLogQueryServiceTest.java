@@ -41,15 +41,6 @@ class ArchiveAccessLogQueryServiceTest {
         assertThat(CursorCodec.decode(r.getNextCursor()).id()).isEqualTo(2L);
     }
 
-    @Test
-    void 导出_按archiveId筛选() {
-        when(mapper.selectList(any())).thenReturn(List.of(access(1, "2026-06-15T11:00:01Z")));
-        ArchiveAccessLogQuery q = new ArchiveAccessLogQuery();
-        q.setArchiveId(100L);
-        List<ArchiveAccessLogResponse> rows = service.listForExport(q);
-        assertThat(rows).hasSize(1);
-    }
-
     private ArchiveAccessLog access(long id, String iso) {
         ArchiveAccessLog l = new ArchiveAccessLog();
         l.setId(id);

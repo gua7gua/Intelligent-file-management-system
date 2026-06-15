@@ -58,16 +58,6 @@ class AuditLogQueryServiceTest {
     }
 
     @Test
-    void 导出_带筛选返回全部() {
-        when(auditLogMapper.selectList(any())).thenReturn(List.of(log(1, "2026-06-15T10:00:01Z")));
-        AuditLogQuery q = new AuditLogQuery();
-        q.setOperationType("reset_password");
-        List<AuditLogResponse> rows = service.listForExport(q);
-        assertThat(rows).hasSize(1);
-        assertThat(rows.get(0).getOperationType()).isEqualTo("reset_password");
-    }
-
-    @Test
     void 响应保留detail为Map() {
         AuditLog l = log(1, "2026-06-15T10:00:01Z");
         l.setDetail(Map.of("phone", "13800000005"));
