@@ -22,3 +22,16 @@ export interface PageParams {
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
 }
+
+/** 游标分页响应（§23 审计 / 访问日志） */
+export interface CursorData<T = any> {
+  records: T[]
+  nextCursor: string | null
+  hasNext: boolean
+}
+
+/** 游标分页请求基类 */
+export interface CursorParams {
+  cursor?: string
+  limit?: number
+}

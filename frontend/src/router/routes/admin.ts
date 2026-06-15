@@ -93,6 +93,8 @@ export const adminMenuConfig: MenuItem[] = [
     children: [
       { path: '/admin/user-management', title: '用户管理', roles: ['sys_admin'] },
       { path: '/admin/system-settings', title: '系统配置', roles: ['sys_admin'] },
+      { path: '/admin/audit-logs', title: '审计日志', roles: ['sys_admin'] },
+      { path: '/admin/access-logs', title: '访问日志', roles: ['sys_admin'] },
     ],
   },
 ]
@@ -122,5 +124,7 @@ export const adminRoutes: RouteRecordRaw = {
     { path: 'data-analysis', component: () => import('@/views/admin/data-analysis/index.vue'), meta: { title: '数据研判' } },
     { path: 'user-management', component: () => import('@/views/admin/user-management/index.vue'), meta: { title: '用户管理' } },
     { path: 'system-settings', component: () => import('@/views/admin/system-settings/index.vue'), meta: { title: '系统配置' } },
+    { path: 'audit-logs', component: () => import('@/views/admin/audit-logs/index.vue'), meta: { title: '审计日志' } },
+    { path: 'access-logs', component: () => import('@/views/admin/access-logs/index.vue'), meta: { title: '访问日志' } },
   ],
 }
