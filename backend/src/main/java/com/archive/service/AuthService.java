@@ -55,9 +55,10 @@ public class AuthService {
 
         StpUtil.login(user.getId());
         StpUtil.getSession().set("roles", new ArrayList<>(roleCodes));
-        StpUtil.getSession().set("maxSecurityLevel", user.getMaxSecurityLevel());
+        // Sa-Token Session 内部为 ConcurrentHashMap，不允许 null 值；公众账号 organizationId 可能为空，需守卫
+        StpUtil.getSession().set("maxSecurityLevel", user.getMaxSecurityLevel() != null ? user.getMaxSecurityLevel() : 0);
         StpUtil.getSession().set("dataScope", user.getDataScope() != null ? user.getDataScope().name() : "own_org");
-        StpUtil.getSession().set("organizationId", user.getOrganizationId());
+        StpUtil.getSession().set("organizationId", user.getOrganizationId() != null ? user.getOrganizationId() : 0L);
         StpUtil.getSession().set("userType", user.getUserType() != null ? user.getUserType().name() : "internal");
 
         LoginResponse resp = new LoginResponse();
