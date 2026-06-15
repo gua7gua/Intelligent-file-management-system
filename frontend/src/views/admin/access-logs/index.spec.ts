@@ -42,8 +42,8 @@ describe('AccessLogs', () => {
   it('filters by accessType download', async () => {
     const w = await mountIt()
     await wait()
-    // 选项顺序：全部 / view_metadata / preview / download → download 为 index 3
-    await w.find('select[data-testid="accessType"]').findAll('option')[3].setSelected()
+    // 选项：全部 / view_metadata / preview / download → 选 download
+    await w.find('select[data-testid="accessType"]').setValue('download')
     await w.findAll('button').find((b) => b.text().includes('查询'))!.trigger('click')
     await wait()
     expect(w.findAll('tbody tr').length).toBeGreaterThan(0)

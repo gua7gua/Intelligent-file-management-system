@@ -43,8 +43,8 @@ describe('AuditLogs', () => {
   it('filters by actorType system', async () => {
     const w = await mountIt()
     await wait()
-    // 选项顺序：全部 / internal / public / system → system 为第 4 个（index 3）
-    await w.find('select[data-testid="actorType"]').findAll('option')[3].setSelected()
+    // 选项：全部 / internal / public / system → 选 system
+    await w.find('select[data-testid="actorType"]').setValue('system')
     await w.findAll('button').find((b) => b.text().includes('查询'))!.trigger('click')
     await wait()
     expect(w.text()).toContain('自动备份')

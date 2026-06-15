@@ -24,7 +24,7 @@
         <div class="field"><label>结束时间</label><input type="date" v-model="filters.endedAt" /></div>
       </div>
       <div class="actions" style="margin-top:12px">
-        <el-button type="primary" @click="load(true)">查询</el-button>
+        <el-button type="primary" @click="load()">查询</el-button>
         <el-button @click="reset">重置</el-button>
         <el-button :disabled="records.length === 0" @click="exportLogs">导出</el-button>
       </div>
@@ -33,7 +33,7 @@
     <div class="card panel">
       <h2 class="section-title">审计记录</h2>
       <div v-if="loading && records.length === 0" class="detail-empty">加载中...</div>
-      <div v-else-if="loadError" class="detail-empty">加载失败：<button class="link" @click="load(true)">重试</button></div>
+      <div v-else-if="loadError" class="detail-empty">加载失败：<button class="link" @click="load()">重试</button></div>
       <div v-else-if="records.length === 0" class="detail-empty">暂无审计日志</div>
       <div v-else class="table-wrap">
         <table>
@@ -99,7 +99,7 @@ function buildQuery(cursor?: string): AuditLogQuery {
   }
 }
 
-async function load(reset = false) {
+async function load() {
   if (filters.startedAt && filters.endedAt && filters.startedAt > filters.endedAt) {
     ElMessage.error('开始时间不能晚于结束时间')
     return
@@ -141,7 +141,7 @@ function reset() {
   filters.businessType = ''
   filters.startedAt = ''
   filters.endedAt = ''
-  load(true)
+  load()
 }
 
 function exportLogs() {
@@ -160,7 +160,7 @@ function exportLogs() {
   ElMessage.success('已导出当前已加载的审计日志。')
 }
 
-onMounted(() => load(true))
+onMounted(() => load())
 </script>
 
 <style scoped>
