@@ -1,4 +1,4 @@
-import type { Organization, OrganizationParams } from '@/types/organization'
+import type { Organization, OrganizationCreate, OrganizationParams } from '@/types/organization'
 import type { PageData } from '@/types/api'
 
 const organizations: Organization[] = [
@@ -9,9 +9,12 @@ const organizations: Organization[] = [
   { id: 5, orgName: '城投建设集团', orgType: 'enterprise', contactName: '刘经理', contactPhone: '0990-6800005', status: 'disabled' },
 ]
 
+let orgSeq = 100
+
 export function mockOrganizations(params?: OrganizationParams): PageData<Organization> {
   let list = organizations
   if (params?.status) list = list.filter((o) => o.status === params.status)
+  if (params?.orgType) list = list.filter((o) => o.orgType === params.orgType)
   if (params?.keyword) {
     const kw = params.keyword.trim().toLowerCase()
     list = list.filter((o) => o.orgName.toLowerCase().includes(kw))
@@ -20,11 +23,21 @@ export function mockOrganizations(params?: OrganizationParams): PageData<Organiz
   const pageSize = params?.pageSize ?? 50
   const total = list.length
   const start = (pageNo - 1) * pageSize
-  return {
-    records: list.slice(start, start + pageSize),
-    pageNo,
-    pageSize,
-    total,
-    hasNext: start + pageSize < total,
+  return { records: list.slice(start, start + pageSize), pageNo, pageSize, total, hasNext: start + pageSize < total }
+}
+
+export function mockCreateOrganization(body: OrganizationCreate): Organization {
+  if (organizations.some((o) => o.orgName === body.orgName.trim())) {
+    throw new Error('组织名称已存在：' + body.orgName)
   }
+  const org: Organization = {
+    id: ++orgSeq,
+    orgName: body.orgName.trim(),
+    orgType: body.orgType,
+    contactName: body.contactName?.trim() || undefined,
+    contactPhone: body.contactPhone?.trim() || undefined,
+    status: 'active',
+  }
+  organizations.push(org)
+  return { ...org }
 }

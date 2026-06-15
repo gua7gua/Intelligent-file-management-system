@@ -98,7 +98,7 @@
             </div>
             <div class="field"><label>联系电话</label><input v-model="form.phone" /></div>
             <div class="field">
-              <label>所属单位</label>
+              <label>所属单位 <button type="button" class="link" @click="openOrgDialog">+新增组织</button></label>
               <select v-model="form.organizationId">
                 <option v-for="o in organizations" :key="o.id" :value="o.id">{{ o.orgName }}</option>
               </select>
@@ -143,6 +143,27 @@
         </div>
       </aside>
     </div>
+
+    <el-dialog v-if="orgDialogVisible" v-model="orgDialogVisible" title="新增组织" width="420px" :append-to-body="false">
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div class="field"><label>组织名称</label><input v-model="orgForm.orgName" data-testid="orgName" placeholder="组织名称" /></div>
+        <div class="field">
+          <label>组织类型</label>
+          <select v-model="orgForm.orgType">
+            <option value="archive_org">archive_org</option>
+            <option value="government">government</option>
+            <option value="enterprise">enterprise</option>
+            <option value="public_institution">public_institution</option>
+          </select>
+        </div>
+        <div class="field"><label>联系人</label><input v-model="orgForm.contactName" /></div>
+        <div class="field"><label>联系电话</label><input v-model="orgForm.contactPhone" /></div>
+      </div>
+      <template #footer>
+        <el-button @click="orgDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="orgSaving" @click="submitOrg">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -150,7 +171,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createUser, getRoles, getUserDetail, getUsers, resetUserPassword, updateUser, updateUserStatus } from '@/api/user-management'
-import { getOrganizations } from '@/api/organizations'
+import { createOrganization, getOrganizations } from '@/api/organizations'
 import { getFonds } from '@/api/fonds'
 import type { Role, User } from '@/types/user-management'
 import type { Organization } from '@/types/organization'
@@ -166,6 +187,14 @@ const fonds = ref<FondsReference[]>([])
 const loading = ref(false)
 const loadError = ref(false)
 const saving = ref(false)
+const orgDialogVisible = ref(false)
+const orgSaving = ref(false)
+const orgForm = reactive({
+  orgName: '',
+  orgType: 'government' as 'archive_org' | 'government' | 'enterprise' | 'public_institution',
+  contactName: '',
+  contactPhone: '',
+})
 const roleFilter = ref('')
 const appliedRoleFilter = ref('')
 
@@ -317,6 +346,33 @@ async function toggleStatus(u: User) {
     ElMessage.success('账号已启用。')
   }
   await loadAll()
+}
+
+function openOrgDialog() {
+  orgForm.orgName = ''
+  orgForm.orgType = 'government'
+  orgForm.contactName = ''
+  orgForm.contactPhone = ''
+  orgDialogVisible.value = true
+}
+
+async function submitOrg() {
+  if (!orgForm.orgName.trim()) {
+    ElMessage.error('组织名称不能为空')
+    return
+  }
+  orgSaving.value = true
+  try {
+    await createOrganization({ orgName: orgForm.orgName, orgType: orgForm.orgType, contactName: orgForm.contactName, contactPhone: orgForm.contactPhone })
+    ElMessage.success('组织已新增。')
+    orgDialogVisible.value = false
+    const o = await getOrganizations()
+    organizations.value = o.records
+  } catch (e) {
+    ElMessage.error((e as Error).message || '新增组织失败')
+  } finally {
+    orgSaving.value = false
+  }
 }
 
 onMounted(loadAll)
