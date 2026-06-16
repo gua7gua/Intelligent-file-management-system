@@ -382,7 +382,10 @@ public class PendingArchiveService {
             ArchiveBoxItem boxItem = new ArchiveBoxItem();
             boxItem.setBoxId(req.getBoxId());
             boxItem.setArchiveId(archive.getId());
-            boxItem.setSortNo(req.getSortNo() != null ? req.getSortNo() : 1);
+            // 默认 sortNo：未显式传入时，按盒内已有最大 sort_no + 1 自动递增，
+            // 避免同盒第二件档案因默认值 1 与已有项冲突（违反 uk_archive_box_items_box_sort）。
+            int sortNo = req.getSortNo() != null ? req.getSortNo() : nextBoxSortNo(req.getBoxId());
+            boxItem.setSortNo(sortNo);
             boxItem.setPageCount(req.getPageCount() != null ? req.getPageCount() : item.getPageCount());
             boxItem.setPhysicalStatus("normal");
             archiveBoxItemMapper.insert(boxItem);
@@ -501,6 +504,13 @@ public class PendingArchiveService {
      * - 存在 accepted/pending_archive 且无 rejected → received
      * - 存在 archived 且无 accepted/pending_archive → archived（全部可处理的已完成）
      */
+    private int nextBoxSortNo(Long boxId) {
+        QueryWrapper<ArchiveBoxItem> w = new QueryWrapper<>();
+        w.eq("box_id", boxId).orderByDesc("sort_no").last("LIMIT 1");
+        ArchiveBoxItem latest = archiveBoxItemMapper.selectOne(w);
+        return latest != null && latest.getSortNo() != null ? latest.getSortNo() + 1 : 1;
+    }
+
     private void recalculateBatchStatus(IntakeBatch batch) {
         QueryWrapper<IntakeItem> iw = new QueryWrapper<>();
         iw.eq("batch_id", batch.getId());
