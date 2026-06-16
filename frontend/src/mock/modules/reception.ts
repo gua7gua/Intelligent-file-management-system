@@ -6,7 +6,7 @@ const batchAItems: ReceptionItem[] = [
   {
     id: 101, batchId: 1, seqNo: 1,
     title: '2025 年 1 月会计凭证',
-    carrierType: '纸质+电子',
+    carrierStatus: 'paper_electronic',
     expectedFilename: '2025-01-voucher.pdf',
     paperCheckStatus: 'pending',
     fileMatchStatus: 'none',
@@ -18,7 +18,7 @@ const batchAItems: ReceptionItem[] = [
   {
     id: 102, batchId: 1, seqNo: 2,
     title: '2025 年 2 月会计凭证',
-    carrierType: '纸质+电子',
+    carrierStatus: 'paper_electronic',
     expectedFilename: '2025-02-voucher.pdf',
     paperCheckStatus: 'pending',
     fileMatchStatus: 'none',
@@ -30,7 +30,7 @@ const batchAItems: ReceptionItem[] = [
   {
     id: 103, batchId: 1, seqNo: 3,
     title: '2025 年 3 月会计凭证',
-    carrierType: '纸质+电子',
+    carrierStatus: 'paper_electronic',
     expectedFilename: '2025-03-voucher.pdf',
     paperCheckStatus: 'pending',
     fileMatchStatus: 'missing',
@@ -42,7 +42,7 @@ const batchAItems: ReceptionItem[] = [
   {
     id: 104, batchId: 1, seqNo: 4,
     title: '2025 年档案移交说明',
-    carrierType: '纯纸质',
+    carrierStatus: 'paper',
     expectedFilename: '',
     paperCheckStatus: 'pending',
     fileMatchStatus: 'none',
@@ -58,7 +58,7 @@ const batchBItems: ReceptionItem[] = [
   {
     id: 201, batchId: 2, seqNo: 1,
     title: '2025 年 1-6 月工资表',
-    carrierType: '纯电子',
+    carrierStatus: 'electronic',
     expectedFilename: 'salary-2025-h1.xlsx',
     paperCheckStatus: 'passed',
     fileMatchStatus: 'none',
@@ -70,7 +70,7 @@ const batchBItems: ReceptionItem[] = [
   {
     id: 202, batchId: 2, seqNo: 2,
     title: '2025 年 7-12 月工资表',
-    carrierType: '纯电子',
+    carrierStatus: 'electronic',
     expectedFilename: 'salary-2025-h2.xlsx',
     paperCheckStatus: 'passed',
     fileMatchStatus: 'none',
@@ -84,7 +84,7 @@ const batchBItems: ReceptionItem[] = [
 // ── 模拟上传后的暂存文件（批次 A） ──
 const mockStagingFiles: StagingFile[] = [
   {
-    id: 301, batchId: 1,
+    fileId: 301, batchId: 1,
     originalFilename: '2025-01-voucher.pdf',
     fileSize: 524288,
     sha256: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
@@ -95,7 +95,7 @@ const mockStagingFiles: StagingFile[] = [
     createdAt: '2026-06-12T10:30:00+08:00',
   },
   {
-    id: 302, batchId: 1,
+    fileId: 302, batchId: 1,
     originalFilename: '2025-02-voucher.pdf',
     fileSize: 483328,
     sha256: 'b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3',
@@ -106,7 +106,7 @@ const mockStagingFiles: StagingFile[] = [
     createdAt: '2026-06-12T10:30:00+08:00',
   },
   {
-    id: 303, batchId: 1,
+    fileId: 303, batchId: 1,
     originalFilename: '2025-03-voucher-copy.pdf',
     fileSize: 512000,
     sha256: 'c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4',
@@ -116,7 +116,7 @@ const mockStagingFiles: StagingFile[] = [
     createdAt: '2026-06-12T10:30:00+08:00',
   },
   {
-    id: 304, batchId: 1,
+    fileId: 304, batchId: 1,
     originalFilename: '2025-02-voucher.pdf',
     fileSize: 483328,
     sha256: 'b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3',
@@ -137,7 +137,7 @@ export const mockReceptionBatches: ReceptionBatch[] = [
     organizationId: 3,
     organizationName: '克拉玛依市财政局',
     departmentName: '财务部',
-    contactPerson: '小张',
+    contactName: '小张',
     contactPhone: '0990-6123456',
     expectedTransferDate: '2026-06-24',
     submittedAt: '2026-06-20T09:00:00+08:00',
@@ -155,7 +155,7 @@ export const mockReceptionBatches: ReceptionBatch[] = [
     organizationId: 3,
     organizationName: '克拉玛依市财政局',
     departmentName: '人事财务联合组',
-    contactPerson: '小张',
+    contactName: '小张',
     contactPhone: '0990-6123456',
     expectedTransferDate: '2026-06-09',
     submittedAt: '2026-06-08T14:00:00+08:00',

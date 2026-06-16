@@ -94,7 +94,7 @@
             <div class="detail-head">
               <h2 class="section-title">{{ activeBatch.batch.title }}</h2>
               <p class="muted" style="margin-top: -6px;">
-                {{ activeBatch.batch.batchNo }} / {{ activeBatch.batch.organizationName }} / {{ activeBatch.batch.contactPerson }} {{ activeBatch.batch.contactPhone }}
+                {{ activeBatch.batch.batchNo }} / {{ activeBatch.batch.organizationName }} / {{ activeBatch.batch.contactName }} {{ activeBatch.batch.contactPhone }}
               </p>
             </div>
             <div class="summary-row" style="margin-top: 12px;">
@@ -136,7 +136,7 @@
           <div v-if="activeBatch.stagingFiles.length > 0" class="match-grid">
             <div
               v-for="file in activeBatch.stagingFiles"
-              :key="file.id"
+              :key="file.fileId"
               class="match-card"
             >
               <div>
@@ -176,7 +176,7 @@
               <tr v-for="item in activeBatch.items" :key="item.id">
                 <td>{{ item.seqNo }}</td>
                 <td>{{ item.title }}</td>
-                <td>{{ item.carrierType }}</td>
+                <td>{{ carrierStatusLabel(item.carrierStatus) }}</td>
                 <td class="mono">{{ item.expectedFilename || '无电子文件' }}</td>
                 <td>
                   <select v-model="item.paperCheckStatus">
@@ -244,6 +244,7 @@ import {
   getReceptionBatches,
   getReceptionBatchDetail,
   uploadStagingFiles,
+  updateItemAcceptance,
   completeBatchAcceptance,
   exportReceipt,
 } from '@/api/reception'
@@ -355,6 +356,12 @@ function matchStatusClass(status: string): string {
   }
   return map[status] || ''
 }
+function carrierStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    electronic: '纯电子', paper_electronic: '纸质+电子', paper: '纯纸质',
+  }
+  return map[status] || status
+}
 function fileScanHint(file: StagingFile): string {
   if (file.matchStatus === 'matched') return '格式检查通过、哈希已记录、安全检查通过'
   if (file.matchStatus === 'unmatched') return '文件名与清单不一致，需人工确认或回退'
@@ -421,7 +428,7 @@ function acceptAllPaper() {
   if (!activeBatch.value) return
   activeBatch.value.items.forEach((item) => {
     item.paperCheckStatus = 'passed'
-    if (item.carrierType === '纯纸质' || item.fileMatchStatus === 'matched') {
+    if (item.carrierStatus === 'paper' || item.fileMatchStatus === 'matched') {
       item.result = 'accepted'
       if (!item.acceptanceNote) item.acceptanceNote = '纸质核对通过'
     }
@@ -444,6 +451,14 @@ async function confirmReceive() {
     return
   }
   try {
+    // 逐条提交验收结论（§7.5 PUT /admin/reception/items/{itemId}/acceptance）
+    for (const i of items) {
+      await updateItemAcceptance(i.id, {
+        result: i.result as 'accepted' | 'rejected',
+        acceptanceNote: i.acceptanceNote || undefined,
+        rejectReason: i.rejectReason || undefined,
+      })
+    }
     await completeBatchAcceptance(activeBatch.value.batch.id, { acceptanceNote: '现场清点完成' })
     const rejected = items.filter((i) => i.result === 'rejected').length
     ElMessage.success(

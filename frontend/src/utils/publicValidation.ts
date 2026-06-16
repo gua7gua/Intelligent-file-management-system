@@ -18,8 +18,9 @@ interface ResetPasswordForm {
 
 interface CollectionDraft {
   title: string
-  donorName: string
-  donorPhone: string
+  contactName: string
+  contactPhone: string
+  archiveYear?: number
   agreementAccepted: boolean
   items: unknown[]
 }
@@ -45,8 +46,9 @@ export function validateResetPassword(form: ResetPasswordForm): string[] {
 export function validateCollectionDraft(form: CollectionDraft): string[] {
   const errors: string[] = []
   if (!form.title.trim()) errors.push('请填写清单标题。')
-  if (!form.donorName.trim()) errors.push('请填写捐赠人。')
-  if (!phonePattern.test(form.donorPhone)) errors.push('请输入有效的联系电话。')
+  if (!form.contactName.trim()) errors.push('请填写联系人。')
+  if (!phonePattern.test(form.contactPhone)) errors.push('请输入有效的联系电话。')
+  if (!form.archiveYear) errors.push('请填写档案所属年度。')
   if (form.items.length === 0) errors.push('请至少添加一条征集条目。')
   if (!form.agreementAccepted) errors.push('请勾选在线捐赠协议。')
   return errors

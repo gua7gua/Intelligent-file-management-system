@@ -40,15 +40,16 @@ describe('publicValidation', () => {
     expect(
       validateCollectionDraft({
         title: '',
-        donorName: '',
-        donorPhone: 'abc',
+        contactName: '',
+        contactPhone: 'abc',
         agreementAccepted: false,
         items: [],
       }),
     ).toEqual([
       '请填写清单标题。',
-      '请填写捐赠人。',
+      '请填写联系人。',
       '请输入有效的联系电话。',
+      '请填写档案所属年度。',
       '请至少添加一条征集条目。',
       '请勾选在线捐赠协议。',
     ])

@@ -54,9 +54,9 @@ export interface PublicCollectionBatch {
   id: number
   batchNo: string
   title: string
-  donorName: string
-  donorPhone: string
-  donationNote: string
+  contactName: string
+  contactPhone: string
+  archiveYear: number
   status: BatchStatusValue
   statusText: string
   submittedAt?: string
@@ -104,24 +104,25 @@ export interface PublicAiQueryResult {
   rawJson: Record<string, unknown>
 }
 
+export interface PublicCollectionSummary {
+  total: number
+  draft: number
+  inProgress: number
+  completed: number
+}
+
+export interface PublicDownloadLog {
+  id: number
+  archiveId: number
+  accessType: string
+  accessedAt: string
+}
+
 export interface PublicOverviewData {
-  user: {
-    realName: string
-    phone: string
-    status: 'active' | 'disabled'
-  }
-  stats: PublicHomeStats & {
-    myPendingCollections: number
-    myDownloadCount: number
-  }
-  collections: PublicCollectionBatch[]
-  downloads: Array<{
-    id: number
-    archiveNo: string
-    title: string
-    downloadedAt: string
-    accessStatus: 'available' | 'permission_changed'
-  }>
+  collectionSummary: PublicCollectionSummary
+  recentCollections: PublicCollectionBatch[]
+  downloadLogs: PublicDownloadLog[]
+  summarizedAt: string
 }
 
 export interface PublicSmsCodeRequest {

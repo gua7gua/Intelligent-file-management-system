@@ -24,7 +24,7 @@ export function getReceptionBatches(
         if (params?.status && b.status !== params.status) return false
         if (params?.keyword) {
           const kw = params.keyword.toLowerCase()
-          const text = `${b.batchNo} ${b.title} ${b.organizationName} ${b.contactPerson}`.toLowerCase()
+          const text = `${b.batchNo} ${b.title} ${b.organizationName} ${b.contactName}`.toLowerCase()
           if (!text.includes(kw)) return false
         }
         return true

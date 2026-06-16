@@ -25,3 +25,12 @@ export interface OrganizationCreate {
   contactName?: string
   contactPhone?: string
 }
+
+/** 更新组织请求体（§17.7，部分更新；停用通过 status=disabled） */
+export interface OrganizationUpdate {
+  orgName?: string
+  orgType?: 'archive_org' | 'government' | 'enterprise' | 'public_institution'
+  contactName?: string
+  contactPhone?: string
+  status?: 'active' | 'disabled'
+}

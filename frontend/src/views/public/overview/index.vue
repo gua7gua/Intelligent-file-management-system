@@ -2,23 +2,17 @@
   <div>
     <section>
       <h1 class="page-title">公众概览</h1>
-      <p class="page-subtitle">查看您的账号状态、征集清单进度和历史下载记录。</p>
+      <p class="page-subtitle">查看您的征集清单进度和历史下载记录。</p>
     </section>
 
     <div v-if="loading" class="notice" style="margin-top: 18px">正在加载…</div>
     <div v-else-if="loadError" class="notice danger" style="margin-top: 18px">{{ loadError }}</div>
 
     <template v-else>
-      <!-- 欢迎区 -->
+      <!-- 操作入口 -->
       <section class="card panel" style="margin-top: 18px">
         <div class="detail-head">
-          <div>
-            <h2 class="section-title">{{ overview.user.realName }}，欢迎回来</h2>
-            <p class="muted">手机号：{{ overview.user.phone }}</p>
-          </div>
-          <span :class="['status', overview.user.status === 'active' ? 'success' : 'danger']">
-            {{ overview.user.status === 'active' ? '正常' : '已停用' }}
-          </span>
+          <h2 class="section-title">{{ authStore.user?.realName ? authStore.user.realName + '，欢迎回来' : '欢迎使用公众档案服务' }}</h2>
         </div>
         <div class="actions" style="margin-top: 12px">
           <router-link to="/public/search" class="button">公开档案检索</router-link>
@@ -26,23 +20,23 @@
         </div>
       </section>
 
-      <!-- 统计卡片 -->
+      <!-- 征集统计 -->
       <section class="grid four" style="margin-top: 16px">
         <div class="metric">
-          <span class="label">公开档案</span>
-          <span class="value">{{ overview.stats.openArchiveCount }}</span>
+          <span class="label">征集总数</span>
+          <span class="value">{{ overview.collectionSummary.total }}</span>
         </div>
         <div class="metric">
-          <span class="label">电子文件</span>
-          <span class="value">{{ overview.stats.electronicFileCount }}</span>
+          <span class="label">草稿</span>
+          <span class="value">{{ overview.collectionSummary.draft }}</span>
         </div>
         <div class="metric">
-          <span class="label">我的征集</span>
-          <span class="value">{{ overview.stats.myPendingCollections }}</span>
+          <span class="label">进行中</span>
+          <span class="value">{{ overview.collectionSummary.inProgress }}</span>
         </div>
         <div class="metric">
-          <span class="label">下载次数</span>
-          <span class="value">{{ overview.stats.myDownloadCount }}</span>
+          <span class="label">已完成</span>
+          <span class="value">{{ overview.collectionSummary.completed }}</span>
         </div>
       </section>
 
@@ -61,10 +55,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-if="overview.collections.length === 0">
+              <tr v-if="overview.recentCollections.length === 0">
                 <td colspan="5"><div class="empty">暂无征集记录</div></td>
               </tr>
-              <tr v-for="col in overview.collections" :key="col.id">
+              <tr v-for="col in overview.recentCollections" :key="col.id">
                 <td class="mono">{{ col.batchNo }}</td>
                 <td>{{ col.title }}</td>
                 <td>{{ col.itemCount }} 件</td>
@@ -83,29 +77,26 @@
           <table>
             <thead>
               <tr>
-                <th>档案号</th>
-                <th>标题</th>
-                <th>下载时间</th>
-                <th>访问状态</th>
+                <th>档案</th>
+                <th>访问类型</th>
+                <th>访问时间</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-if="overview.downloads.length === 0">
-                <td colspan="4"><div class="empty">暂无下载记录</div></td>
+              <tr v-if="overview.downloadLogs.length === 0">
+                <td colspan="3"><div class="empty">暂无下载记录</div></td>
               </tr>
-              <tr v-for="dl in overview.downloads" :key="dl.id">
-                <td class="mono">{{ dl.archiveNo }}</td>
-                <td>{{ dl.title }}</td>
-                <td>{{ dl.downloadedAt }}</td>
-                <td>
-                  <span v-if="dl.accessStatus === 'available'" class="status success">可访问</span>
-                  <span v-else class="status danger">权限已变更，请重新鉴权</span>
-                </td>
+              <tr v-for="dl in overview.downloadLogs" :key="dl.id">
+                <td class="mono">档案 #{{ dl.archiveId }}</td>
+                <td>{{ accessTypeLabel(dl.accessType) }}</td>
+                <td>{{ dl.accessedAt }}</td>
               </tr>
             </tbody>
           </table>
         </div>
       </section>
+
+      <p class="muted" style="margin-top: 14px">数据更新于 {{ overview.summarizedAt || '-' }}</p>
     </template>
   </div>
 </template>
@@ -113,23 +104,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getPublicOverview } from '@/api/public'
+import { useAuthStore } from '@/stores/auth'
 import type { PublicOverviewData } from '@/types/public'
+
+const authStore = useAuthStore()
 
 const loading = ref(true)
 const loadError = ref('')
 
 const defaultOverview: PublicOverviewData = {
-  user: { realName: '', phone: '', status: 'active' },
-  stats: {
-    openArchiveCount: 0,
-    electronicFileCount: 0,
-    collectionCount: 0,
-    latestOpenCount: 0,
-    myPendingCollections: 0,
-    myDownloadCount: 0,
-  },
-  collections: [],
-  downloads: [],
+  collectionSummary: { total: 0, draft: 0, inProgress: 0, completed: 0 },
+  recentCollections: [],
+  downloadLogs: [],
+  summarizedAt: '',
 }
 
 const overview = ref<PublicOverviewData>(defaultOverview)
@@ -144,6 +131,11 @@ function collectionStatusClass(status: string): string {
     rejected: 'danger',
   }
   return map[status] || ''
+}
+
+function accessTypeLabel(t: string): string {
+  const map: Record<string, string> = { download: '下载', preview: '预览' }
+  return map[t] || t
 }
 
 onMounted(async () => {

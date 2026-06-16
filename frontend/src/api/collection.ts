@@ -20,7 +20,7 @@ export function getCollections(
         if (params?.status && b.status !== params.status) return false
         if (params?.keyword) {
           const kw = params.keyword.toLowerCase()
-          const text = `${b.batchNo} ${b.title} ${b.donorName} ${b.donorPhone}`.toLowerCase()
+          const text = `${b.batchNo} ${b.title} ${b.contactName} ${b.contactPhone}`.toLowerCase()
           if (!text.includes(kw)) return false
         }
         return true

@@ -31,7 +31,7 @@ export interface TransferBatch {
   statusText: string
   organizationName: string
   departmentName: string
-  contactPerson: string
+  contactName: string
   contactPhone: string
   archiveYear: number
   expectedTransferDate: string

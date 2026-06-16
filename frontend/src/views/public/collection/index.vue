@@ -16,16 +16,16 @@
               <input id="colTitle" v-model="draft.title" :readonly="submitted" />
             </div>
             <div class="field">
-              <label for="donorName">捐赠人</label>
-              <input id="donorName" v-model="draft.donorName" :readonly="submitted" />
+              <label for="contactName">联系人</label>
+              <input id="contactName" v-model="draft.contactName" :readonly="submitted" />
             </div>
             <div class="field">
-              <label for="donorPhone">联系电话</label>
-              <input id="donorPhone" v-model="draft.donorPhone" :readonly="submitted" />
+              <label for="contactPhone">联系电话</label>
+              <input id="contactPhone" v-model="draft.contactPhone" :readonly="submitted" />
             </div>
             <div class="field">
-              <label for="donationNote">捐赠说明</label>
-              <input id="donationNote" v-model="draft.donationNote" :readonly="submitted" />
+              <label for="archiveYear">档案所属年度</label>
+              <input id="archiveYear" v-model.number="draft.archiveYear" type="number" min="1900" max="2099" placeholder="如 1980" :readonly="submitted" />
             </div>
           </div>
         </section>
@@ -137,6 +137,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { ElMessage } from 'element-plus'
 import { parseLocalFiles } from '@/utils/fileParser'
 import type { ParsedLocalFile } from '@/utils/fileParser'
 import { validateCollectionDraft } from '@/utils/publicValidation'
@@ -149,9 +150,9 @@ interface DraftItem extends PublicCollectionItem {
 
 const draft = reactive({
   title: '',
-  donorName: '',
-  donorPhone: '',
-  donationNote: '',
+  contactName: '',
+  contactPhone: '',
+  archiveYear: undefined as number | undefined,
   agreementAccepted: false,
 })
 
@@ -233,9 +234,9 @@ function buildBatchPayload(): PublicCollectionBatch {
     id: batchId.value ?? 0,
     batchNo: '',
     title: draft.title,
-    donorName: draft.donorName,
-    donorPhone: draft.donorPhone,
-    donationNote: draft.donationNote,
+    contactName: draft.contactName,
+    contactPhone: draft.contactPhone,
+    archiveYear: draft.archiveYear ?? 0,
     status: 'draft',
     statusText: '草稿',
     itemCount: items.value.length,
@@ -252,8 +253,9 @@ async function saveDraft() {
       const result = await createCollectionDraft(payload)
       batchId.value = result.id
     }
-  } catch {
-    // 静默处理
+    ElMessage.success('草稿已保存')
+  } catch (e) {
+    ElMessage.error((e as Error).message || '保存草稿失败')
   }
 }
 
@@ -269,8 +271,9 @@ async function submitCollection() {
     submitted.value = true
     validationErrors.value = []
     validationType.value = ''
-  } catch {
-    // 静默处理
+    ElMessage.success('征集清单已提交')
+  } catch (e) {
+    ElMessage.error((e as Error).message || '提交失败，请稍后重试')
   }
 }
 </script>

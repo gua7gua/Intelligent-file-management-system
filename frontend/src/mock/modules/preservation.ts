@@ -42,7 +42,7 @@ export function mockCreateBackupTask(data: BackupTaskCreateData): BackupTask {
     throw new Error('当前已有运行中的备份任务，请等待其完成')
   }
   const id = nextTaskId++
-  const now = '2026-06-15T10:00:00+08:00'
+  const now = new Date().toISOString()
   const task: BackupTask = {
     id,
     taskNo: `BAK-${id}`,
@@ -77,7 +77,7 @@ export function mockFileCheckRecords(params?: FileCheckRecordParams): PageData<F
 }
 
 export function mockTriggerFileCheck(fileId: number, data: TriggerCheckData): FileCheckRecord[] {
-  const now = '2026-06-15T10:05:00+08:00'
+  const now = new Date().toISOString()
   const resultMap: Record<string, FileCheckRecord['checkResult']> = {
     integrity: 'passed',
     usability: 'passed',

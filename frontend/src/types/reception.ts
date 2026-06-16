@@ -1,4 +1,5 @@
 // src/types/reception.ts
+import type { CarrierStatusValue } from './transfer'
 
 /** 前台验收批次 */
 export interface ReceptionBatch {
@@ -11,7 +12,7 @@ export interface ReceptionBatch {
   organizationId: number
   organizationName: string
   departmentName: string
-  contactPerson: string
+  contactName: string
   contactPhone: string
   expectedTransferDate: string
   submittedAt: string
@@ -30,7 +31,7 @@ export interface ReceptionItem {
   batchId: number
   seqNo: number
   title: string
-  carrierType: string
+  carrierStatus: CarrierStatusValue
   expectedFilename: string
   paperCheckStatus: 'pending' | 'passed' | 'failed'
   fileMatchStatus: 'none' | 'matched' | 'unmatched' | 'duplicate' | 'missing' | 'failed'
@@ -43,7 +44,7 @@ export interface ReceptionItem {
 
 /** 暂存文件 */
 export interface StagingFile {
-  id: number
+  fileId: number
   batchId: number
   originalFilename: string
   fileSize: number

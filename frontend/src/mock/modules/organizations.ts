@@ -1,4 +1,4 @@
-import type { Organization, OrganizationCreate, OrganizationParams } from '@/types/organization'
+import type { Organization, OrganizationCreate, OrganizationParams, OrganizationUpdate } from '@/types/organization'
 import type { PageData } from '@/types/api'
 
 const organizations: Organization[] = [
@@ -39,5 +39,22 @@ export function mockCreateOrganization(body: OrganizationCreate): Organization {
     status: 'active',
   }
   organizations.push(org)
+  return { ...org }
+}
+
+export function mockUpdateOrganization(id: number, body: OrganizationUpdate): Organization {
+  const org = organizations.find((o) => o.id === id)
+  if (!org) throw new Error('组织不存在：' + id)
+  if (body.orgName !== undefined) {
+    const name = body.orgName.trim()
+    if (organizations.some((o) => o.id !== id && o.orgName === name)) {
+      throw new Error('组织名称已存在：' + body.orgName)
+    }
+    org.orgName = name
+  }
+  if (body.orgType !== undefined) org.orgType = body.orgType
+  if (body.contactName !== undefined) org.contactName = body.contactName?.trim() || undefined
+  if (body.contactPhone !== undefined) org.contactPhone = body.contactPhone?.trim() || undefined
+  if (body.status !== undefined) org.status = body.status
   return { ...org }
 }

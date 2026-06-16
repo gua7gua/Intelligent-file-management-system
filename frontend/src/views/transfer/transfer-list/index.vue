@@ -205,12 +205,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { parseLocalFiles } from '@/utils/fileParser'
 import type { ParsedLocalFile } from '@/utils/fileParser'
 import { validateTransferDraft } from '@/utils/transferValidation'
-import { createTransferBatch, updateTransferBatch, submitTransferBatch, exportTransferBatch } from '@/api/transfer'
+import {
+  createTransferBatch,
+  updateTransferBatch,
+  submitTransferBatch,
+  exportTransferBatch,
+  getTransferBatchDetail,
+} from '@/api/transfer'
 import type { TransferItem } from '@/types/transfer'
+
+const route = useRoute()
 
 const batch = reactive({
   title: '',
@@ -227,6 +237,29 @@ const submitted = ref(false)
 const batchId = ref<number | null>(null)
 const validationErrors = ref<string[]>([])
 const validationType = ref('')
+
+// 继续编辑：从路由 ?batchId= 加载已有草稿回填表单
+async function loadDraftForEdit(id: number) {
+  try {
+    const detail = await getTransferBatchDetail(id)
+    batchId.value = detail.id
+    batch.title = detail.title
+    batch.departmentName = detail.departmentName
+    batch.contactPhone = detail.contactPhone
+    batch.archiveYear = detail.archiveYear
+    batch.expectedTransferDate = detail.expectedTransferDate
+    items.value = detail.items.map((it) => ({ ...it }))
+    // 非草稿状态（已提交等）只读展示
+    submitted.value = detail.status !== 'draft'
+  } catch (e) {
+    ElMessage.error((e as Error).message || '加载清单草稿失败')
+  }
+}
+
+onMounted(() => {
+  const id = Number(route.query.batchId)
+  if (id > 0) loadDraftForEdit(id)
+})
 
 function addBlankItem() {
   if (submitted.value) return
@@ -329,7 +362,7 @@ async function saveDraft() {
         status: 'draft' as const,
         statusText: '草稿',
         organizationName: '',
-        contactPerson: '',
+        contactName: '',
         itemCount: items.value.length,
         acceptedCount: 0,
         rejectedCount: 0,
@@ -344,7 +377,7 @@ async function saveDraft() {
         status: 'draft' as const,
         statusText: '草稿',
         organizationName: '',
-        contactPerson: '',
+        contactName: '',
         itemCount: items.value.length,
         acceptedCount: 0,
         rejectedCount: 0,
@@ -352,8 +385,9 @@ async function saveDraft() {
       })
       batchId.value = result.id
     }
-  } catch {
-    // 静默处理
+    ElMessage.success('草稿已保存')
+  } catch (e) {
+    ElMessage.error((e as Error).message || '保存草稿失败')
   }
 }
 
@@ -373,7 +407,7 @@ async function submitList() {
         status: 'draft' as const,
         statusText: '草稿',
         organizationName: '',
-        contactPerson: '',
+        contactName: '',
         itemCount: items.value.length,
         acceptedCount: 0,
         rejectedCount: 0,
@@ -385,8 +419,9 @@ async function submitList() {
     submitted.value = true
     validationErrors.value = []
     validationType.value = ''
-  } catch {
-    // 静默处理
+    ElMessage.success('移交清单已提交')
+  } catch (e) {
+    ElMessage.error((e as Error).message || '提交失败，请稍后重试')
   }
 }
 
@@ -400,8 +435,8 @@ async function exportList() {
     a.download = `transfer-batch-${batchId.value}.pdf`
     a.click()
     URL.revokeObjectURL(url)
-  } catch {
-    // 静默处理
+  } catch (e) {
+    ElMessage.error((e as Error).message || '导出失败')
   }
 }
 </script>

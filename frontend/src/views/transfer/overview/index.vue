@@ -154,7 +154,7 @@
             <div class="meta-item"><span>移交单位</span><strong>{{ selectedBatch.organizationName }}</strong></div>
             <div class="meta-item"><span>移交部门</span><strong>{{ selectedBatch.departmentName }}</strong></div>
             <div class="meta-item">
-              <span>经办人</span><strong>{{ selectedBatch.contactPerson }} {{ selectedBatch.contactPhone }}</strong>
+              <span>经办人</span><strong>{{ selectedBatch.contactName }} {{ selectedBatch.contactPhone }}</strong>
             </div>
             <div class="meta-item">
               <span>提交时间</span><strong>{{ selectedBatch.submittedAt || '未提交' }}</strong>
@@ -236,6 +236,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { getTransferDashboard, getTransferBatches, getTransferBatchDetail, exportTransferBatch } from '@/api/transfer'
 import type { TransferDashboard, TransferBatch, TransferBatchDetail } from '@/types/transfer'
 
@@ -349,8 +350,9 @@ async function loadDetail() {
   if (!batch) return
   try {
     detailData.value = await getTransferBatchDetail(batch.id)
-  } catch {
+  } catch (e) {
     detailData.value = null
+    ElMessage.error((e as Error).message || '清单详情加载失败')
   }
 }
 
@@ -363,8 +365,8 @@ async function handleExport(batchId: number) {
     a.download = `transfer-batch-${batchId}.pdf`
     a.click()
     URL.revokeObjectURL(url)
-  } catch {
-    // 静默处理
+  } catch (e) {
+    ElMessage.error((e as Error).message || '导出失败')
   }
 }
 

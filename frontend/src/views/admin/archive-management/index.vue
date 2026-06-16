@@ -53,13 +53,6 @@
               </select>
             </div>
             <div class="field">
-              <label>保管期限</label>
-              <select v-model="query.retentionPeriod">
-                <option value="">全部</option>
-                <option v-for="(label, val) in RetentionPeriodLabel" :key="val" :value="val">{{ label }}</option>
-              </select>
-            </div>
-            <div class="field">
               <label>载体状态</label>
               <select v-model="query.carrierStatus">
                 <option value="">全部</option>
@@ -221,7 +214,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ArchiveRecord, ArchiveDetail } from '@/types/archive'
-import { ArchiveStatusLabel, CarrierStatusLabel, SecurityLevelLabel, RetentionPeriodLabel } from '@/types/enums'
+import { ArchiveStatusLabel, CarrierStatusLabel, SecurityLevelLabel } from '@/types/enums'
 import { getArchives, getArchiveDetail, updateArchive, submitSecurityAdjust, submitOpenAdjust } from '@/api/archive'
 
 // ── 分类树 ──
@@ -241,7 +234,6 @@ const query = reactive({
   year: undefined as number | undefined,
   securityLevel: '' as string | number,
   openStatus: '',
-  retentionPeriod: '',
   carrierStatus: '',
 })
 const archives = ref<ArchiveRecord[]>([])
@@ -327,7 +319,6 @@ function handleReset() {
   query.year = undefined
   query.securityLevel = ''
   query.openStatus = ''
-  query.retentionPeriod = ''
   query.carrierStatus = ''
   loadArchives()
 }

@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   archiveCompilation, createCompilation, generateCompilationBody, getCompilationDetail,
   getCompilations, searchMaterials, updateCompilation,
 } from '@/api/compilation'
+import { getFonds } from '@/api/fonds'
 import type { Compilation, CompilationDetail, MaterialCandidate } from '@/types/compilation'
+import type { FondsItem } from '@/types/fonds'
 import { CompilationStatusLabel } from '@/types/enums'
 
 const list = ref<Compilation[]>([])
@@ -28,6 +30,42 @@ const saving = ref(false)
 const generating = ref(false)
 
 const typeOptions = ['专题汇编', '大事记', '组织史', '目录索引', '参考资料']
+
+// 入库表单：编研成果按纯电子正式档案入库（§19.6）
+const archiveForm = reactive({
+  fondsId: 0,
+  categoryId: 1,
+  formedDate: '',
+  retentionPeriod: 'permanent',
+  openStatus: 'open',
+  tagNames: '',
+})
+const fondsOptions = ref<FondsItem[]>([])
+const categoryOptions = [
+  { id: 1, name: '文书档案' },
+  { id: 2, name: '科技档案' },
+  { id: 3, name: '会计档案' },
+  { id: 4, name: '音像档案' },
+  { id: 5, name: '实物档案' },
+]
+const retentionOptions = [
+  { value: 'permanent', label: '永久' },
+  { value: '30y', label: '30 年' },
+  { value: '10y', label: '10 年' },
+]
+const openStatusOptions = [
+  { value: 'open', label: '公开' },
+  { value: 'closed', label: '不公开' },
+]
+
+async function loadFonds() {
+  try {
+    const page = await getFonds({ pageSize: 100 })
+    fondsOptions.value = page.records
+  } catch {
+    fondsOptions.value = []
+  }
+}
 
 const filtered = computed(() => list.value.filter((c) => {
   if (filterStatus.value && c.status !== filterStatus.value) return false
@@ -140,6 +178,8 @@ async function archive() {
   if (status.value !== 'generated') { ElMessage.warning('请先生成正文文件'); return }
   if (!summary.value.trim()) { ElMessage.warning('请填写摘要'); return }
   if (selectedMaterials.value.length === 0) { ElMessage.warning('请添加至少一个素材'); return }
+  if (archiveForm.fondsId === 0) { ElMessage.warning('请选择所属全宗后再入库'); return }
+  if (!archiveForm.formedDate) { ElMessage.warning('请填写形成日期后再入库'); return }
   try {
     await ElMessageBox.confirm('确认纯电子入库？入库后生成正式档号且不可再编辑。', '确认入库', { type: 'warning' })
   } catch {
@@ -147,7 +187,12 @@ async function archive() {
   }
   try {
     const d = await archiveCompilation(currentDetail.value.id, {
-      fondsId: 1, categoryId: 1, formedDate: '2026-06-17', retentionPeriod: 'permanent', openStatus: 'open',
+      fondsId: archiveForm.fondsId,
+      categoryId: archiveForm.categoryId,
+      formedDate: archiveForm.formedDate,
+      retentionPeriod: archiveForm.retentionPeriod,
+      openStatus: archiveForm.openStatus,
+      tagNames: archiveForm.tagNames.split(',').map((t) => t.trim()).filter(Boolean),
     })
     fillForm(d)
     await load()
@@ -169,7 +214,10 @@ function removeMaterial(id: number) {
   selectedMaterials.value = selectedMaterials.value.filter((m) => m.id !== id)
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadFonds()
+})
 </script>
 
 <template>
@@ -321,6 +369,41 @@ onMounted(load)
             <div class="check-item"><span>来源类型</span><span class="status">compilation</span></div>
             <div class="check-item"><span>载体状态</span><span class="status success">纯电子</span></div>
             <div class="check-item"><span>正式文件角色</span><span class="mono">compilation_body</span></div>
+          </div>
+          <div class="form-grid" style="margin-top:14px">
+            <div class="field">
+              <label>所属全宗</label>
+              <select v-model="archiveForm.fondsId" :disabled="isReadonly">
+                <option :value="0">请选择</option>
+                <option v-for="f in fondsOptions" :key="f.id" :value="f.id">{{ f.fondsNo }} · {{ f.fondsName }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>档案门类</label>
+              <select v-model="archiveForm.categoryId" :disabled="isReadonly">
+                <option v-for="c in categoryOptions" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>形成日期</label>
+              <input v-model="archiveForm.formedDate" type="date" :disabled="isReadonly" />
+            </div>
+            <div class="field">
+              <label>保管期限</label>
+              <select v-model="archiveForm.retentionPeriod" :disabled="isReadonly">
+                <option v-for="r in retentionOptions" :key="r.value" :value="r.value">{{ r.label }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>是否公开</label>
+              <select v-model="archiveForm.openStatus" :disabled="isReadonly">
+                <option v-for="o in openStatusOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>标签</label>
+              <input v-model="archiveForm.tagNames" placeholder="多个标签用逗号分隔" :disabled="isReadonly" />
+            </div>
           </div>
           <div class="actions" style="margin-top:14px">
             <button class="button secondary" :disabled="isReadonly || generating || !currentDetail" @click="generateBody"><span class="icon">G</span>生成正文文件</button>
