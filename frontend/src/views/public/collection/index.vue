@@ -259,8 +259,9 @@ async function saveDraft() {
 }
 
 async function submitCollection() {
-  if (!validateDraft()) return
+  // 提交即表明同意在线捐赠协议（本页无独立勾选控件，由提交动作本身确认同意）
   draft.agreementAccepted = true
+  if (!validateDraft()) return
   try {
     if (!batchId.value) {
       const created = await createCollectionDraft(buildBatchPayload())
