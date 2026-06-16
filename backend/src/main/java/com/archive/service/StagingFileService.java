@@ -348,6 +348,19 @@ public class StagingFileService {
         return items.stream().map(IntakeItem::getId).collect(Collectors.toList());
     }
 
+    /**
+     * 列出指定批次下未删除的暂存电子文件（按上传时间倒序）。
+     * 供验收详情接口回填 stagingFiles 字段，让前台核对 U 盘文件扫描与匹配结果。
+     */
+    public List<StagingFileResponse> listByBatch(Long batchId) {
+        List<StagingFile> files = stagingFileMapper.selectList(
+                new QueryWrapper<StagingFile>()
+                        .eq("batch_id", batchId)
+                        .ne("match_status", com.archive.enums.MatchStatus.deleted.name())
+                        .orderByDesc("id"));
+        return files.stream().map(this::toResponse).collect(Collectors.toList());
+    }
+
     private StagingFileResponse toResponse(StagingFile sf) {
         StagingFileResponse resp = new StagingFileResponse();
         resp.setFileId(sf.getId());

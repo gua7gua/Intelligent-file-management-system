@@ -707,6 +707,8 @@ public class IntakeBatchService {
                     new QueryWrapper<IntakeItem>().eq("batch_id", batch.getId()).orderByAsc("item_no"));
             resp.setItems(items.stream().map(this::toItemResponse).collect(Collectors.toList()));
             resp.setItemCount(items.size());
+            // 回填该批次已上传的暂存电子文件，供前台核对 ClamAV 扫描与匹配结果（§7.2）
+            resp.setStagingFiles(stagingFileService.listByBatch(batch.getId()));
         } else {
             Long count = itemMapper.selectCount(
                     new QueryWrapper<IntakeItem>().eq("batch_id", batch.getId()));
