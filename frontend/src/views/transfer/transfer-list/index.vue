@@ -3,7 +3,7 @@
     <section>
       <h1 class="page-title">编制移交清单</h1>
       <p class="page-subtitle">
-        填写清单级信息和条目字段。拖拽电子文件只会在浏览器本地解析文件名、扩展名和大小，用于辅助填表，真正文件上传由前台管理员在验收阶段完成。
+        填写清单级信息和条目字段。
       </p>
     </section>
 
@@ -52,7 +52,7 @@
             <div>
               <strong>拖拽文件到这里，或选择本地文件</strong>
               <p class="muted" style="margin: 6px 0 0">
-                系统只读取文件名、扩展名、大小，只解析不上传文件本体。
+                文件不会上传，仅用于辅助填表。
               </p>
             </div>
             <label class="button secondary" for="filePicker">选择文件</label>
@@ -62,7 +62,7 @@
             <div v-for="(file, idx) in localFiles" :key="idx" class="local-file">
               <div>
                 <strong>{{ file.expectedFilename }}</strong>
-                <div class="hint">{{ file.electronicFormat || '未知格式' }}，{{ formatSize(file.localFileSize) }}，仅本地解析</div>
+                <div class="hint">{{ file.electronicFormat || '未知格式' }}，{{ formatSize(file.localFileSize) }}</div>
               </div>
               <span class="status info">未上传</span>
             </div>
@@ -116,7 +116,7 @@
                   </td>
                   <td>
                     <select v-model="item.carrierStatus" :disabled="submitted">
-                      <option value="">人工确认</option>
+                      <option value="">请选择</option>
                       <option value="electronic">纯电子</option>
                       <option value="paper_electronic">纸质+电子</option>
                       <option value="paper">纯纸质</option>
@@ -172,7 +172,7 @@
               </ul>
             </template>
             <template v-else>
-              已准备校验。提交前请确认载体状态、保管期限、密级、公开状态等人工判断字段。
+              提交前请确认各项信息填写完整。
             </template>
           </div>
           <div class="actions" style="margin-top: 12px">
@@ -180,15 +180,7 @@
             <button class="button" type="button" :disabled="submitted" @click="submitList">提交清单</button>
             <button v-if="submitted" class="button secondary" type="button" @click="exportList">导出打印清单</button>
           </div>
-          <p class="hint">提交后清单状态变为待移交，条目状态变为待验收；移交单位不可再编辑，只能导出清单或查看进度。</p>
-        </section>
-
-        <section class="notice warning">
-          <strong>字段保护边界</strong>
-          <p style="margin: 8px 0 0">
-            拖拽文件不会判断载体状态。密级、保管期限、是否公开、是否允许数字化由经办人填写，后续 AI
-            和普通编辑不能覆盖。
-          </p>
+          <p class="hint">提交后清单将不可再编辑。</p>
         </section>
 
         <section class="card panel">

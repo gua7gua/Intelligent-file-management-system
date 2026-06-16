@@ -4,7 +4,7 @@
     <section class="card panel">
       <p class="status warning">公众账号找回</p>
       <h1 class="page-title" style="margin-top: 12px">重置公众账号密码</h1>
-      <p class="page-subtitle">本页仅处理公众账号的密码找回。内部账号请联系系统管理员重置。</p>
+      <p class="page-subtitle">本页用于公众账号密码找回。</p>
       <ol class="step-list">
         <li><strong>1. 校验手机号</strong><br /><span class="muted">确认手机号属于有效公众账号。</span></li>
         <li><strong>2. 验证短信码</strong><br /><span class="muted">验证码校验通过后允许设置新密码。</span></li>
@@ -55,7 +55,7 @@
       <div v-if="resultMessage" style="margin-top: 14px" aria-live="polite">
         <div :class="['notice', resultType]">{{ resultMessage }}</div>
       </div>
-      <p class="hint">系统管理员、档案管理员、移交单位经办人、内部查阅者和馆领导账号不通过公众找回流程处理。</p>
+      <p class="hint">如需重置内部账号，请联系管理员。</p>
     </section>
   </div>
 </template>

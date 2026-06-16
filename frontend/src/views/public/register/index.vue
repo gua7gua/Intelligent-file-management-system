@@ -8,9 +8,8 @@
         注册后可下载公开电子文件、提交征集清单、查看本人下载记录和征集状态。
       </p>
       <div class="flow-strip" style="grid-template-columns: 1fr">
-        <div class="flow-step"><strong>公开检索</strong>仅检索非密、公开、未销毁的正式档案。</div>
-        <div class="flow-step"><strong>征集清单</strong>只登记捐赠意向和文件名，不上传文件本体。</div>
-        <div class="flow-step"><strong>内部账号</strong>由系统管理员维护，不在公众注册页创建。</div>
+        <div class="flow-step"><strong>公开检索</strong>检索已公开的正式档案。</div>
+        <div class="flow-step"><strong>征集清单</strong>登记捐赠意向和相关文件信息。</div>
       </div>
     </section>
 
@@ -58,7 +57,7 @@
         <label class="check-row">
           <input v-model="form.accepted" type="checkbox" />
           <span
-            >我确认公众账号仅用于公开档案检索、下载和征集意向提交；下载电子文件需重新经过后端鉴权并记录日志。</span
+            >我确认公众账号仅用于公开档案检索、下载和征集意向提交；下载公开电子文件需登录公众账号并遵守使用约定。</span
           >
         </label>
         <div class="actions">
@@ -142,13 +141,13 @@ async function handleSubmit() {
     return
   }
   try {
-    const result = await registerPublicUser({
+    await registerPublicUser({
       phone: form.phone,
       smsCode: form.smsCode,
       password: form.password,
       realName: form.realName,
     })
-    resultMessage.value = `注册成功：user_type=public，默认角色 ${result.roles.join(', ')}。即将进入公众概览。`
+    resultMessage.value = `注册成功，即将进入公众概览。`
     resultType.value = ''
     setTimeout(() => router.push('/public/overview'), 2000)
   } catch {

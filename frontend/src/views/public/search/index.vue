@@ -2,8 +2,8 @@
   <div>
     <section>
       <h1 class="page-title">公开档案检索</h1>
-      <p class="page-subtitle">检索非密、公开、未销毁的正式档案元数据。AI 查询只生成搜索条件，不会自动执行检索。</p>
-      <div class="notice" style="margin-top: 8px">电子文件预览和下载需登录公众账号，下载需登录后记录访问日志。</div>
+      <p class="page-subtitle">检索已公开的正式档案元数据。</p>
+      <div class="notice" style="margin-top: 8px">电子文件预览和下载需登录公众账号。</div>
     </section>
 
     <!-- AI 自然语言查询 -->
@@ -21,7 +21,7 @@
       </div>
       <div v-if="aiResult" class="notice" style="margin-top: 12px">
         <strong>AI 生成条件</strong>
-        <pre style="margin: 8px 0 0; white-space: pre-wrap; font-size: 13px">{{ JSON.stringify(aiResult.conditions, null, 2) }}</pre>
+        <p style="margin: 8px 0 0">{{ aiSummary }}</p>
         <button class="button" type="button" style="margin-top: 8px" @click="applyAiConditions">应用条件并检索</button>
       </div>
     </section>
@@ -34,7 +34,7 @@
       <div class="filter-block">
         <div class="filter-block-head">
           <strong>公开元数据</strong>
-          <span class="hint">只查询非密、公开、正常且未销毁档案</span>
+          <span class="hint">仅展示已公开档案。</span>
         </div>
         <div class="form-grid">
           <div class="field">
@@ -104,7 +104,7 @@
       <div class="filter-block">
         <div class="filter-block-head">
           <strong>电子文件</strong>
-          <span class="hint">下载电子文件仍需登录公众账号</span>
+          <span class="hint">下载需登录公众账号</span>
         </div>
         <div class="form-grid">
           <div class="field">
@@ -233,6 +233,25 @@ const sourceOptions = [
 ]
 
 const searchParams = reactive<PublicSearchParams>({})
+
+// 将 AI 生成的检索条件渲染为人类可读摘要
+const aiSummary = computed(() => {
+  const c = aiResult.value?.conditions as Record<string, unknown> | undefined
+  if (!c) return '已生成检索条件，点击下方按钮执行检索。'
+  const parts: string[] = []
+  if (c.keyword) parts.push(`关键词：${c.keyword}`)
+  if (c.title) parts.push(`题名：${c.title}`)
+  if (c.responsibleText) parts.push(`责任者：${c.responsibleText}`)
+  if (c.archiveNo) parts.push(`档号：${c.archiveNo}`)
+  if (c.formedYearStart || c.formedYearEnd) {
+    const start = c.formedYearStart ?? '不限'
+    const end = c.formedYearEnd ?? '至今'
+    parts.push(`年度：${start}-${end}`)
+  }
+  if (c.sourceType) parts.push(`来源：${sourceLabel(String(c.sourceType))}`)
+  if (parts.length === 0) return '已生成检索条件，点击下方按钮执行检索。'
+  return parts.join('　')
+})
 // hasElectronicFile 为布尔值，原生 select 以字符串代理写入
 const fileState = computed<string>({
   get: () =>
