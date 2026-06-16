@@ -10,8 +10,10 @@ import com.archive.dto.response.AiQueryResponse;
 import com.archive.dto.response.ArchiveSearchDetailResponse;
 import com.archive.dto.response.ArchiveSummaryResponse;
 import com.archive.dto.response.PublicDashboardResponse;
+import com.archive.dto.response.PublicStatsResponse;
 import com.archive.exception.BusinessException;
 import com.archive.service.PublicDashboardService;
+import com.archive.service.PublicStatsService;
 import com.archive.service.SearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,6 +39,7 @@ public class PublicSearchController {
 
     private final SearchService searchService;
     private final PublicDashboardService publicDashboardService;
+    private final PublicStatsService publicStatsService;
 
     @GetMapping("/dashboard")
     @Operation(summary = "公众概览（需登录公众账号）")
@@ -46,6 +49,13 @@ public class PublicSearchController {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "请先登录");
         }
         return R.ok(publicDashboardService.overview());
+    }
+
+    @GetMapping("/stats")
+    @Operation(summary = "公开馆藏统计（公众首页门面数据，免登录）")
+    public R<PublicStatsResponse> stats() {
+        // 检索开关关闭时 PublicStatsService 抛 BUSINESS_CONFLICT，与 §5.2 一致
+        return R.ok(publicStatsService.publicStats());
     }
 
     @GetMapping("/archives/search")

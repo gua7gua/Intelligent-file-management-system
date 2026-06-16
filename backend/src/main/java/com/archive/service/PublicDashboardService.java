@@ -6,17 +6,29 @@ import com.archive.dto.response.ArchiveAccessLogResponse;
 import com.archive.dto.response.IntakeBatchResponse;
 import com.archive.dto.response.PublicDashboardResponse;
 import com.archive.dto.response.PublicDashboardResponse.CollectionSummary;
+import com.archive.dto.response.PublicDashboardResponse.Stats;
+import com.archive.dto.response.PublicDashboardResponse.User;
+import com.archive.dto.response.PublicStatsResponse;
+import com.archive.entity.Archive;
 import com.archive.entity.ArchiveAccessLog;
 import com.archive.entity.IntakeBatch;
 import com.archive.mapper.ArchiveAccessLogMapper;
+import com.archive.mapper.ArchiveMapper;
 import com.archive.mapper.IntakeBatchMapper;
+import com.archive.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 公众概览聚合（§5.1 GET /api/public/dashboard）。
@@ -32,13 +44,19 @@ public class PublicDashboardService {
     private final IntakeBatchService intakeBatchService;
     private final IntakeBatchMapper intakeBatchMapper;
     private final ArchiveAccessLogMapper archiveAccessLogMapper;
+    private final ArchiveMapper archiveMapper;
+    private final UserMapper userMapper;
+    private final PublicStatsService publicStatsService;
 
     public PublicDashboardResponse overview() {
         long userId = AuthContext.getCurrentUserId();
         PublicDashboardResponse resp = new PublicDashboardResponse();
-        resp.setCollectionSummary(buildSummary(userId));
+        CollectionSummary summary = buildSummary(userId);
+        resp.setCollectionSummary(summary);
         resp.setRecentCollections(buildRecentCollections());
         resp.setDownloadLogs(buildDownloadLogs(userId));
+        resp.setStats(buildStats(userId, summary));
+        resp.setUser(buildUser(userId));
         resp.setSummarizedAt(OffsetDateTime.now());
         return resp;
     }
@@ -67,6 +85,10 @@ public class PublicDashboardService {
                         .eq("access_type", "download")
                         .orderByDesc("accessed_at").orderByDesc("id")
                         .last("LIMIT " + DOWNLOAD_LIMIT));
+        if (logs.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Map<Long, Archive> archiveById = loadArchives(logs);
         List<ArchiveAccessLogResponse> out = new ArrayList<>();
         for (ArchiveAccessLog l : logs) {
             ArchiveAccessLogResponse r = new ArchiveAccessLogResponse();
@@ -78,9 +100,57 @@ public class PublicDashboardService {
             r.setAccessType(l.getAccessType());
             r.setIpAddress(l.getIpAddress());
             r.setAccessedAt(l.getAccessedAt());
+            Archive a = l.getArchiveId() == null ? null : archiveById.get(l.getArchiveId());
+            if (a != null) {
+                r.setArchiveNo(a.getArchiveNo());
+                r.setTitle(a.getTitle());
+            }
             out.add(r);
         }
         return out;
+    }
+
+    /** 批量查询下载记录涉及的档案，避免 N+1。 */
+    private Map<Long, Archive> loadArchives(List<ArchiveAccessLog> logs) {
+        Set<Long> ids = logs.stream()
+                .map(ArchiveAccessLog::getArchiveId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, Archive> map = new HashMap<>();
+        for (Archive a : archiveMapper.selectBatchIds(ids)) {
+            map.put(a.getId(), a);
+        }
+        return map;
+    }
+
+    private Stats buildStats(long userId, CollectionSummary summary) {
+        PublicStatsResponse fig = publicStatsService.publicFigures();
+        Stats s = new Stats();
+        s.setOpenArchiveCount(fig.getOpenArchiveCount());
+        s.setElectronicFileCount(fig.getElectronicFileCount());
+        s.setCollectionCount(fig.getCollectionCount());
+        s.setLatestOpenCount(fig.getLatestOpenCount());
+        s.setMyPendingCollections(summary.getInProgress());
+        s.setMyDownloadCount(archiveAccessLogMapper.selectCount(
+                new QueryWrapper<ArchiveAccessLog>()
+                        .eq("user_id", userId)
+                        .eq("access_type", "download")));
+        return s;
+    }
+
+    private User buildUser(long userId) {
+        User u = new User();
+        com.archive.entity.User entity = userMapper.selectById(userId);
+        if (entity == null) {
+            return u;
+        }
+        u.setRealName(entity.getRealName());
+        u.setPhone(entity.getPhone());
+        u.setStatus(entity.getStatus() != null ? entity.getStatus().name() : null);
+        return u;
     }
 
     private long countCollections(long userId) {

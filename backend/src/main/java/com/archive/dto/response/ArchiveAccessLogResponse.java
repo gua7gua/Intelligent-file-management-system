@@ -13,4 +13,8 @@ public class ArchiveAccessLogResponse {
     private String accessType;
     private String ipAddress;
     private OffsetDateTime accessedAt;
+    /** 档号（联表 archives 填充，公众概览展示用）。 */
+    private String archiveNo;
+    /** 档案题名（联表 archives 填充）。 */
+    private String title;
 }
