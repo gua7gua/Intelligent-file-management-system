@@ -117,7 +117,7 @@ watch(
 
 onMounted(async () => {
   try {
-    const page = await getFonds({ pageSize: 200 })
+    const page = await getFonds({ pageSize: 100 })
     fondsList.value = page.records
     if (fondsList.value.length) form.value.fondsId = fondsList.value[0].id
   } catch {
