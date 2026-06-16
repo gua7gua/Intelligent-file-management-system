@@ -54,15 +54,23 @@ public class PendingArchiveService {
 
     /**
      * 查询待入库批次列表。
-     * 按 received/partially_received 且存在未入库已接收条目计算。
+     * 默认按 received/partially_received 过滤（向后兼容）；
+     * status="archived" 时改为查 archived 批次，并回填 pendingShelfCount（含 pending_shelf 档案数）。
      */
     public PageResult<PendingBatchResponse> listPendingBatches(
-            String sourceType, String aiStatus, String keyword,
+            String sourceType, String aiStatus, String keyword, String status,
             int pageNo, int pageSize) {
 
-        // 查询 received / partially_received 的批次
+        boolean archivedMode = status != null && !status.isBlank()
+                && BatchStatus.archived.name().equalsIgnoreCase(status);
+
+        // 查询批次
         QueryWrapper<IntakeBatch> bw = new QueryWrapper<>();
-        bw.in("status", BatchStatus.received.name(), BatchStatus.partially_received.name());
+        if (archivedMode) {
+            bw.eq("status", BatchStatus.archived.name());
+        } else {
+            bw.in("status", BatchStatus.received.name(), BatchStatus.partially_received.name());
+        }
         if (sourceType != null && !sourceType.isBlank()) {
             bw.eq("source_type", sourceType);
         }
@@ -112,6 +120,14 @@ public class PendingArchiveService {
             resp.setItemCount((int) itemCount);
             resp.setArchivedCount((int) archivedCount);
             resp.setPendingArchiveCount((int) pendingCount);
+
+            // archived 模式下回填 pendingShelfCount：该批次已生成档案中 lifecycle_status=pending_shelf 的数量
+            if (archivedMode) {
+                resp.setPendingShelfCount(countPendingShelf(items));
+            } else {
+                resp.setPendingShelfCount(0);
+            }
+
             // 关联查询该批次最近一次 AI 补全任务状态（business_type=intake_batch）
             AiTask latestAiTask = aiTaskMapper.selectOne(new QueryWrapper<AiTask>()
                     .eq("business_type", "intake_batch")
@@ -124,6 +140,25 @@ public class PendingArchiveService {
         }
 
         return new PageResult<>(records, pageNo, pageSize, page.getTotal());
+    }
+
+    /**
+     * 统计条目对应档案中 lifecycle_status=pending_shelf 的数量。
+     * 仅对已入库条目（status=archived 且 generatedArchiveId 非空）查询。
+     */
+    private int countPendingShelf(List<IntakeItem> items) {
+        List<Long> archiveIds = items.stream()
+                .filter(i -> i.getStatus() == ItemStatus.archived)
+                .map(IntakeItem::getGeneratedArchiveId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        if (archiveIds.isEmpty()) {
+            return 0;
+        }
+        QueryWrapper<Archive> aw = new QueryWrapper<>();
+        aw.in("id", archiveIds);
+        aw.eq("lifecycle_status", LifecycleStatus.pending_shelf.name());
+        return Math.toIntExact(archiveMapper.selectCount(aw));
     }
 
     // ==================== 9.2 获取入库批次详情 ====================
@@ -559,6 +594,14 @@ public class PendingArchiveService {
         r.setConfirmedCategoryId(item.getConfirmedCategoryId());
         r.setConfirmedTags(item.getConfirmedTags());
         r.setGeneratedArchiveId(item.getGeneratedArchiveId());
+
+        // 已入库档案的生命周期状态
+        if (item.getGeneratedArchiveId() != null) {
+            Archive ar = archiveMapper.selectById(item.getGeneratedArchiveId());
+            if (ar != null && ar.getLifecycleStatus() != null) {
+                r.setLifecycleStatus(ar.getLifecycleStatus().name());
+            }
+        }
 
         // 已匹配暂存文件摘要
         QueryWrapper<StagingFile> sfw = new QueryWrapper<>();

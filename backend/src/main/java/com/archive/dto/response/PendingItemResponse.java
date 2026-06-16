@@ -54,6 +54,9 @@ public class PendingItemResponse {
 
     private Long generatedArchiveId;
 
+    /** 已入库档案的生命周期状态（pending_shelf/normal 等），未入库为 null。 */
+    private String lifecycleStatus;
+
     @Data
     public static class StagingFileSummary {
         private Long id;

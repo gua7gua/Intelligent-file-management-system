@@ -35,6 +35,9 @@ public class PendingBatchResponse {
     /** 待入库条目数。 */
     private int pendingArchiveCount;
 
+    /** 已入库批次中 lifecycle_status=pending_shelf 的档案数（仅 archived 模式回填）。 */
+    private int pendingShelfCount;
+
     /** 最近 AI 任务状态。 */
     private String latestAiTaskStatus;
 }
