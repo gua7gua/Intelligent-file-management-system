@@ -15,7 +15,14 @@ public class UserCreateRequest {
     private String employeeNo;
     private String phone;
 
-    @NotBlank(message = "密码不能为空")
+    /**
+     * 初始密码（接口文档 §22.2 字段名）。前端按文档传 initialPassword。
+     * 保留旧 password 字段以兼容历史调用方，两者取其一即可（initialPassword 优先）。
+     */
+    private String initialPassword;
+
+    /** @deprecated 改用 {@link #initialPassword}（对齐接口文档 §22.2）。 */
+    @Deprecated
     private String password;
 
     @NotBlank(message = "姓名不能为空")
@@ -28,4 +35,12 @@ public class UserCreateRequest {
 
     /** 角色码列表，如 ["front_archivist"]。 */
     private java.util.List<String> roleCodes;
+
+    /** 取初始密码：initialPassword 优先，兼容旧 password 字段。 */
+    public String resolvePassword() {
+        if (initialPassword != null && !initialPassword.isBlank()) {
+            return initialPassword;
+        }
+        return password;
+    }
 }
