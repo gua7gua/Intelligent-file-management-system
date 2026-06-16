@@ -155,7 +155,7 @@ const resultFilter = ref<'all' | InventoryCheckResultValue>('all')
 
 const rooms = ref<WarehouseRoom[]>([])
 const categories = [
-  { id: 1, name: '科技档案' }, { id: 2, name: '文书档案' }, { id: 3, name: '会计档案' },
+  { id: 1, name: '文书档案' }, { id: 2, name: '科技档案' }, { id: 3, name: '会计档案' },
   { id: 4, name: '音像档案' }, { id: 5, name: '人事档案' },
 ]
 const taskModalVisible = ref(false)
