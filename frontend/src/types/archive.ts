@@ -62,7 +62,7 @@ export interface PendingBatchDetail extends PendingBatch {
 
 /** AI 补全任务 */
 export interface AiTask {
-  id: number
+  aiTaskId: number
   taskNo: string
   status: 'running' | 'partial_completed' | 'completed' | 'failed'
   batchSize: number
