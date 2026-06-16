@@ -17,3 +17,12 @@ logging:
   level:
     com.archive: DEBUG
     org.flywaydb: INFO
+
+# 联调：dev profile 显式启用真实 AI（DeepSeek）与 ClamAV 病毒扫描；
+# 短信保持关闭走 fallback 固定码 123456（见 application.yml aliyun.sms-auth.enabled）。
+ai:
+  enabled: true
+
+file:
+  scan:
+    enabled: true
