@@ -36,7 +36,7 @@ describe('Preservation', () => {
     await wait()
     expect(w.text()).toContain('完整性')
     expect(w.text()).toContain('真实性')
-    // 真实性本期未接入外部签名体系，在检测项选择器中标注「本期未配置」
-    expect(w.text()).toContain('本期未配置')
+    // 真实性本期未接入外部签名体系，在检测项选择器中标注「未开启」
+    expect(w.text()).toContain('未开启')
   })
 })

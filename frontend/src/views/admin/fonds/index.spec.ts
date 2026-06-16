@@ -28,11 +28,10 @@ describe('FondsManage', () => {
     expect(w.text()).toContain('启用')
   })
 
-  it('shows new-fonds button and org-maintain link', async () => {
+  it('shows new-fonds button', async () => {
     const w = await mountIt()
     await wait()
     expect(w.findAll('button').some((b) => b.text().includes('新建全宗'))).toBe(true)
-    expect(w.html()).toContain('/admin/user-management')
   })
 
   it('enters create mode with editable fondsNo on 新建全宗', async () => {

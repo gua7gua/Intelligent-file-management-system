@@ -18,7 +18,7 @@ describe('UserManagement', () => {
     await wait()
     expect(w.text()).toContain('用户管理')
     expect(w.text()).toContain('小刘')
-    expect(w.text()).toContain('back_archivist')
+    expect(w.text()).toContain('后台档案管理员')
   })
 
   it('renders organization and fonds reference lists', async () => {

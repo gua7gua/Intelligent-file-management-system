@@ -14,8 +14,7 @@ describe('TransferList', () => {
     const wrapper = mount(TransferList, { global: { plugins: [router] } })
 
     expect(wrapper.text()).toContain('编制移交清单')
-    expect(wrapper.text()).toContain('只解析')
-    expect(wrapper.text()).toContain('不上传文件本体')
+    expect(wrapper.text()).toContain('文件不会上传')
     expect(wrapper.text()).toContain('提交清单')
   })
 })

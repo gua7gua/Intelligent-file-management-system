@@ -14,7 +14,7 @@ describe('ArchiveDetailPanel', () => {
 
     expect(wrapper.text()).toContain('智慧城市项目年度技术报告')
     expect(wrapper.text()).toContain('KJ-2025-0188')
-    expect(wrapper.text()).toContain('不展示具体库房架位')
+    expect(wrapper.text()).toContain('如需纸质原件，请提交借阅申请')
   })
 
   it('disables borrow button for electronic-only archive', async () => {

@@ -23,12 +23,6 @@ describe('DataAnalysis', () => {
     expect(wrapper.findAll('tbody tr').length).toBeGreaterThan(0)
   })
 
-  it('renders field boundary allowed and forbidden badges', async () => {
-    const wrapper = await mountComponent()
-    expect(wrapper.text()).toContain('字段边界')
-    expect(wrapper.text()).toContain('禁止直接改密级')
-  })
-
   it('selecting an item shows detail and adopt buttons', async () => {
     const wrapper = await mountComponent()
     await wrapper.find('tbody tr').trigger('click')

@@ -17,8 +17,8 @@ describe('AccessLogs', () => {
     const w = await mountIt()
     await wait()
     expect(w.text()).toContain('访问日志')
-    expect(w.text()).toContain('view_metadata')
-    expect(w.text()).toContain('download')
+    expect(w.text()).toContain('查看元数据')
+    expect(w.text()).toContain('下载')
   })
 
   it('shows 导出 button and no 删除/编辑 entry', async () => {
@@ -47,6 +47,6 @@ describe('AccessLogs', () => {
     await w.findAll('button').find((b) => b.text().includes('查询'))!.trigger('click')
     await wait()
     expect(w.findAll('tbody tr').length).toBeGreaterThan(0)
-    expect(w.text()).toContain('download')
+    expect(w.text()).toContain('下载')
   })
 })
