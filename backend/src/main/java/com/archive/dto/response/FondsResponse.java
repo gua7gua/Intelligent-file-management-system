@@ -13,5 +13,6 @@ public class FondsResponse {
     private String description;
     private String status;
     private Long archiveCount;
+    private Long boxCount;
     private OffsetDateTime createdAt;
 }

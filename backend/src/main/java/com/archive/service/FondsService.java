@@ -57,12 +57,15 @@ public class FondsService {
         List<Fonds> rows = result.getRecords();
         Map<Long, Long> archiveCounts = countByFonds("archives",
                 rows.stream().map(Fonds::getId).toList());
+        Map<Long, Long> boxCounts = countByFonds("archive_boxes",
+                rows.stream().map(Fonds::getId).toList());
         Map<Long, Organization> orgMap = loadOrganizations(
                 rows.stream().map(Fonds::getOrganizationId).filter(Objects::nonNull).collect(Collectors.toSet()));
 
         List<FondsResponse> voList = rows.stream().map(f -> {
             FondsResponse vo = toResponse(f);
             vo.setArchiveCount(archiveCounts.getOrDefault(f.getId(), 0L));
+            vo.setBoxCount(boxCounts.getOrDefault(f.getId(), 0L));
             Organization o = orgMap.get(f.getOrganizationId());
             vo.setOrganizationName(o != null ? o.getOrgName() : null);
             return vo;
