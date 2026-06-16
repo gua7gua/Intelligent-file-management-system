@@ -3,7 +3,7 @@
     <section>
       <h1 class="page-title">档案管理</h1>
       <p class="page-subtitle">
-        正式档案查询、元数据整理和密级/开放调整发起。普通编辑和 AI 不得覆盖密级、保管期限、是否公开、是否允许数字化、档号、架位和销毁状态。
+        正式档案查询、元数据整理和密级/开放调整发起。
       </p>
     </section>
 
@@ -21,7 +21,6 @@
         >
           {{ cat.name }}
         </button>
-        <p class="hint">五大门类来自 categories 初始化字典，本页不提供增删。</p>
       </aside>
 
       <!-- 中栏：筛选 + 列表 -->
@@ -109,15 +108,16 @@
         </div>
       </section>
 
-      <!-- 右栏：详情抽屉 -->
-      <aside class="drawer">
-        <template v-if="!selectedArchive">
-          <div class="detail-empty">← 点击档案行查看详情</div>
-        </template>
-        <template v-else-if="detailLoading">
-          <div class="detail-empty">加载中...</div>
-        </template>
-        <template v-else>
+      <!-- 详情抽屉：独立滑出、内部滚动，避免查看详情时整页跟随滑动 -->
+      <el-drawer
+        v-model="detailDrawerVisible"
+        title="档案详情"
+        direction="rtl"
+        size="420px"
+        :append-to-body="false"
+      >
+        <div v-if="detailLoading" class="detail-empty">加载中...</div>
+        <div v-else-if="selectedArchive" class="drawer-body">
           <h2 class="section-title">{{ detail?.title || selectedArchive.title }}</h2>
           <div class="detail-kv"><span>档号</span><strong>{{ detail?.archiveNo || selectedArchive.archiveNo }}</strong></div>
           <div class="detail-kv"><span>生命周期</span><strong>{{ ArchiveStatusLabel[detail?.lifecycleStatus || 'normal'] }}</strong></div>
@@ -158,11 +158,8 @@
             <el-button @click="handlePreview">预览</el-button>
           </div>
 
-          <!-- 受保护字段 -->
+          <!-- 受保护字段（只读展示） -->
           <h3 class="section-title" style="margin-top:12px">受保护字段</h3>
-          <div class="notice warning">
-            密级、保管期限、公开状态、允许数字化、档号、架位和销毁状态不可普通编辑。解密不等于自动公开。
-          </div>
           <div class="split">
             <div class="field">
               <label>当前密级</label>
@@ -204,14 +201,14 @@
             <el-button @click="handleOpenAdjust">开放调整</el-button>
             <router-link to="/admin/approval" class="button ghost">审批工作台</router-link>
           </div>
-        </template>
-      </aside>
+        </div>
+      </el-drawer>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ArchiveRecord, ArchiveDetail } from '@/types/archive'
 import { ArchiveStatusLabel, CarrierStatusLabel, SecurityLevelLabel } from '@/types/enums'
@@ -241,6 +238,17 @@ const selectedArchive = ref<ArchiveRecord | null>(null)
 const detail = ref<ArchiveDetail | null>(null)
 const listLoading = ref(false)
 const detailLoading = ref(false)
+
+/** 详情抽屉可见性：选中档案即展开，关闭即清空选中，避免查看详情时整页跟随滑动 */
+const detailDrawerVisible = computed<boolean>({
+  get: () => !!selectedArchive.value,
+  set: (val) => {
+    if (!val) {
+      selectedArchive.value = null
+      detail.value = null
+    }
+  },
+})
 
 // ── 编辑表单 ──
 const editForm = reactive({
@@ -336,7 +344,7 @@ async function handleSaveMeta() {
       changeReason: 'manual_edit',
     })
     detail.value = updated
-    ElMessage.success('元数据已保存，变更来源 manual_edit 写入 archive_change_logs。')
+    ElMessage.success('元数据已保存')
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '保存失败'
     ElMessage.error(msg)
@@ -344,7 +352,7 @@ async function handleSaveMeta() {
 }
 
 function handlePreview() {
-  ElMessage.info('预览需复用档案查询鉴权，通过后生成文件访问地址。')
+  ElMessage.info('正在生成预览…')
 }
 
 // ── 审批 ──
@@ -407,7 +415,7 @@ onMounted(loadArchives)
 
 .manage-layout {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 380px;
+  grid-template-columns: 220px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
