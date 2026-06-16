@@ -31,6 +31,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class IntakeBatchService {
 
+    // 公众征集数量约束（接口文档 §5 约定：当前用户待处理数量不超过配置上限）
+    private static final int MAX_COLLECTION_PENDING_PER_USER = 5;
+    private static final int MAX_COLLECTION_ITEMS_PER_BATCH = 200;
+    private static final int MAX_COLLECTION_PENDING_PLUS_REJECTED = 10;
+
     private final IntakeBatchMapper batchMapper;
     private final IntakeItemMapper itemMapper;
     private final JdbcTemplate jdbcTemplate;
@@ -407,6 +412,28 @@ public class IntakeBatchService {
                 new QueryWrapper<IntakeItem>().eq("batch_id", batchId));
         if (items.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "至少包含一条清单条目");
+        }
+
+        // 数量约束（公众捐赠）：每公众待处理 ≤ 5、清单条目 ≤ 200、被拒+待处理 ≤ 10
+        long pendingCount = batchMapper.selectCount(new QueryWrapper<IntakeBatch>()
+                .eq("source_type", SourceType.collection.name())
+                .eq("public_user_id", userId)
+                .in("status", BatchStatus.pending_contact.name(), BatchStatus.pending_receive.name()));
+        if (pendingCount >= MAX_COLLECTION_PENDING_PER_USER) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "待处理征集清单已达上限（" + MAX_COLLECTION_PENDING_PER_USER + " 条），请等待现有清单处理完毕");
+        }
+        if (items.size() > MAX_COLLECTION_ITEMS_PER_BATCH) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "单份征集清单条目数不能超过 " + MAX_COLLECTION_ITEMS_PER_BATCH + " 条");
+        }
+        long rejectedCount = batchMapper.selectCount(new QueryWrapper<IntakeBatch>()
+                .eq("source_type", SourceType.collection.name())
+                .eq("public_user_id", userId)
+                .eq("status", BatchStatus.rejected.name()));
+        if (pendingCount + rejectedCount >= MAX_COLLECTION_PENDING_PLUS_REJECTED) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "待处理与被拒征集清单总数已达上限（" + MAX_COLLECTION_PENDING_PLUS_REJECTED + " 条）");
         }
 
         for (IntakeItem item : items) {

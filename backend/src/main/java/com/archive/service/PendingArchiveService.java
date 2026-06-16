@@ -570,6 +570,8 @@ public class PendingArchiveService {
         r.setPageCount(item.getPageCount());
         r.setSecurityLevel(item.getSecurityLevel());
         r.setRetentionPeriod(item.getRetentionPeriod() != null ? item.getRetentionPeriod().getDbValue() : null);
+        r.setOpenStatus(item.getOpenStatus() != null ? item.getOpenStatus() : "open");
+        r.setAllowDigitization(item.getAllowDigitization() != null ? item.getAllowDigitization() : false);
         r.setFileMatchStatus(item.getFileMatchStatus() != null ? item.getFileMatchStatus().name() : null);
         r.setAiSuggestion(item.getAiSuggestion() != null ? item.getAiSuggestion().toString() : null);
         // 拆出结构化 AI 建议字段，供前端表单回填

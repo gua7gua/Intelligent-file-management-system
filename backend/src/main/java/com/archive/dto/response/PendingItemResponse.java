@@ -27,6 +27,12 @@ public class PendingItemResponse {
 
     private String retentionPeriod;
 
+    /** 开放状态：open/closed。征集条目按目标属性默认 open（公众捐赠固定公开）。 */
+    private String openStatus;
+
+    /** 是否允许数字化。 */
+    private Boolean allowDigitization;
+
     private String fileMatchStatus;
 
     /** AI 补全建议 JSON。 */
