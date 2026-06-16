@@ -6,3 +6,6 @@ target/
 .idea/
 *.iml
 .DS_Store
+
+# 运行时备份产物（档案保存模块生成）
+data/backups/
