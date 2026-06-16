@@ -840,7 +840,7 @@ public class IntakeBatchService {
     private void fillTransferItem(IntakeItem item, TransferItemRequest req) {
         item.setInputTitle(req.getInputTitle());
         item.setPageCount(req.getPageCount());
-        item.setRetentionPeriod(RetentionPeriod.valueOf(req.getRetentionPeriod()));
+        item.setRetentionPeriod(RetentionPeriod.fromValue(req.getRetentionPeriod()));
         item.setCarrierStatus(CarrierStatus.valueOf(req.getCarrierStatus()));
         item.setSecurityLevel(req.getSecurityLevel());
         item.setOpenStatus(req.getOpenStatus());
@@ -852,7 +852,12 @@ public class IntakeBatchService {
     }
 
     private String getUserName(long userId) {
-        // 从 session 或其他方式获取用户名，这里用 ID 简化
-        return String.valueOf(userId);
+        try {
+            String name = jdbcTemplate.queryForObject(
+                    "SELECT real_name FROM users WHERE id = ? AND deleted_at IS NULL", String.class, userId);
+            return (name != null && !name.isBlank()) ? name : String.valueOf(userId);
+        } catch (Exception e) {
+            return String.valueOf(userId);
+        }
     }
 }
