@@ -9,6 +9,7 @@ import com.archive.dto.request.DestructionSubmitRequest;
 import com.archive.dto.response.DestructionListDetailResponse;
 import com.archive.dto.response.DestructionListResponse;
 import com.archive.entity.ApprovalRequest;
+import com.archive.entity.AppraisalBatch;
 import com.archive.entity.Archive;
 import com.archive.entity.ArchiveBox;
 import com.archive.entity.ArchiveBoxItem;
@@ -16,6 +17,7 @@ import com.archive.entity.ArchiveFile;
 import com.archive.entity.BusinessAttachment;
 import com.archive.entity.DestructionItem;
 import com.archive.entity.DestructionList;
+import com.archive.entity.User;
 import com.archive.enums.ApprovalStatus;
 import com.archive.enums.ApprovalType;
 import com.archive.enums.ConditionStatus;
@@ -26,6 +28,7 @@ import com.archive.enums.LifecycleStatus;
 import com.archive.enums.ScanResult;
 import com.archive.exception.BusinessException;
 import com.archive.mapper.ApprovalRequestMapper;
+import com.archive.mapper.AppraisalBatchMapper;
 import com.archive.mapper.ArchiveBoxItemMapper;
 import com.archive.mapper.ArchiveBoxMapper;
 import com.archive.mapper.ArchiveFileMapper;
@@ -33,6 +36,7 @@ import com.archive.mapper.ArchiveMapper;
 import com.archive.mapper.BusinessAttachmentMapper;
 import com.archive.mapper.DestructionItemMapper;
 import com.archive.mapper.DestructionListMapper;
+import com.archive.mapper.UserMapper;
 import com.archive.util.FileTypeUtil;
 import com.archive.util.HashUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -69,6 +73,8 @@ public class DestructionService {
     private final ArchiveFileMapper archiveFileMapper;
     private final ArchiveBoxItemMapper archiveBoxItemMapper;
     private final ArchiveBoxMapper archiveBoxMapper;
+    private final AppraisalBatchMapper appraisalBatchMapper;
+    private final UserMapper userMapper;
     private final MinioService minioService;
     private final ClamAvScanner clamAvScanner;
     private final FileProperties fileProperties;
@@ -100,6 +106,7 @@ public class DestructionService {
         r.setListNo(l.getListNo());
         r.setListName(l.getListName());
         r.setAppraisalBatchId(l.getAppraisalBatchId());
+        r.setAppraisalBatchNo(resolveAppraisalBatchNo(l.getAppraisalBatchId()));
         r.setStatus(l.getStatus() != null ? l.getStatus().name() : null);
         r.setDestroyedAt(l.getDestroyedAt());
         QueryWrapper<DestructionItem> iw = new QueryWrapper<>();
@@ -107,6 +114,20 @@ public class DestructionService {
         Long c = itemMapper.selectCount(iw);
         r.setItemCount(c != null ? c.intValue() : 0);
         return r;
+    }
+
+    /** 解析来源鉴定批次号，找不到返回 null。 */
+    private String resolveAppraisalBatchNo(Long appraisalBatchId) {
+        if (appraisalBatchId == null) return null;
+        AppraisalBatch b = appraisalBatchMapper.selectById(appraisalBatchId);
+        return b != null ? b.getBatchNo() : null;
+    }
+
+    /** 解析用户真实姓名，找不到返回 null。 */
+    private String resolveUserName(Long userId) {
+        if (userId == null) return null;
+        User u = userMapper.selectById(userId);
+        return u != null ? u.getRealName() : null;
     }
 
     // ==================== 15.2 获取销毁清册详情 ====================
@@ -121,11 +142,19 @@ public class DestructionService {
         iw.eq("destruction_list_id", listId).orderByAsc("id");
         List<DestructionItem> items = itemMapper.selectList(iw);
 
+        DestructionListDetailResponse.ApprovalSnapshot approvalSnapshot = null;
         String approvalStatus = null;
         if (list.getApprovalRequestId() != null) {
             ApprovalRequest ap = approvalMapper.selectById(list.getApprovalRequestId());
             if (ap != null) {
                 approvalStatus = ap.getStatus() != null ? ap.getStatus().name() : null;
+                approvalSnapshot = new DestructionListDetailResponse.ApprovalSnapshot();
+                approvalSnapshot.setId(ap.getId());
+                approvalSnapshot.setApprovalType(ap.getApprovalType() != null ? ap.getApprovalType().name() : null);
+                approvalSnapshot.setStatus(approvalStatus);
+                approvalSnapshot.setApprovalOpinion(ap.getApprovalOpinion());
+                approvalSnapshot.setApprovedAt(ap.getApprovedAt());
+                approvalSnapshot.setApprovedByName(resolveUserName(ap.getApprovedBy()));
             }
         }
 
@@ -135,19 +164,24 @@ public class DestructionService {
                 .eq("attachment_type", "destruction_photo");
         List<BusinessAttachment> photos = attachmentMapper.selectList(pw);
 
-        return toDetail(list, items, approvalStatus, photos);
+        return toDetail(list, items, approvalStatus, approvalSnapshot, photos);
     }
 
     private DestructionListDetailResponse toDetail(DestructionList list, List<DestructionItem> items,
-                                                   String approvalStatus, List<BusinessAttachment> photos) {
+                                                   String approvalStatus,
+                                                   DestructionListDetailResponse.ApprovalSnapshot approvalSnapshot,
+                                                   List<BusinessAttachment> photos) {
         DestructionListDetailResponse resp = new DestructionListDetailResponse();
         resp.setId(list.getId());
         resp.setListNo(list.getListNo());
         resp.setListName(list.getListName());
         resp.setAppraisalBatchId(list.getAppraisalBatchId());
+        resp.setAppraisalBatchNo(resolveAppraisalBatchNo(list.getAppraisalBatchId()));
         resp.setStatus(list.getStatus() != null ? list.getStatus().name() : null);
+        resp.setItemCount(items.size());
         resp.setApprovalRequestId(list.getApprovalRequestId());
         resp.setApprovalStatus(approvalStatus);
+        resp.setApproval(approvalSnapshot);
         resp.setDestroyMethod(list.getDestroyMethod() != null ? list.getDestroyMethod().name() : null);
         resp.setSupervisorName1(list.getSupervisorName1());
         resp.setSupervisorName2(list.getSupervisorName2());

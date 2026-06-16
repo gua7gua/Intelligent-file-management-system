@@ -11,9 +11,14 @@ public class AppraisalBatchResponse {
     private String batchNo;
     private String batchName;
     private Integer categoryId;
+    private String categoryName;
     private Integer formedYearStart;
     private Integer formedYearEnd;
     private String status;
-    private Integer itemCount;
+    private Integer hitCount;
+    private Integer destroyCount;
+    private Integer extendCount;
     private OffsetDateTime completedAt;
+    private Long generatedListId;
+    private String generatedListNo;
 }

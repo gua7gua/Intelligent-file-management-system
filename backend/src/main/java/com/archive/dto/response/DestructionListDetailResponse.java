@@ -12,9 +12,12 @@ public class DestructionListDetailResponse {
     private String listNo;
     private String listName;
     private Long appraisalBatchId;
+    private String appraisalBatchNo;
     private String status;
+    private Integer itemCount;
     private Long approvalRequestId;
     private String approvalStatus;
+    private ApprovalSnapshot approval;
     private String destroyMethod;
     private String supervisorName1;
     private String supervisorName2;
@@ -44,5 +47,16 @@ public class DestructionListDetailResponse {
         private String mimeType;
         private Long fileSize;
         private String sha256;
+    }
+
+    /** 审批快照（详情证据链展示用）。 */
+    @Data
+    public static class ApprovalSnapshot {
+        private Long id;
+        private String approvalType;
+        private String status;
+        private String approvalOpinion;
+        private String approvedByName;
+        private OffsetDateTime approvedAt;
     }
 }
