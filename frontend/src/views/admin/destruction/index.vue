@@ -117,7 +117,8 @@
           <div class="actions" style="margin-top:12px">
             <el-button v-if="listDetail.status === 'draft'" type="primary" @click="handleSubmit">提交审批</el-button>
             <el-button v-if="listDetail.status === 'pending_destroy'" type="danger" @click="confirmVisible = true">确认销毁</el-button>
-            <router-link v-if="listDetail.status === 'pending_approval'" to="/admin/approval" class="button ghost">前往审批工作台</router-link>
+            <router-link v-if="listDetail.status === 'pending_approval' && isDirector" to="/admin/approval" class="button ghost">前往审批工作台</router-link>
+            <span v-else-if="listDetail.status === 'pending_approval'" class="hint">已提交，等待馆领导审批。</span>
             <span v-if="listDetail.status === 'destroyed'" class="hint">该清册已完成销毁，证据链永久保留。</span>
           </div>
         </template>
@@ -129,8 +130,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { DestructionList, DestructionListDetail } from '@/types/destruction'
 import {
@@ -146,6 +148,9 @@ import DestroyConfirmDialog from './components/DestroyConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
+/** 是否馆领导：审批工作台仅馆领导可进入，避免非馆领导越权跳转 */
+const isDirector = computed(() => authStore.roles.includes('director'))
 
 const lists = ref<DestructionList[]>([])
 const allLists = ref<DestructionList[]>([])
@@ -207,7 +212,9 @@ async function handleSubmit() {
     })
     const approval = await submitDestructionApproval(listDetail.value.id, { reason: value })
     ElMessage.success(`已生成审批单 ${approval.targetListNo ?? ''}，清册进入待审批。`)
-    router.push({ path: '/admin/approval', query: { focus: String(approval.id) } })
+    if (isDirector.value) {
+      router.push({ path: '/admin/approval', query: { focus: String(approval.id) } })
+    }
   } catch (e: unknown) {
     if (e !== 'cancel' && e !== 'close') {
       ElMessage.error(e instanceof Error ? e.message : '提交审批失败')
