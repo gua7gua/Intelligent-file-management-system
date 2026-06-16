@@ -44,7 +44,14 @@ export function getPendingBatches(
       }
     })
   }
-  return request.get('/admin/pending-archive/batches', { params })
+  return request.get('/admin/pending-archive/batches', { params }).then((res) => {
+    // 后端列表字段为 latestAiTaskStatus，前端模型使用 aiStatus；统一归一化
+    const records = (res.records ?? []).map((b: PendingBatch & { latestAiTaskStatus?: string }) => ({
+      ...b,
+      aiStatus: (b.aiStatus || b.latestAiTaskStatus || 'not_started') as PendingBatch['aiStatus'],
+    }))
+    return { ...res, records }
+  })
 }
 
 /** 获取入库批次详情 */
@@ -56,7 +63,46 @@ export function getPendingBatchDetail(batchId: number): Promise<PendingBatchDeta
       return detail
     })
   }
-  return request.get(`/admin/pending-archive/batches/${batchId}`)
+  return request.get(`/admin/pending-archive/batches/${batchId}`).then((res) => normalizePendingBatchDetail(res, batchId))
+}
+
+/**
+ * 把后端 PendingBatchDetailResponse 字段映射到前端 PendingBatchDetail 类型。
+ * 后端条目字段 status/itemNo/fileMatchStatus/confirmedResponsibleText，
+ * 前端模型用 itemStatus/seqNo/matchStatus/confirmedResponsible。
+ */
+function normalizePendingBatchDetail(raw: Record<string, unknown>, batchId: number): PendingBatchDetail {
+  const rawItems = (raw.items ?? []) as Record<string, unknown>[]
+  const items: PendingItem[] = rawItems.map((it) => ({
+    id: it.id as number,
+    batchId,
+    seqNo: (it.itemNo as number) ?? 0,
+    inputTitle: (it.inputTitle as string) ?? '',
+    expectedFilename: '',
+    carrierStatus: (it.carrierStatus as PendingItem['carrierStatus']) ?? 'electronic',
+    itemStatus: (it.status as PendingItem['itemStatus']) ?? 'accepted',
+    matchStatus: (it.fileMatchStatus as string) ?? 'none',
+    securityLevel: (it.securityLevel as number) ?? 0,
+    retentionPeriod: (it.retentionPeriod as string) ?? '',
+    openStatus: (it.openStatus as PendingItem['openStatus']) ?? 'closed',
+    allowDigitization: (it.allowDigitization as boolean) ?? false,
+    suggestedTitle: it.suggestedTitle as string | undefined,
+    suggestedResponsible: it.suggestedResponsible as string | undefined,
+    suggestedFormedDate: it.suggestedFormedDate as string | undefined,
+    suggestedCategoryId: it.suggestedCategoryId as number | undefined,
+    suggestedTags: it.suggestedTags as string[] | undefined,
+    confirmedTitle: it.confirmedTitle as string | undefined,
+    confirmedResponsible: (it.confirmedResponsibleText as string) ?? (it.confirmedResponsible as string | undefined),
+    confirmedFormedDate: it.confirmedFormedDate as string | undefined,
+    confirmedCategoryId: it.confirmedCategoryId as number | undefined,
+    confirmedTags: it.confirmedTags as string[] | undefined,
+    archiveId: (it.generatedArchiveId as number) ?? (it.archiveId as number | undefined),
+    archiveNo: it.archiveNo as string | undefined,
+    lifecycleStatus: it.lifecycleStatus as string | undefined,
+    createdAt: (it.createdAt as string) ?? '',
+    updatedAt: (it.updatedAt as string) ?? '',
+  }))
+  return { ...(raw as object), id: batchId, items } as PendingBatchDetail
 }
 
 /** 启动 AI 补全 */

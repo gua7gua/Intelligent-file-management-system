@@ -296,11 +296,12 @@ const canShelve = computed(() => {
 
 // ── 表单同步 ──
 function syncFormFromItem(it: PendingItem) {
-  form.title = it.suggestedTitle || it.confirmedTitle || ''
-  form.responsible = it.suggestedResponsible || it.confirmedResponsible || ''
-  form.formedDate = it.suggestedFormedDate || it.confirmedFormedDate || ''
-  form.categoryId = it.suggestedCategoryId || it.confirmedCategoryId || 0
-  form.tags = (it.suggestedTags || it.confirmedTags || []).join(',')
+  // 已确认字段优先（用户核查后的权威值），其次 AI 建议
+  form.title = it.confirmedTitle || it.suggestedTitle || ''
+  form.responsible = it.confirmedResponsible || it.suggestedResponsible || ''
+  form.formedDate = it.confirmedFormedDate || it.suggestedFormedDate || ''
+  form.categoryId = it.confirmedCategoryId || it.suggestedCategoryId || 0
+  form.tags = (it.confirmedTags || it.suggestedTags || []).join(',')
   form.fondsId = (it as PendingItem & { fondsId?: number }).fondsId ?? 0
   form.spine = it.spine || ''
   form.boxId = (it as PendingItem & { boxId?: number }).boxId
@@ -349,7 +350,7 @@ async function handleRunAi() {
     if (task.status === 'running') {
       for (let i = 0; i < 30; i++) {
         await new Promise((r) => setTimeout(r, 1000))
-        const t = await getAiTask(task.id)
+        const t = await getAiTask(task.aiTaskId)
         if (t.status !== 'running') break
       }
     }
@@ -394,13 +395,16 @@ async function handleArchive() {
 
   archiving.value = true
   try {
-    await confirmItem(activeItem.value.id, {
-      confirmedTitle: form.title,
-      confirmedResponsibleText: form.responsible,
-      confirmedFormedDate: form.formedDate,
-      confirmedCategoryId: form.categoryId,
-      confirmedTags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-    })
+    // 仅在「已接收」态需要先确认字段；suggested/confirmed/pending_archive 已确认过，直接入库
+    if (activeItem.value.itemStatus === 'accepted') {
+      await confirmItem(activeItem.value.id, {
+        confirmedTitle: form.title,
+        confirmedResponsibleText: form.responsible,
+        confirmedFormedDate: form.formedDate,
+        confirmedCategoryId: form.categoryId,
+        confirmedTags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      })
+    }
     const result = await archiveItem(activeItem.value.id, {
       fondsId: form.fondsId,
       boxId: form.boxId,
