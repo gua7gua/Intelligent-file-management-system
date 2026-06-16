@@ -2,7 +2,7 @@
   <div class="audit-logs">
     <section>
       <h1 class="page-title">审计日志</h1>
-      <p class="page-subtitle">查询系统操作审计记录，支持按操作人、模块、类型与时间筛选并导出。日志不可删除或修改。</p>
+      <p class="page-subtitle">查询系统操作审计记录，支持按操作人、模块、类型与时间筛选并导出。</p>
     </section>
 
     <div class="card panel">
@@ -12,14 +12,14 @@
           <label>操作人类型</label>
           <select v-model="filters.actorType" data-testid="actorType">
             <option value="">全部</option>
-            <option value="internal">internal</option>
-            <option value="public">public</option>
-            <option value="system">system</option>
+            <option value="internal">内部用户</option>
+            <option value="public">公众</option>
+            <option value="system">系统</option>
           </select>
         </div>
         <div class="field"><label>模块</label><input v-model="filters.moduleName" placeholder="如 用户管理" /></div>
         <div class="field"><label>操作类型</label><input v-model="filters.operationType" placeholder="如 禁用账号" /></div>
-        <div class="field"><label>业务类型</label><input v-model="filters.businessType" placeholder="如 user" /></div>
+        <div class="field"><label>业务类型</label><input v-model="filters.businessType" placeholder="如 用户" /></div>
         <div class="field"><label>开始时间</label><input type="date" v-model="filters.startedAt" /></div>
         <div class="field"><label>结束时间</label><input type="date" v-model="filters.endedAt" /></div>
       </div>
@@ -38,19 +38,25 @@
       <div v-else class="table-wrap">
         <table>
           <thead>
-            <tr><th>操作时间</th><th>操作人</th><th>类型</th><th>模块</th><th>操作类型</th><th>业务类型</th><th>业务 ID</th><th>IP</th><th>详情</th></tr>
+            <tr><th>操作时间</th><th>操作人</th><th>类型</th><th>模块</th><th>操作类型</th><th>业务类型</th><th>关联对象</th><th>IP</th><th>详情</th></tr>
           </thead>
           <tbody>
             <tr v-for="l in records" :key="l.id">
               <td class="mono">{{ l.operatedAt }}</td>
-              <td>{{ l.actorName || ('用户#' + l.actorUserId) }}</td>
-              <td>{{ l.actorType }}</td>
+              <td>{{ l.actorName || '未知用户' }}</td>
+              <td>{{ actorTypeLabel[l.actorType] || l.actorType }}</td>
               <td>{{ l.moduleName }}</td>
               <td>{{ l.operationType }}</td>
               <td>{{ l.businessType || '-' }}</td>
               <td>{{ l.businessId ?? '-' }}</td>
               <td class="mono">{{ l.ipAddress || '-' }}</td>
-              <td>{{ l.detail ? JSON.stringify(l.detail) : '-' }}</td>
+              <td>
+                <details v-if="l.detail">
+                  <summary class="link">{{ detailSummary(l.detail) }}</summary>
+                  <pre class="detail-pre">{{ l.detail }}</pre>
+                </details>
+                <span v-else>-</span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -85,6 +91,28 @@ const filters = reactive({
   startedAt: '',
   endedAt: '',
 })
+
+const actorTypeLabel: Record<ActorType, string> = {
+  internal: '内部用户',
+  public: '公众',
+  system: '系统',
+}
+
+// 将详情对象转为简短摘要，避免直接暴露原始 JSON
+function detailSummary(detail: unknown): string {
+  if (!detail) return '-'
+  if (typeof detail === 'string') return detail
+  try {
+    const obj = detail as Record<string, unknown>
+    const summary = obj.summary ?? obj.message ?? obj.operation ?? obj.action
+    if (typeof summary === 'string') return summary
+    const entries = Object.entries(obj)
+    if (entries.length === 0) return '-'
+    return entries.slice(0, 2).map(([k, v]) => `${k}: ${typeof v === 'object' ? '…' : String(v)}`).join('；')
+  } catch {
+    return '详情'
+  }
+}
 
 function buildQuery(cursor?: string): AuditLogQuery {
   return {
@@ -147,14 +175,14 @@ function reset() {
 function exportLogs() {
   const rows = records.value.map((l) => ({
     operatedAt: l.operatedAt,
-    actor: l.actorName || ('用户#' + l.actorUserId),
-    actorType: l.actorType,
+    actor: l.actorName || '未知用户',
+    actorType: actorTypeLabel[l.actorType] || l.actorType,
     moduleName: l.moduleName,
     operationType: l.operationType,
     businessType: l.businessType ?? '',
     businessId: l.businessId ?? '',
     ipAddress: l.ipAddress ?? '',
-    detail: l.detail ? JSON.stringify(l.detail) : '',
+    detail: detailSummary(l.detail),
   }))
   downloadCsv('审计日志.csv', rows)
   ElMessage.success('已导出当前已加载的审计日志。')
@@ -179,5 +207,8 @@ onMounted(() => load())
 .detail-empty { color: #909399; padding: 16px; text-align: center; }
 .link { background: none; border: none; color: var(--primary, #1f6f78); cursor: pointer; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+details > summary { list-style: none; cursor: pointer; }
+details > summary::-webkit-details-marker { display: none; }
+.detail-pre { margin: 6px 0 0; padding: 8px; max-width: 320px; max-height: 160px; overflow: auto; background: #f6f8f8; border: 1px solid var(--border, #e4e7ed); border-radius: 6px; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
 @media (max-width: 900px) { .form-grid { grid-template-columns: 1fr 1fr; } }
 </style>

@@ -30,10 +30,9 @@ describe('AdminStatistics', () => {
     expect(wrapper.text()).toContain('纸电载体分布')
   })
 
-  it('renders business breakdown and data sources', async () => {
+  it('renders business breakdown', async () => {
     const wrapper = await mountComponent()
     expect(wrapper.text()).toContain('业务汇总')
-    expect(wrapper.text()).toContain('数据源状态')
   })
 
   it('narrows bars after refreshing with a year range', async () => {

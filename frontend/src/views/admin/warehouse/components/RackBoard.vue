@@ -69,7 +69,7 @@ function slotText(loc: StorageLocation): string {
 .rule-strip { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; padding: 12px 14px; border: 1px solid #b9d7d9; border-radius: var(--radius); background: var(--primary-soft); }
 .hint { color: var(--muted); font-size: 12px; }
 .mono { font-family: monospace; }
-.rack-board { display: grid; gap: 12px; }
+.rack-board { display: grid; gap: 12px; max-height: calc(100vh - 320px); overflow-y: auto; padding-right: 4px; }
 .rack-row { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 10px; align-items: stretch; }
 .rack-label { display: grid; place-items: center; min-height: 96px; border: 1px solid var(--border); border-radius: var(--radius); color: #34414d; background: #f7fafc; font-weight: 750; }
 .slot-grid { display: grid; grid-template-columns: repeat(5, minmax(70px, 1fr)); gap: 8px; }

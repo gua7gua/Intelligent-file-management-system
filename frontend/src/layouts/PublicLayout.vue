@@ -3,8 +3,9 @@
     <nav class="public-nav" aria-label="公众门户导航">
       <router-link to="/public/index" class="nav-brand">智能档案馆</router-link>
       <div class="links">
+        <router-link to="/public/index">首页</router-link>
         <router-link to="/public/search">公开检索</router-link>
-        <router-link to="/public/collection">征集清单</router-link>
+        <router-link v-if="authStore.isLoggedIn" to="/public/collection">征集清单</router-link>
         <router-link v-if="authStore.isLoggedIn" to="/public/overview">公众概览</router-link>
         <template v-if="!authStore.isLoggedIn">
           <router-link to="/login">登录</router-link>

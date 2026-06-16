@@ -6,7 +6,7 @@
         <p class="status info">统一认证入口</p>
         <h1 class="page-title" style="color: #fff; margin-top: 14px">智能档案管理系统</h1>
         <p style="max-width: 560px; color: rgba(255, 255, 255, 0.82)">
-          登录后按角色进入公众门户、内部查阅者门户、移交单位门户或管理后台。菜单展示只用于体验分流，接口权限由后端统一校验。
+          登录后按角色进入公众门户、内部查阅者门户、移交单位门户或管理后台。
         </p>
       </div>
       <div class="portal-list">
@@ -32,7 +32,7 @@
     <!-- 右侧表单区 -->
     <section class="auth-card" aria-label="登录表单">
       <h1>统一登录</h1>
-      <p class="muted">请选择本次登录角色，原型将展示对应门户跳转意图。</p>
+      <p class="muted">请选择本次登录角色</p>
 
       <el-form
         ref="formRef"
@@ -78,7 +78,6 @@
             <el-option label="馆领导" value="director" />
             <el-option label="系统管理员" value="sys_admin" />
           </el-select>
-          <span class="hint">一人多角色时，后端仍按当前会话角色和数据范围校验。</span>
         </div>
 
         <div v-if="targetPortal" class="notice">
@@ -102,7 +101,6 @@
         <div :class="['notice', loginMessageType]">{{ loginMessage }}</div>
       </div>
 
-      <p class="hint">公众注册与找回密码只服务社会公众账号；内部账号、角色、状态由系统管理员在用户管理中维护。</p>
     </section>
   </main>
 </template>

@@ -3,8 +3,7 @@
     <section>
       <h1 class="page-title">移交工作台</h1>
       <p class="page-subtitle">
-        跟踪本单位移交清单从编制、前台验收、后台入库到上架的全过程。移交单位侧不上传电子文件本体，电子文件随
-        U 盘到馆后由前台统一上传。
+        跟踪本单位移交清单从编制到上架的全过程。
       </p>
     </section>
 
@@ -45,7 +44,7 @@
       <section class="flow-strip" aria-label="移交流程">
         <div class="flow-step">
           <strong>1. 编制清单</strong>
-          <span class="muted">浏览器本地解析文件名，不上传文件。</span>
+          <span class="muted">填写清单与条目信息。</span>
         </div>
         <div class="flow-step">
           <strong>2. 前台验收</strong>
@@ -53,7 +52,7 @@
         </div>
         <div class="flow-step">
           <strong>3. 后台入库</strong>
-          <span class="muted">AI 补全白名单字段，人工确认后生成档号。</span>
+          <span class="muted">后台自动补全条目信息，人工确认后生成档号。</span>
         </div>
         <div class="flow-step">
           <strong>4. 确认上架</strong>
@@ -62,7 +61,7 @@
       </section>
 
       <div class="notice warning">
-        提醒：提交后的清单只读。若前台回退条目，回退条目不占用正式档号，请在下次移交时新建清单补交。
+        提交后清单不可编辑；被退回的条目请在下次移交时重新提交。
       </div>
 
       <!-- 筛选工具栏 -->
@@ -209,7 +208,7 @@
               {{
                 selectedBatch.status === 'draft'
                   ? '草稿清单仍可编辑；提交后将变为只读并生成可打印清单。'
-                  : '提交后的清单只读。工作台仅展示本单位进度，不展示后台库房架位。'
+                  : '提交后清单只读。'
               }}
             </p>
           </div>

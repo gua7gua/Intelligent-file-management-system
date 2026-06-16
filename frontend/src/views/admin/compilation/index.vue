@@ -225,7 +225,7 @@ onMounted(() => {
     <div class="toolbar">
       <div>
         <h1 class="page-title">档案编研</h1>
-        <p class="page-subtitle">编研成果以草稿、正文文件、入库三个阶段流转；素材只保存引用关系，入库后生成独立正式档案。</p>
+        <p class="page-subtitle">编研成果以草稿、正文文件、入库三个阶段流转，入库后生成独立正式档案。</p>
       </div>
       <div class="actions">
         <button class="button secondary new-compilation" id="newCompilation" @click="openNew"><span class="icon">+</span>新建编研成果</button>
@@ -236,8 +236,8 @@ onMounted(() => {
     <section class="grid four" style="margin-top:16px" aria-label="编研统计">
       <div class="metric"><span class="label">草稿成果</span><span class="value">{{ metrics.draftCount }}</span><span class="note">仅创建人和后台管理员可见</span></div>
       <div class="metric"><span class="label">已生成正文</span><span class="value">{{ metrics.generatedCount }}</span><span class="note">等待入库确认</span></div>
-      <div class="metric"><span class="label">已入库成果</span><span class="value">{{ metrics.archivedCount }}</span><span class="note">正式档案来源为 compilation</span></div>
-      <div class="metric"><span class="label">本月新增</span><span class="value">{{ metrics.monthAdded }}</span><span class="note">纯电子载体状态</span></div>
+      <div class="metric"><span class="label">已入库成果</span><span class="value">{{ metrics.archivedCount }}</span><span class="note">已生成正式档案</span></div>
+      <div class="metric"><span class="label">本月新增</span><span class="value">{{ metrics.monthAdded }}</span><span class="note">本月新增编研成果</span></div>
     </section>
 
     <p v-if="loading" class="notice" style="margin-top:16px;">加载中…</p>
@@ -249,11 +249,6 @@ onMounted(() => {
           <div class="toolbar" style="margin-top:0">
             <div>
               <h2 class="section-title">编研成果列表</h2>
-              <div class="status-line">
-                <span class="status">compilations</span>
-                <span class="status">compilation_materials</span>
-                <span class="status">archive_files.compilation_body</span>
-              </div>
             </div>
             <div class="actions">
               <select v-model="filterStatus" aria-label="成果状态筛选">
@@ -329,7 +324,7 @@ onMounted(() => {
       <aside class="stack">
         <div class="notice">
           <strong>入库口径</strong>
-          <div>确认入库后写入正式档案，来源为 <span class="mono">compilation</span>，载体状态为纯电子；素材档案不被复制正文，不改变元数据、密级或公开状态。</div>
+          <div>确认入库后生成独立正式档案，载体为纯电子；素材仅保留引用关系。</div>
         </div>
 
         <div class="card panel">
@@ -366,9 +361,7 @@ onMounted(() => {
           <h2 class="section-title">正文文件与入库确认</h2>
           <div class="check-row">
             <div class="check-item"><span>正文文件</span><span class="status" :class="currentDetail?.attachment ? 'success' : ''">{{ currentDetail?.attachment ? currentDetail.attachment.fileName : '未生成' }}</span></div>
-            <div class="check-item"><span>来源类型</span><span class="status">compilation</span></div>
             <div class="check-item"><span>载体状态</span><span class="status success">纯电子</span></div>
-            <div class="check-item"><span>正式文件角色</span><span class="mono">compilation_body</span></div>
           </div>
           <div class="form-grid" style="margin-top:14px">
             <div class="field">

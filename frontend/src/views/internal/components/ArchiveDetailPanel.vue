@@ -21,7 +21,7 @@
         <div class="detail-line"><span class="muted">纸质借阅</span><strong>{{ detail.canBorrow ? '可申请' : '不支持' }}</strong></div>
       </div>
       <p v-if="detail.summary" class="muted" style="margin-top: 8px">{{ detail.summary }}</p>
-      <div class="notice" style="margin-top: 10px">内部查阅者不展示具体库房架位。需要纸质原件时提交借阅申请，由管理员审批和到馆核验。</div>
+      <div class="notice" style="margin-top: 10px">如需纸质原件，请提交借阅申请，由管理员审批并到馆核验。</div>
 
       <div v-if="detail.files.length > 0" style="margin-top: 12px">
         <h3 class="section-title">电子文件</h3>

@@ -7,7 +7,7 @@ describe('CollectionPage', () => {
     const wrapper = mount(CollectionPage)
 
     expect(wrapper.text()).toContain('征集清单')
-    expect(wrapper.text()).toContain('不上传文件本体')
+    expect(wrapper.text()).toContain('文件不会上传')
     expect(wrapper.text()).toContain('提交捐赠意向')
   })
 })

@@ -1,10 +1,10 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import Preservation from './index.vue'
 
 async function wait() {
-  await new Promise((r) => setTimeout(r, 80))
+  await vi.dynamicImportSettled()
   await flushPromises()
 }
 async function mountIt() {
@@ -36,7 +36,7 @@ describe('Preservation', () => {
     await wait()
     expect(w.text()).toContain('完整性')
     expect(w.text()).toContain('真实性')
-    // 真实性本期未接入外部签名体系，在检测项选择器中标注「本期未配置」
-    expect(w.text()).toContain('本期未配置')
+    // 真实性本期未接入外部签名体系，在检测项选择器中标注「未开启」
+    expect(w.text()).toContain('未开启')
   })
 })

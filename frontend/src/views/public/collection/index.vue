@@ -2,7 +2,7 @@
   <div>
     <section>
       <h1 class="page-title">征集清单</h1>
-      <p class="page-subtitle">填写捐赠信息，拖拽电子文件只会在浏览器本地解析文件名和扩展名，不上传文件本体。</p>
+      <p class="page-subtitle">填写捐赠信息并登记相关电子文件。</p>
     </section>
 
     <div class="edit-layout" style="margin-top: 18px">
@@ -42,7 +42,7 @@
           >
             <div>
               <strong>拖拽文件到这里，或选择本地文件</strong>
-              <p class="muted" style="margin: 6px 0 0">只解析文件名、扩展名、大小，不上传文件本体。</p>
+              <p class="muted" style="margin: 6px 0 0">文件不会上传，仅用于辅助填写。</p>
             </div>
             <label class="button secondary" for="colFilePicker">选择文件</label>
             <input id="colFilePicker" class="sr-only" type="file" multiple @change="handleFileSelect" />
@@ -51,7 +51,7 @@
             <div v-for="(file, idx) in localFiles" :key="idx" class="local-file">
               <div>
                 <strong>{{ file.expectedFilename }}</strong>
-                <div class="hint">{{ file.electronicFormat || '未知格式' }}，{{ formatSize(file.localFileSize) }}，仅本地解析</div>
+                <div class="hint">{{ file.electronicFormat || '未知格式' }}，{{ formatSize(file.localFileSize) }}</div>
               </div>
               <span class="status info">未上传</span>
             </div>
@@ -88,7 +88,7 @@
                   <td><input v-model="item.inputTitle" :readonly="submitted" /></td>
                   <td>
                     <select v-model="item.carrierStatus" :disabled="submitted">
-                      <option value="">人工确认</option>
+                      <option value="">请选择</option>
                       <option value="electronic">纯电子</option>
                       <option value="paper_electronic">纸质+电子</option>
                       <option value="paper">纯纸质</option>
@@ -127,8 +127,7 @@
         </section>
 
         <section class="notice warning">
-          <strong>征集边界</strong>
-          <p style="margin: 8px 0 0">拖拽文件只解析文件名，上传由前台管理员在验收阶段完成。提交捐赠意向前需确认在线捐赠协议。</p>
+          <p style="margin: 0">提交后工作人员将与您联系。</p>
         </section>
       </aside>
     </div>

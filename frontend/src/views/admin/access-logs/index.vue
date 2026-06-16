@@ -2,7 +2,7 @@
   <div class="access-logs">
     <section>
       <h1 class="page-title">访问日志</h1>
-      <p class="page-subtitle">查询档案查阅、预览、下载记录，支持按用户、档案、访问类型与时间筛选并导出。日志不可删除或修改。</p>
+      <p class="page-subtitle">查询档案查阅、预览、下载记录，支持按用户、档案、访问类型与时间筛选并导出。</p>
     </section>
 
     <div class="card panel">
@@ -12,13 +12,13 @@
           <label>访问类型</label>
           <select v-model="filters.accessType" data-testid="accessType">
             <option value="">全部</option>
-            <option value="view_metadata">view_metadata</option>
-            <option value="preview">preview</option>
-            <option value="download">download</option>
+            <option value="view_metadata">查看元数据</option>
+            <option value="preview">预览</option>
+            <option value="download">下载</option>
           </select>
         </div>
-        <div class="field"><label>用户 ID</label><input v-model.number="filters.userId" type="number" placeholder="留空查全部" /></div>
-        <div class="field"><label>档案 ID</label><input v-model.number="filters.archiveId" type="number" placeholder="留空查全部" /></div>
+        <div class="field"><label>用户</label><input v-model.number="filters.userId" type="number" placeholder="留空查全部" /></div>
+        <div class="field"><label>档案</label><input v-model.number="filters.archiveId" type="number" placeholder="留空查全部" /></div>
         <div class="field"><label>开始时间</label><input type="date" v-model="filters.startedAt" /></div>
         <div class="field"><label>结束时间</label><input type="date" v-model="filters.endedAt" /></div>
       </div>
@@ -42,10 +42,10 @@
           <tbody>
             <tr v-for="l in records" :key="l.id">
               <td class="mono">{{ l.accessedAt }}</td>
-              <td>{{ l.userName || (l.userId ? '用户#' + l.userId : '匿名') }}</td>
+              <td>{{ l.userName || (l.userId ? '未知用户' : '匿名') }}</td>
               <td>{{ l.userType }}</td>
-              <td>{{ l.archiveNo || ('档案#' + l.archiveId) }}</td>
-              <td>{{ l.accessType }}</td>
+              <td>{{ l.archiveNo || '未知档案' }}</td>
+              <td>{{ accessTypeLabel[l.accessType] || l.accessType }}</td>
               <td class="mono">{{ l.ipAddress || '-' }}</td>
             </tr>
           </tbody>
@@ -80,6 +80,12 @@ const filters = reactive({
   startedAt: '',
   endedAt: '',
 })
+
+const accessTypeLabel: Record<AccessType, string> = {
+  view_metadata: '查看元数据',
+  preview: '预览',
+  download: '下载',
+}
 
 function buildQuery(cursor?: string): AccessLogQuery {
   return {
@@ -140,10 +146,10 @@ function reset() {
 function exportLogs() {
   const rows = records.value.map((l) => ({
     accessedAt: l.accessedAt,
-    user: l.userName || (l.userId ? '用户#' + l.userId : '匿名'),
+    user: l.userName || (l.userId ? '未知用户' : '匿名'),
     userType: l.userType,
-    archive: l.archiveNo || ('档案#' + l.archiveId),
-    accessType: l.accessType,
+    archive: l.archiveNo || '未知档案',
+    accessType: accessTypeLabel[l.accessType] || l.accessType,
     ipAddress: l.ipAddress ?? '',
   }))
   downloadCsv('访问日志.csv', rows)

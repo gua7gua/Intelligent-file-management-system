@@ -92,12 +92,6 @@
               </tbody>
             </table>
           </div>
-
-          <section class="borrow-impact">
-            <div class="impact-item"><span class="status warning">借阅审批校验</span><h3 class="section-title">命中范围暂停</h3><p class="hint">盘点范围内新的纸质借阅申请显示"盘点暂停借阅"。</p></div>
-            <div class="impact-item"><span class="status info">已借出档案</span><h3 class="section-title">不强制召回</h3><p class="hint">盘点清单记录为"借出中"，归还后可补核实物状态。</p></div>
-            <div class="impact-item"><span class="status success">完成后恢复</span><h3 class="section-title">正常档案可借</h3><p class="hint">提交盘点结果后，正常项恢复可借。</p></div>
-          </section>
         </template>
       </section>
     </section>
@@ -161,7 +155,7 @@ const resultFilter = ref<'all' | InventoryCheckResultValue>('all')
 
 const rooms = ref<WarehouseRoom[]>([])
 const categories = [
-  { id: 1, name: '科技档案' }, { id: 2, name: '文书档案' }, { id: 3, name: '会计档案' },
+  { id: 1, name: '文书档案' }, { id: 2, name: '科技档案' }, { id: 3, name: '会计档案' },
   { id: 4, name: '音像档案' }, { id: 5, name: '人事档案' },
 ]
 const taskModalVisible = ref(false)
@@ -369,8 +363,6 @@ onMounted(async () => {
 .table-wrap th { font-weight: 700; color: var(--muted); background: var(--bg); }
 .inline-input { width: min(160px, 100%); padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; }
 .table-wrap select { padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; }
-.borrow-impact { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
-.impact-item { padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(23, 33, 43, 0.38); }
 .modal { width: min(640px, 100%); border-radius: var(--radius); background: #fff; box-shadow: var(--shadow); }
 .modal header, .modal footer { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border); }
@@ -393,5 +385,5 @@ onMounted(async () => {
 .status.warning { background: #fff7e6; color: #fa8c16; }
 .status.danger { background: #fff1f0; color: #f5222d; }
 .status.info { background: #e6f7ff; color: #1890ff; }
-@media (max-width: 1080px) { .metric-row, .workspace, .borrow-impact, .form-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1080px) { .metric-row, .workspace, .form-grid { grid-template-columns: 1fr; } }
 </style>

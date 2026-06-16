@@ -1,10 +1,10 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import ElementPlus from 'element-plus'
 import FondsManage from './index.vue'
 
-async function wait() { await new Promise((r) => setTimeout(r, 80)); await flushPromises() }
+async function wait() { await vi.dynamicImportSettled(); await flushPromises() }
 async function mountIt() {
   const router = createRouter({
     history: createMemoryHistory(),
@@ -28,11 +28,10 @@ describe('FondsManage', () => {
     expect(w.text()).toContain('启用')
   })
 
-  it('shows new-fonds button and org-maintain link', async () => {
+  it('shows new-fonds button', async () => {
     const w = await mountIt()
     await wait()
     expect(w.findAll('button').some((b) => b.text().includes('新建全宗'))).toBe(true)
-    expect(w.html()).toContain('/admin/user-management')
   })
 
   it('enters create mode with editable fondsNo on 新建全宗', async () => {

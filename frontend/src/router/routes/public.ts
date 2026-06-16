@@ -18,7 +18,7 @@ export const publicRoutes: RouteRecordRaw = {
     {
       path: 'collection',
       component: () => import('@/views/public/collection/index.vue'),
-      meta: { title: '征集清单' },
+      meta: { title: '征集清单', requiresAuth: true },
     },
     {
       path: 'register',

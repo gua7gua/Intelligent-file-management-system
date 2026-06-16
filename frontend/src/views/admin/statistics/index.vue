@@ -52,7 +52,7 @@ onMounted(load)
     <div class="toolbar">
       <div>
         <h1 class="page-title">数据统计</h1>
-        <p class="page-subtitle">馆藏、移交、征集、借阅、销毁和保存指标来自正式业务表，只读展示并支持带条件跳转。</p>
+        <p class="page-subtitle">汇总馆藏、移交、征集、借阅、销毁和保存指标，支持按条件跳转查看明细。</p>
       </div>
       <div class="actions">
         <select id="yearStart" v-model="yearStart" aria-label="年度起">
@@ -65,10 +65,6 @@ onMounted(load)
         <button class="button secondary refresh" @click="load"><span class="icon">R</span>刷新统计</button>
         <button class="button" @click="doExport('xlsx')"><span class="icon">E</span>导出统计表</button>
       </div>
-    </div>
-
-    <div class="notice">
-      统计口径：馆藏来自 <span class="mono">archives</span>，移交/征集来自 <span class="mono">intake_batches</span>，借阅来自 <span class="mono">borrow_requests</span>，销毁来自 <span class="mono">destruction_lists</span>，保存来自 <span class="mono">backup_tasks</span> 和 <span class="mono">file_check_records</span>。
     </div>
 
     <p v-if="loading" class="notice" style="margin-top:16px;">加载中…</p>
@@ -120,7 +116,7 @@ onMounted(load)
               <div class="segment" v-for="(d, i) in overview.carrierDistribution" :key="d.label">
                 <span class="muted">{{ d.label === 'electronic' ? '纯电子' : d.label === 'paper_electronic' ? '纸质+电子' : '纯纸质' }}</span>
                 <strong>{{ Math.round(d.ratio * 100) }}%</strong>
-                <span class="status" :class="['success', 'info', 'warning'][i]">{{ d.label }}</span>
+                <span class="status" :class="['success', 'info', 'warning'][i]">{{ d.label === 'electronic' ? '纯电子' : d.label === 'paper_electronic' ? '纸质+电子' : '纯纸质' }}</span>
               </div>
             </div>
           </div>
@@ -135,7 +131,6 @@ onMounted(load)
                   <th>业务域</th>
                   <th>总数</th>
                   <th>状态明细</th>
-                  <th>来源表</th>
                 </tr>
               </thead>
               <tbody>
@@ -145,7 +140,6 @@ onMounted(load)
                   <td>
                     <span class="status" v-for="d in row.details" :key="d.label" style="margin-right:6px;">{{ d.label }} {{ d.count }}</span>
                   </td>
-                  <td><span class="status">{{ row.sourceTable }}</span></td>
                 </tr>
               </tbody>
             </table>
@@ -155,27 +149,12 @@ onMounted(load)
 
       <aside class="stack">
         <div class="card panel">
-          <h2 class="section-title">数据源状态</h2>
-          <ul class="source-list">
-            <li v-for="s in overview.dataSources" :key="s.table">
-              <span>{{ s.label }}</span>
-              <span class="status" :class="s.healthy ? 'success' : 'warning'">{{ s.healthy ? '正常' : s.lastSyncedAt + ' 汇总' }}</span>
-            </li>
-          </ul>
-        </div>
-
-        <div class="card panel">
           <h2 class="section-title">领导关注指标</h2>
           <div class="timeline">
             <li><span>本月</span><div>馆藏新增 {{ overview.metrics[1]?.value.toLocaleString() ?? '—' }} 件，纸质相关待上架待统计。</div></li>
             <li><span>本季度</span><div>借阅申请 318 件，已归还 291 件，逾期 7 件。</div></li>
             <li><span>年度</span><div>销毁审批 12 册，已销毁 9 册，清册永久留存。</div></li>
           </div>
-        </div>
-
-        <div class="notice warning">
-          <strong>只读边界</strong>
-          <div>统计页不修改正式档案，不执行鉴定、销毁或审批；业务处理需跳转到对应页面并通过后端权限校验。</div>
         </div>
       </aside>
     </div>

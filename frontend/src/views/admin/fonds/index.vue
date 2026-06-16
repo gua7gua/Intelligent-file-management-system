@@ -3,19 +3,18 @@
     <div class="toolbar">
       <div>
         <h1 class="page-title">全宗管理</h1>
-        <p class="page-subtitle">维护全宗号、全宗名称和所属组织。全宗由后台入库阶段写入正式档案归属，移交单位编制清单时不选择全宗。</p>
+        <p class="page-subtitle">维护全宗号、全宗名称和所属组织。</p>
       </div>
       <div class="actions">
         <el-button type="primary" @click="newFonds">新建全宗</el-button>
-        <RouterLink class="el-button is-ghost" to="/admin/user-management">组织维护</RouterLink>
       </div>
     </div>
 
     <section class="grid four" aria-label="全宗概览">
-      <div class="metric card"><div class="metric-num">{{ metrics.total }}</div><div class="metric-label">全宗总数</div><div class="metric-note">fonds</div></div>
+      <div class="metric card"><div class="metric-num">{{ metrics.total }}</div><div class="metric-label">全宗总数</div></div>
       <div class="metric card"><div class="metric-num">{{ metrics.active }}</div><div class="metric-label">启用全宗</div><div class="metric-note">可被入库选择</div></div>
-      <div class="metric card"><div class="metric-num">{{ metrics.archiveSum }}</div><div class="metric-label">归档档案</div><div class="metric-note">archives.fonds_id</div></div>
-      <div class="metric card"><div class="metric-num">{{ metrics.boxSum }}</div><div class="metric-label">档案盒</div><div class="metric-note">archive_boxes.fonds_id</div></div>
+      <div class="metric card"><div class="metric-num">{{ metrics.archiveSum }}</div><div class="metric-label">归档档案</div></div>
+      <div class="metric card"><div class="metric-num">{{ metrics.boxSum }}</div><div class="metric-label">档案盒</div></div>
     </section>
 
     <div class="fonds-layout">
@@ -99,10 +98,6 @@
             <div v-else class="detail-empty">暂无入库记录</div>
           </div>
         </div>
-
-        <div class="notice">
-          全宗与移交清单不直接关联。移交单位提交清单时不选择全宗；后台确认正式档案入库时选择全宗，纯电子档案同样必须归属全宗。
-        </div>
       </section>
 
       <aside class="drawer">
@@ -127,7 +122,7 @@
 
         <div class="notice warning">
           <strong>审计留痕</strong>
-          <div>全宗号只读。新建、修改全宗名称、所属单位或说明后，保存记录写入 audit_logs。</div>
+          <div>全宗号创建后不可修改；修改全宗名称、所属单位或说明后，保存会记录审计日志。</div>
         </div>
 
         <div class="actions">
@@ -142,7 +137,6 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createFonds, getFonds, removeFonds, updateFonds } from '@/api/fonds'
 import { getOrganizations } from '@/api/organizations'
@@ -260,7 +254,7 @@ async function save() {
       selectRow(created)
     } else {
       await updateFonds(selectedId.value!, { fondsName: form.fondsName, organizationId: form.organizationId, description: form.description })
-      ElMessage.success('全宗已保存，变更写入 audit_logs。')
+      ElMessage.success('全宗已保存')
       await loadAll()
     }
   } catch (e) {
@@ -326,6 +320,5 @@ onMounted(loadAll)
 .detail-empty { color: #909399; padding: 16px; text-align: center; }
 .link { background: none; border: none; color: var(--primary, #1f6f78); cursor: pointer; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
-.is-ghost { text-decoration: none; }
 @media (max-width: 1120px) { .fonds-layout { grid-template-columns: 1fr; } }
 </style>

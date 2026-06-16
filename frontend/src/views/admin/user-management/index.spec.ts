@@ -1,10 +1,10 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import ElementPlus from 'element-plus'
 import UserManagement from './index.vue'
 
-async function wait() { await new Promise((r) => setTimeout(r, 80)); await flushPromises() }
+async function wait() { await vi.dynamicImportSettled(); await flushPromises() }
 async function mountIt() {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/admin/user-management', component: UserManagement }] })
   await router.push('/admin/user-management')
@@ -18,7 +18,7 @@ describe('UserManagement', () => {
     await wait()
     expect(w.text()).toContain('用户管理')
     expect(w.text()).toContain('小刘')
-    expect(w.text()).toContain('back_archivist')
+    expect(w.text()).toContain('后台档案管理员')
   })
 
   it('renders organization and fonds reference lists', async () => {

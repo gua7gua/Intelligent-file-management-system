@@ -143,7 +143,7 @@
           </div>
           <div class="info-tile">
             <span>协议文案</span>
-            <strong>collection.agreement_text</strong>
+            <strong>在线捐赠协议</strong>
           </div>
         </div>
 
@@ -165,7 +165,7 @@
                 <div>
                   <strong>拖拽捐赠电子文件或选择文件</strong>
                   <p class="muted" style="margin: 6px 0 0;">
-                    上传后写入暂存路径，按清单文件名匹配；回退条目会删除暂存对象并保留记录。
+                    上传后将自动与清单条目匹配；回退条目会保留记录。
                   </p>
                 </div>
                 <label class="button secondary" for="collectionFilePicker">选择 U 盘文件</label>
@@ -490,7 +490,7 @@ async function handleCompleteReceive() {
     return
   }
   try {
-    // 逐条提交征集验收结论（复用 §7.5 PUT /admin/reception/items/{itemId}/acceptance）
+    // 逐条提交征集验收结论
     for (const i of items) {
       await updateItemAcceptance(i.id, {
         result: i.result as 'accepted' | 'rejected',

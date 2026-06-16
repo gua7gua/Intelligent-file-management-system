@@ -2,14 +2,14 @@
   <div class="user-mgmt">
     <section>
       <h1 class="page-title">用户管理</h1>
-      <p class="page-subtitle">维护组织、全宗、账号和预设角色。系统管理员负责账号配置，不默认拥有档案正文和电子文件查看权限。</p>
+      <p class="page-subtitle">维护组织、全宗、账号和预设角色。</p>
     </section>
 
     <section class="grid four" aria-label="用户概览">
-      <div class="metric card"><div class="metric-num">{{ internalCount }}</div><div class="metric-label">内部账号</div><div class="metric-note">user_type = internal</div></div>
-      <div class="metric card"><div class="metric-num">{{ publicCount }}</div><div class="metric-label">公众账号</div><div class="metric-note">user_type = public</div></div>
+      <div class="metric card"><div class="metric-num">{{ internalCount }}</div><div class="metric-label">内部账号</div></div>
+      <div class="metric card"><div class="metric-num">{{ publicCount }}</div><div class="metric-label">公众账号</div></div>
       <div class="metric card"><div class="metric-num">{{ disabledCount }}</div><div class="metric-label">禁用账号</div><div class="metric-note">历史日志与业务记录保留</div></div>
-      <div class="metric card"><div class="metric-num">{{ sysAdminCount }}</div><div class="metric-label">系统管理员</div><div class="metric-note">sys_admin 角色</div></div>
+      <div class="metric card"><div class="metric-num">{{ sysAdminCount }}</div><div class="metric-label">系统管理员</div></div>
     </section>
 
     <div class="toolbar">
@@ -47,8 +47,8 @@
                   <td class="mono">{{ u.loginName }}</td>
                   <td>{{ u.realName }}</td>
                   <td>{{ (u.organizationName || '-') + ' / ' + (u.departmentName || '-') }}</td>
-                  <td><span class="status" :class="roleTagClass(u.roleCodes[0])">{{ u.roleCodes[0] }}</span></td>
-                  <td>{{ u.dataScope }}</td>
+                  <td><span class="status" :class="roleTagClass(u.roleCodes[0])">{{ roleNameOf(u.roleCodes[0]) }}</span></td>
+                  <td>{{ dataScopeLabel[u.dataScope] || u.dataScope }}</td>
                   <td>{{ securityLabel(u.maxSecurityLevel) }}</td>
                   <td><span class="status" :class="u.status === 'active' ? 'success' : 'danger'">{{ UserStatusLabel[u.status] }}</span></td>
                   <td>
@@ -70,12 +70,19 @@
             <ul class="mini-list">
               <li v-for="o in organizations" :key="o.id">
                 <strong>{{ o.orgName }}</strong>
-                <span class="muted">org_type = {{ o.orgType }} · 状态 {{ o.status === 'active' ? 'active' : 'disabled' }}</span>
+                <span class="muted">{{ orgTypeLabel[o.orgType] || o.orgType }} · 全宗 {{ o.fondsCount }} · 用户 {{ o.userCount }} · {{ o.status === 'active' ? '正常' : '停用' }}</span>
                 <el-button
+                  v-if="o.status === 'active'"
                   size="small"
-                  :type="o.status === 'active' ? 'warning' : 'success'"
+                  :type="isOrgLinked(o) ? 'warning' : 'danger'"
+                  @click="removeOrDisableOrg(o)"
+                >{{ isOrgLinked(o) ? '停用' : '删除' }}</el-button>
+                <el-button
+                  v-else
+                  size="small"
+                  type="success"
                   @click="toggleOrgStatus(o)"
-                >{{ o.status === 'active' ? '停用' : '启用' }}</el-button>
+                >启用</el-button>
               </li>
             </ul>
           </div>
@@ -99,7 +106,7 @@
             <div class="field"><label>姓名</label><input v-model="form.realName" /></div>
             <div class="field">
               <label>用户类型</label>
-              <select v-model="form.userType"><option value="internal">internal</option><option value="public">public</option></select>
+              <select v-model="form.userType"><option value="internal">内部账号</option><option value="public">公众账号</option></select>
             </div>
             <div class="field"><label>联系电话</label><input v-model="form.phone" /></div>
             <div class="field">
@@ -111,7 +118,7 @@
             <div class="field"><label>所属部门</label><input v-model="form.departmentName" /></div>
             <div class="field">
               <label>数据范围</label>
-              <select v-model="form.dataScope"><option value="all">all</option><option value="own_org">own_org</option><option value="own_fonds">own_fonds</option></select>
+              <select v-model="form.dataScope"><option value="all">全部</option><option value="own_org">本机构</option><option value="own_fonds">本全宗</option></select>
             </div>
             <div class="field">
               <label>密级上限</label>
@@ -132,19 +139,15 @@
         </div>
 
         <div class="card panel">
-          <h2 class="section-title">角色代码</h2>
+          <h2 class="section-title">系统角色</h2>
           <div class="role-tags">
-            <span class="status" v-for="r in roles" :key="r.roleCode">{{ r.roleCode }}</span>
+            <span class="status" v-for="r in roles" :key="r.roleCode">{{ r.roleName }}</span>
           </div>
         </div>
 
-        <div class="notice warning">
-          <strong>权限边界</strong>
-          <div>系统管理员维护账号和配置，不默认查看档案正文和电子文件；密级调整、开放调整、销毁审批仍由馆领导审批工作台办理。</div>
-        </div>
         <div class="notice">
           <strong>审计留痕</strong>
-          <div>用户禁用、密码重置、角色变更写入 <span class="mono">audit_logs</span>，历史审批、移交和操作记录保留原用户信息。</div>
+          <div>用户禁用、密码重置、角色变更会记录审计日志，历史审批、移交和操作记录保留原用户信息。</div>
         </div>
       </aside>
     </div>
@@ -155,10 +158,10 @@
         <div class="field">
           <label>组织类型</label>
           <select v-model="orgForm.orgType">
-            <option value="archive_org">archive_org</option>
-            <option value="government">government</option>
-            <option value="enterprise">enterprise</option>
-            <option value="public_institution">public_institution</option>
+            <option value="archive_org">档案机构</option>
+            <option value="government">政府机关</option>
+            <option value="enterprise">企业</option>
+            <option value="public_institution">事业单位</option>
           </select>
         </div>
         <div class="field"><label>联系人</label><input v-model="orgForm.contactName" /></div>
@@ -176,7 +179,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createUser, getRoles, getUserDetail, getUsers, resetUserPassword, updateUser, updateUserStatus } from '@/api/user-management'
-import { createOrganization, getOrganizations, updateOrganization } from '@/api/organizations'
+import { createOrganization, deleteOrganization, getOrganizations, updateOrganization } from '@/api/organizations'
 import { getFonds } from '@/api/fonds'
 import type { Role, User } from '@/types/user-management'
 import type { Organization } from '@/types/organization'
@@ -230,6 +233,12 @@ function securityLabel(level: number): string {
 }
 function roleTagClass(code: string): string {
   return code === 'director' ? 'warning' : code === 'sys_admin' ? 'info' : ''
+}
+const dataScopeLabel: Record<string, string> = { all: '全部', own_org: '本机构', own_fonds: '本全宗' }
+const orgTypeLabel: Record<string, string> = { archive_org: '档案机构', government: '政府机关', enterprise: '企业', public_institution: '事业单位' }
+function roleNameOf(code?: string): string {
+  if (!code) return '-'
+  return roles.value.find((r) => r.roleCode === code)?.roleName ?? code
 }
 
 async function loadAll() {
@@ -305,13 +314,13 @@ async function saveUser() {
         organizationId: form.organizationId, departmentName: form.departmentName, maxSecurityLevel: form.maxSecurityLevel,
         dataScope: form.dataScope, roleCodes: form.roleCodes, initialPassword: form.initialPassword,
       })
-      ElMessage.success('用户已保存，角色关系写入 user_roles。')
+      ElMessage.success('用户已保存。')
     } else {
       await updateUser(editingId.value!, {
         realName: form.realName, phone: form.phone, organizationId: form.organizationId, departmentName: form.departmentName,
         maxSecurityLevel: form.maxSecurityLevel, dataScope: form.dataScope, roleCodes: form.roleCodes,
       })
-      ElMessage.success('用户已更新，变更写入审计日志。')
+      ElMessage.success('用户已更新。')
     }
     await loadAll()
   } catch (e) {
@@ -380,7 +389,41 @@ async function submitOrg() {
   }
 }
 
-// 组织停用/启用（§17.7 更新 status；停用而非物理删除，保留历史档案归属）
+// 组织是否有关联（用于决定显示「删除」还是「停用」）
+function isOrgLinked(o: Organization): boolean {
+  return (o.fondsCount ?? 0) > 0 || (o.userCount ?? 0) > 0
+}
+
+// 组织删除/停用（§17.8）：无关联全宗和用户时可删除，有关联则停用
+async function removeOrDisableOrg(o: Organization) {
+  const linked = isOrgLinked(o)
+  const action = linked ? '停用' : '删除'
+  try {
+    await ElMessageBox.confirm(
+      linked
+        ? `组织「${o.orgName}」存在关联全宗或用户，将改为停用？`
+        : `确认删除组织「${o.orgName}」？删除后不可恢复。`,
+      `${action}组织`,
+      { type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  try {
+    if (linked) {
+      await updateOrganization(o.id, { status: 'disabled' })
+    } else {
+      await deleteOrganization(o.id)
+    }
+    ElMessage.success(`已${action}组织。`)
+    const res = await getOrganizations()
+    organizations.value = res.records
+  } catch (e) {
+    ElMessage.error((e as Error).message || `${action}组织失败`)
+  }
+}
+
+// 组织启用（已停用 → 启用；§17.7 更新 status）
 async function toggleOrgStatus(o: Organization) {
   const next: 'active' | 'disabled' = o.status === 'active' ? 'disabled' : 'active'
   const action = next === 'disabled' ? '停用' : '启用'

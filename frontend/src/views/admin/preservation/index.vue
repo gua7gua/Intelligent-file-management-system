@@ -6,10 +6,10 @@
     </section>
 
     <section class="grid four" aria-label="保存概览">
-      <div class="metric card"><div class="metric-label">最近数据库备份</div><div class="metric-num">{{ latestDbBackup }}</div><div class="metric-note">backup_scope = database</div></div>
-      <div class="metric card"><div class="metric-label">最近电子文件备份</div><div class="metric-num">{{ latestFileBackup }}</div><div class="metric-note">backup_scope = files</div></div>
-      <div class="metric card"><div class="metric-num">{{ passRate }}%</div><div class="metric-label">四性检测通过率</div><div class="metric-note">archive_file 检测记录</div></div>
-      <div class="metric card"><div class="metric-num">{{ todayCheckCount }}</div><div class="metric-label">今日检测任务</div><div class="metric-note">file_check_records</div></div>
+      <div class="metric card"><div class="metric-label">最近数据库备份</div><div class="metric-num">{{ latestDbBackup }}</div><div class="metric-note">数据库元数据备份</div></div>
+      <div class="metric card"><div class="metric-label">最近电子文件备份</div><div class="metric-num">{{ latestFileBackup }}</div><div class="metric-note">电子文件备份</div></div>
+      <div class="metric card"><div class="metric-num">{{ passRate }}%</div><div class="metric-label">四性检测通过率</div><div class="metric-note">已归档电子文件检测</div></div>
+      <div class="metric card"><div class="metric-num">{{ todayCheckCount }}</div><div class="metric-label">今日检测任务</div><div class="metric-note">检测记录</div></div>
     </section>
 
     <div class="preserve-layout">
@@ -22,7 +22,7 @@
               <input type="radio" name="backupScope" :value="opt.value" v-model="selectedScope" />
               <strong>{{ opt.label }}</strong>
               <span class="muted">{{ opt.desc }}</span>
-              <span class="status" :class="opt.tagClass">{{ opt.value }}</span>
+              <span class="status" :class="opt.tagClass">{{ opt.label }}</span>
             </label>
           </div>
           <div class="toolbar" style="margin-top:12px">
@@ -39,7 +39,7 @@
           <div v-else class="table-wrap">
             <table>
               <thead>
-                <tr><th>任务号</th><th>范围</th><th>状态</th><th>路径</th><th>大小</th><th>校验哈希</th><th>说明</th></tr>
+                <tr><th>任务号</th><th>范围</th><th>状态</th><th>路径</th><th>大小</th><th>完整性校验</th><th>说明</th></tr>
               </thead>
               <tbody>
                 <tr v-for="t in backupTasks" :key="t.id">
@@ -48,7 +48,7 @@
                   <td><span class="status" :class="statusClass(t.status)">{{ BackupTaskStatusLabel[t.status] }}</span></td>
                   <td class="mono">{{ t.backupPath }}</td>
                   <td>{{ t.fileSize ? formatSize(t.fileSize) : '-' }}</td>
-                  <td class="mono">{{ t.sha256 ? t.sha256.slice(0, 4) + '...' + t.sha256.slice(-4) : '-' }}</td>
+                  <td>{{ t.sha256 ? '已校验' : '未校验' }}</td>
                   <td>{{ t.message }}</td>
                 </tr>
               </tbody>
@@ -58,7 +58,7 @@
 
         <div class="card panel">
           <h2 class="section-title">四性检测</h2>
-          <div class="notice">检测对象为已归档电子文件；结果写入 <span class="mono">file_check_records</span>，不修改正式档案状态。</div>
+          <div class="notice">检测结果仅作记录，不影响正式档案状态。</div>
 
           <div class="form-grid" style="grid-template-columns: 1fr auto; margin-top: 12px">
             <div class="field">
@@ -99,7 +99,7 @@
               <label v-for="ct in allCheckTypes" :key="ct" class="check-type">
                 <input type="checkbox" :checked="selectedCheckTypes.includes(ct)" @change="toggleCheckType(ct)" />
                 <span>{{ CheckTypeLabel[ct] }}</span>
-                <span class="muted">{{ ct === 'authenticity' ? '本期未配置' : checkDesc[ct] }}</span>
+                <span class="muted">{{ ct === 'authenticity' ? '未开启' : checkDesc[ct] }}</span>
               </label>
             </div>
           </div>
@@ -127,14 +127,10 @@
         <div class="card panel">
           <h2 class="section-title">存储空间</h2>
           <ul class="timeline">
-            <li><span>MinIO</span><div>已用 742 GB / 1 TB，正式文件和备份分桶存储。</div></li>
-            <li><span>PostgreSQL</span><div>元数据 18.6 GB，审计日志 4.2 GB。</div></li>
-            <li><span>备份目录</span><div>保留最近 6 次例行备份，路径与哈希入库。</div></li>
+            <li><span>数据库备份</span><div>数据库备份正常，元数据已纳入例行备份。</div></li>
+            <li><span>电子文件备份</span><div>电子文件备份正常，正式电子文件已纳入例行备份。</div></li>
+            <li><span>备份目录</span><div>保留最近 6 次例行备份。</div></li>
           </ul>
-        </div>
-        <div class="notice warning">
-          <strong>保存边界</strong>
-          <div>本页面不做跨机房容灾编排，不自动恢复档案，也不替代鉴定、销毁或审批流程。</div>
         </div>
       </aside>
     </div>
@@ -174,9 +170,9 @@ const scopeOptions = [
 ]
 const allCheckTypes: CheckTypeValue[] = ['integrity', 'usability', 'authenticity', 'security']
 const checkDesc: Record<string, string> = {
-  integrity: '校验 SHA-256 哈希',
-  usability: '格式白名单与基础打开检测',
-  authenticity: '外部签名体系验签记录',
+  integrity: '完整性校验',
+  usability: '可用性检测',
+  authenticity: '真实性核验',
   security: '病毒扫描和格式限制',
 }
 

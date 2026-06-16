@@ -2,20 +2,20 @@
   <div class="settings">
     <section>
       <h1 class="page-title">系统配置</h1>
-      <p class="page-subtitle">维护上传白名单、上传大小、AI 开关、公开检索开关和业务默认参数；配置变更记录审计日志。</p>
+      <p class="page-subtitle">维护上传格式与大小、AI 与公开检索开关以及业务默认参数。</p>
     </section>
 
     <section class="grid four" aria-label="配置概览">
-      <div class="metric card"><div class="metric-num">{{ editableCount }}</div><div class="metric-label">可编辑配置</div><div class="metric-note">editable = true</div></div>
-      <div class="metric card"><div class="metric-num">{{ aiEnabled ? '开' : '关' }}</div><div class="metric-label">AI 功能</div><div class="metric-note">ai.enabled</div></div>
-      <div class="metric card"><div class="metric-num">{{ publicEnabled ? '开' : '关' }}</div><div class="metric-label">公开检索</div><div class="metric-note">public_search.enabled</div></div>
-      <div class="metric card"><div class="metric-num">{{ savedAt }}</div><div class="metric-label">最近保存</div><div class="metric-note">写入 audit_logs</div></div>
+      <div class="metric card"><div class="metric-num">{{ editableCount }}</div><div class="metric-label">可编辑配置</div></div>
+      <div class="metric card"><div class="metric-num">{{ aiEnabled ? '开' : '关' }}</div><div class="metric-label">AI 功能</div></div>
+      <div class="metric card"><div class="metric-num">{{ publicEnabled ? '开' : '关' }}</div><div class="metric-label">公开检索</div></div>
+      <div class="metric card"><div class="metric-num">{{ savedAt }}</div><div class="metric-label">最近保存</div></div>
     </section>
 
     <div class="toolbar">
       <div></div>
       <div class="actions">
-        <el-button :loading="loading" @click="resetConfig">恢复本页示例</el-button>
+        <el-button :loading="loading" @click="resetConfig">重置修改</el-button>
         <el-button type="primary" :loading="saving" @click="saveConfig">保存配置</el-button>
       </div>
     </div>
@@ -28,7 +28,7 @@
           <div class="card panel">
             <h2 class="section-title">文件上传配置</h2>
             <div class="config-row format-row">
-              <div class="config-key"><strong>上传格式白名单</strong><span class="mono">upload.allowed_extensions</span></div>
+              <div class="config-key"><strong>上传格式白名单</strong></div>
               <div class="format-content">
                 <div class="tag-list">
                   <span class="format-tag" v-for="ext in extensions" :key="ext">{{ ext }}</span>
@@ -40,43 +40,37 @@
               </div>
             </div>
             <div class="config-row">
-              <div class="config-key"><strong>最大上传大小</strong><span class="mono">upload.max_file_size_mb</span></div>
+              <div class="config-key"><strong>最大上传大小</strong></div>
               <div class="field"><label>大小限制 MB</label><input type="number" min="1" max="2048" v-model.number="maxSize" /></div>
-              <span class="status">number</span>
             </div>
           </div>
 
           <div class="card panel">
             <h2 class="section-title">能力开关</h2>
             <div class="config-row">
-              <div class="config-key"><strong>AI 功能开关</strong><span class="mono">ai.enabled</span></div>
-              <label class="switch-line"><input type="checkbox" v-model="aiEnabled" @change="onAiToggle" /><span>启用 AI 补全、检索 JSON 和数据研判建议</span></label>
-              <span class="status info">boolean</span>
+              <div class="config-key"><strong>AI 功能开关</strong></div>
+              <label class="switch-line"><input type="checkbox" v-model="aiEnabled" @change="onAiToggle" /><span>启用 AI 补全与数据研判建议</span></label>
             </div>
             <div class="config-row">
-              <div class="config-key"><strong>公开检索开关</strong><span class="mono">public_search.enabled</span></div>
+              <div class="config-key"><strong>公开检索开关</strong></div>
               <label class="switch-line"><input type="checkbox" v-model="publicEnabled" @change="onPublicToggle" /><span>启用公众门户公开档案检索入口</span></label>
-              <span class="status info">boolean</span>
             </div>
-            <div class="notice" style="margin-top:12px">AI 关闭时业务流程回退为人工填写和手工筛选；公开检索关闭只影响入口，不改变正式档案的公开字段。</div>
+            <div class="notice" style="margin-top:12px">AI 关闭后相关功能不可用；公开检索关闭仅影响公众检索入口。</div>
           </div>
 
           <div class="card panel">
             <h2 class="section-title">业务默认参数</h2>
             <div class="config-row">
-              <div class="config-key"><strong>库房占用告警阈值</strong><span class="mono">warehouse.usage_warning_threshold</span></div>
+              <div class="config-key"><strong>库房占用告警阈值</strong></div>
               <div class="field"><label>阈值百分比</label><input type="number" min="50" max="100" v-model.number="warehouseThreshold" /></div>
-              <span class="status">number</span>
             </div>
             <div class="config-row">
-              <div class="config-key"><strong>默认借阅天数</strong><span class="mono">borrow.default_days</span></div>
+              <div class="config-key"><strong>默认借阅天数</strong></div>
               <div class="field"><label>天数</label><input type="number" min="1" max="90" v-model.number="borrowDays" /></div>
-              <span class="status">number</span>
             </div>
             <div class="config-row">
-              <div class="config-key"><strong>征集捐赠协议文案</strong><span class="mono">collection.agreement_text</span></div>
+              <div class="config-key"><strong>征集捐赠协议文案</strong></div>
               <div class="field"><label>协议文案</label><textarea v-model="agreementText" rows="3"></textarea></div>
-              <span class="status">string</span>
             </div>
           </div>
 
@@ -84,14 +78,12 @@
             <h2 class="section-title">配置项明细</h2>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>配置键</th><th>当前值</th><th>类型</th><th>可编辑</th><th>说明</th></tr></thead>
+                <thead><tr><th>配置项</th><th>当前值</th><th>可编辑</th></tr></thead>
                 <tbody>
                   <tr v-for="c in configs" :key="c.configKey">
-                    <td class="mono">{{ c.configKey }}</td>
+                    <td>{{ c.description || c.configKey }}</td>
                     <td>{{ displayValue(c) }}</td>
-                    <td>{{ c.valueType }}</td>
                     <td><span class="status" :class="c.editable ? 'success' : ''">{{ c.editable ? '是' : '否' }}</span></td>
-                    <td>{{ c.description }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -102,16 +94,15 @@
 
       <aside class="stack">
         <div class="card panel">
-          <h2 class="section-title">配置边界</h2>
+          <h2 class="section-title">配置说明</h2>
           <ul class="timeline">
-            <li><span>上传</span><div>只维护格式白名单和大小限制。</div></li>
-            <li><span>AI</span><div>统一启停补全、检索 JSON 和数据研判建议。</div></li>
-            <li><span>公开检索</span><div>只控制公众入口，不直接改档案公开状态。</div></li>
-            <li><span>征集协议</span><div>公众提交时在线展示并记录同意时间。</div></li>
+            <li><span>上传</span><div>管理允许的上传格式与单文件大小上限。</div></li>
+            <li><span>AI</span><div>统一启停 AI 补全与数据研判建议。</div></li>
+            <li><span>公开检索</span><div>控制公众门户的公开档案检索入口。</div></li>
+            <li><span>征集协议</span><div>公众提交征集清单时在线展示并记录同意时间。</div></li>
           </ul>
         </div>
-        <div class="notice warning"><strong>审批边界</strong><div>配置页不办理密级调整、开放调整或销毁审批；这些业务必须进入审批工作台并保留审批记录。</div></div>
-        <div class="notice"><strong>审计要求</strong><div>保存配置写入 <span class="mono">audit_logs</span>，不可在页面删除审计记录。</div></div>
+        <div class="notice"><strong>审计要求</strong><div>保存配置会记录审计日志。</div></div>
       </aside>
     </div>
   </div>
@@ -190,19 +181,19 @@ function addFormat() {
     if (!extensions.value.includes(ext)) extensions.value.push(ext)
   }
   newExt.value = ''
-  ElMessage.success('格式已加入白名单，保存后写入 system_configs。')
+  ElMessage.success('格式已加入白名单，保存后生效。')
 }
 
 function onAiToggle() {
-  ElMessage.success(aiEnabled.value ? 'AI 功能已启用。' : 'AI 已关闭，业务流程回退为人工处理。')
+  ElMessage.success(aiEnabled.value ? 'AI 功能已启用。' : 'AI 已关闭。')
 }
 function onPublicToggle() {
-  ElMessage.success(publicEnabled.value ? '公开检索入口已启用。' : '公开检索入口已关闭，档案公开字段不变化。')
+  ElMessage.success(publicEnabled.value ? '公开检索入口已启用。' : '公开检索入口已关闭。')
 }
 
 function resetConfig() {
   hydrateFromConfigs()
-  ElMessage.success('已恢复本页示例值。')
+  ElMessage.success('已重置本次修改。')
 }
 
 async function saveConfig() {
@@ -225,7 +216,7 @@ async function saveConfig() {
     await batchUpdateSystemConfigs({ items: items.map((i) => ({ configKey: i.configKey, configValue: i.configValue })) })
     configs.value = await getSystemConfigs()
     savedAt.value = '刚刚'
-    ElMessage.success('配置已保存，变更写入 audit_logs。')
+    ElMessage.success('配置已保存。')
   } catch (e) {
     ElMessage.error((e as Error).message || '保存配置失败')
   } finally {
@@ -249,7 +240,7 @@ onMounted(loadAll)
 .actions { display: flex; gap: 8px; }
 .settings-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
 .stack { display: grid; gap: 16px; }
-.config-row { display: grid; grid-template-columns: 220px minmax(0, 1fr) 130px; gap: 12px; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--border, #e4e7ed); }
+.config-row { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--border, #e4e7ed); }
 .config-key { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
 .switch-line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .switch-line input { width: 18px; height: 18px; }

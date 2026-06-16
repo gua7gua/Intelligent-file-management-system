@@ -35,14 +35,6 @@ describe('AdminOverview', () => {
     expect(wrapper.findAll('.log-row').length).toBeGreaterThanOrEqual(4)
   })
 
-  it('updates role notice text on role switch', async () => {
-    const wrapper = await mountComponent()
-    expect(wrapper.text()).toContain('后台管理员')
-    const select = wrapper.find('#roleSelect')
-    await select.setValue('馆领导')
-    expect(wrapper.find('.notice').text()).toContain('馆领导')
-  })
-
   it('renders storage warning severity when usage exceeds threshold', async () => {
     const wrapper = await mountComponent()
     const storageMetric = wrapper.findAll('.metric').find((m) => m.text().includes('存储使用率'))

@@ -103,14 +103,11 @@
               <div class="mini"><span class="muted">预计移交</span><strong>{{ activeBatch.batch.expectedTransferDate || '—' }}</strong></div>
             </div>
           </div>
-          <div class="notice warning">
-            前台只记录验收、暂存文件和回执。AI 补全、正式档号、盒号和架位由后台入库页面处理。
-          </div>
         </div>
       </section>
 
       <!-- U盘文件上传与匹配 -->
-      <details class="card panel collapsible" :open="activeBatch.stagingFiles.length > 0">
+      <details class="card panel collapsible" open>
         <summary>
           <span class="section-title">U 盘电子文件上传与匹配</span>
           <span class="status info">{{ activeBatch.stagingFiles.length > 0 ? '已上传' : '点击展开' }}</span>
@@ -363,7 +360,7 @@ function carrierStatusLabel(status: string): string {
   return map[status] || status
 }
 function fileScanHint(file: StagingFile): string {
-  if (file.matchStatus === 'matched') return '格式检查通过、哈希已记录、安全检查通过'
+  if (file.matchStatus === 'matched') return '格式检查通过、安全检查通过'
   if (file.matchStatus === 'unmatched') return '文件名与清单不一致，需人工确认或回退'
   if (file.matchStatus === 'duplicate') return '同名重复，需前台人工选择对应条目'
   return ''

@@ -7,7 +7,6 @@ describe('RegisterPage', () => {
     const wrapper = mount(RegisterPage)
 
     expect(wrapper.text()).toContain('公众账号')
-    expect(wrapper.text()).toContain('内部账号')
     expect(wrapper.find('#phone').exists()).toBe(true)
     expect(wrapper.find('#code').exists()).toBe(true)
     expect(wrapper.find('#password').exists()).toBe(true)

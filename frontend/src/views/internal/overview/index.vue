@@ -7,7 +7,7 @@
         <div class="metric"><span class="label">最近查阅</span><span class="value">{{ data.stats.recentViewCount }}</span><span class="note">近 30 日元数据访问</span></div>
         <div class="metric"><span class="label">待审批申请</span><span class="value">{{ data.stats.pendingApprovalCount }}</span><span class="note">等待管理员审核</span></div>
         <div class="metric"><span class="label">已批准待取件</span><span class="value">{{ data.stats.approvedPendingPickupCount }}</span><span class="note">可导出借阅凭证</span></div>
-        <div class="metric"><span class="label">下载记录</span><span class="value">{{ data.stats.downloadCount }}</span><span class="note">每次下载均记录日志</span></div>
+        <div class="metric"><span class="label">下载记录</span><span class="value">{{ data.stats.downloadCount }}</span><span class="note">近期电子文件下载</span></div>
       </section>
 
       <section class="dashboard-layout">
@@ -16,7 +16,7 @@
             <div class="toolbar">
               <div>
                 <h2 class="section-title">我的最近查阅</h2>
-                <p class="page-subtitle">再次打开详情时，后端仍会按当前权限重新过滤。</p>
+                <p class="page-subtitle">您近期查阅过的档案。</p>
               </div>
               <router-link to="/internal/search" class="button">进入检索</router-link>
             </div>
@@ -33,7 +33,7 @@
                 </div>
                 <div class="actions">
                   <span :class="['status', item.accessStatus === 'available' ? 'success' : 'warning']">
-                    {{ item.accessStatus === 'available' ? '可重新鉴权' : '仅保留记录' }}
+                    {{ item.accessStatus === 'available' ? '可继续查阅' : '仅保留历史记录' }}
                   </span>
                   <router-link :to="`/internal/archives/${item.archiveId}`" class="button ghost">继续查看</router-link>
                 </div>
@@ -45,7 +45,7 @@
             <div class="toolbar">
               <div>
                 <h2 class="section-title">我的借阅申请</h2>
-                <p class="page-subtitle">借阅凭证不是出库记录，到馆核验并确认出库后档案才变为借出。</p>
+                <p class="page-subtitle">提交申请后可在本页跟踪审批与到馆核验进度。</p>
               </div>
               <router-link to="/internal/borrow-requests" class="button ghost">查看全部</router-link>
             </div>
@@ -94,7 +94,7 @@
 
           <div class="card panel">
             <h2 class="section-title">利用边界</h2>
-            <div class="notice">内部查阅不展示具体库房架位。电子预览和下载复用同一套后端鉴权，纸质原件统一走借阅申请。</div>
+            <div class="notice">纸质原件请通过借阅申请获取。</div>
           </div>
         </aside>
       </section>

@@ -27,7 +27,7 @@
           <strong>公开统计口径</strong>
           <span>仅汇总正式入库、已上架或纯电子已归档、非密、公开、未销毁档案。</span>
         </div>
-        <div class="notice">今日公开检索服务正常，下载操作需登录后记录访问日志。</div>
+        <div class="notice">今日公开检索服务正常，下载需登录公众账号。</div>
       </aside>
     </section>
 
@@ -82,7 +82,7 @@
       <section class="toolbar">
         <div>
           <h2 class="section-title">最近公开批次</h2>
-          <p class="page-subtitle">列表仅显示批次级公开统计，不展示未公开档案题名、档号、架位或电子文件。</p>
+          <p class="page-subtitle">仅展示已公开档案的批次信息。</p>
         </div>
         <router-link to="/public/search" class="button ghost">查看全部</router-link>
       </section>

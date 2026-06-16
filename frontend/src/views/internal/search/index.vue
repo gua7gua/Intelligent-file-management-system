@@ -11,7 +11,7 @@
           <div class="field">
             <label>自然语言检索描述</label>
             <textarea v-model="aiText" placeholder="例如：查找财政局 2025 年预算相关档案"></textarea>
-            <span class="hint">AI 不查库、不读取正文，只生成结构化查询条件。</span>
+            <span class="hint">用自然语言描述检索需求，AI 帮您生成检索条件。</span>
           </div>
           <div class="actions">
             <button class="button" type="button" :disabled="aiLoading" @click="handleAiQuery">
@@ -32,7 +32,7 @@
       <div class="card panel">
         <div class="toolbar" style="margin: 0">
           <h2 class="section-title" style="margin: 0">结构化检索条件</h2>
-          <span class="status info">后端追加密级、单位、全宗范围过滤</span>
+          <span class="status info">系统将自动限定在您的权限范围内</span>
         </div>
         <div class="filter-sections">
           <section class="filter-group">
@@ -154,9 +154,9 @@
         <div class="toolbar">
           <div>
             <h2 class="section-title">检索结果</h2>
-            <p class="page-subtitle">结果已按当前用户权限过滤；不会展示高于密级上限或超出范围的档案。</p>
+            <p class="page-subtitle">展示您权限范围内可查阅的档案。</p>
           </div>
-          <span v-if="!searching && searched" class="status info">权限过滤后 {{ results.total }} 条</span>
+          <span v-if="!searching && searched" class="status info">共 {{ results.total }} 条</span>
         </div>
         <div v-if="searching" class="notice">正在检索…</div>
         <div v-else-if="searchError" class="notice danger">{{ searchError }}</div>
@@ -189,10 +189,6 @@
     <!-- 右栏详情面板 -->
     <aside class="detail-panel-wrapper">
       <ArchiveDetailPanel :archive-id="selectedArchiveId" />
-      <div class="card panel">
-        <h2 class="section-title">安全边界</h2>
-        <div class="notice">AI 只输出查询条件 JSON；正式检索、预览、下载、借阅申请都走后端业务接口和权限校验。</div>
-      </div>
     </aside>
   </section>
 </template>
@@ -335,7 +331,7 @@ function resetSearch() {
 .json-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .result-row { cursor: pointer; transition: background 0.16s ease; }
 .result-row:hover { background: #f8fbfc; }
-.detail-panel-wrapper { display: grid; gap: 12px; position: sticky; top: 84px; }
+.detail-panel-wrapper { display: grid; gap: 12px; position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; }
 @media (max-width: 1120px) {
   .search-layout { grid-template-columns: 1fr; }
   .detail-panel-wrapper { position: static; }

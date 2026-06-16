@@ -12,8 +12,16 @@
 
       <template v-if="!location.occupied && location.status === 'active'">
         <h3 class="section-title">新增档案盒到此位</h3>
-        <div class="field"><label>分类 ID</label><input v-model.number="form.categoryId" type="number"></div>
-        <div class="field"><label>全宗 ID</label><input v-model.number="form.fondsId" type="number"></div>
+        <div class="field"><label>档案分类</label>
+          <select v-model.number="form.categoryId">
+            <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+          </select>
+        </div>
+        <div class="field"><label>全宗</label>
+          <select v-model.number="form.fondsId">
+            <option v-for="f in fondsList" :key="f.id" :value="f.id">{{ f.fondsNo }} · {{ f.fondsName }}</option>
+          </select>
+        </div>
         <div class="field"><label>年度</label><input v-model="form.yearLabel"></div>
         <div class="field"><label>盒脊信息</label><input v-model="form.spineText"></div>
         <div class="field"><label>容量</label><input v-model.number="form.capacity" type="number"></div>
@@ -59,13 +67,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ArchiveBoxDetail, ArchiveBoxCreateData, StorageLocation } from '@/types/warehouse'
+import type { FondsItem } from '@/types/fonds'
 import { createArchiveBox, getArchiveBoxDetail, moveArchiveBox, updateLocationStatus } from '@/api/warehouse'
+import { getFonds } from '@/api/fonds'
 
 const props = defineProps<{ location: StorageLocation | null; freeLocations: StorageLocation[] }>()
 const emit = defineEmits<{ (e: 'refresh'): void }>()
+
+// 五大固定门类（categories 初始化字典，对齐后端种子：1 文书 2 科技 3 会计 4 音像 5 人事）
+const categories = [
+  { id: 1, name: '文书档案' },
+  { id: 2, name: '科技档案' },
+  { id: 3, name: '会计档案' },
+  { id: 4, name: '音像档案' },
+  { id: 5, name: '人事档案' },
+]
+const fondsList = ref<FondsItem[]>([])
 
 const boxDetail = ref<ArchiveBoxDetail | null>(null)
 const boxLoading = ref(false)
@@ -94,6 +114,16 @@ watch(
     }
   },
 )
+
+onMounted(async () => {
+  try {
+    const page = await getFonds({ pageSize: 200 })
+    fondsList.value = page.records
+    if (fondsList.value.length) form.value.fondsId = fondsList.value[0].id
+  } catch {
+    fondsList.value = []
+  }
+})
 
 async function onCreateBox() {
   if (!props.location) return

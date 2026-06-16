@@ -12,13 +12,6 @@
       <div class="metric card"><div class="metric-num">{{ metrics.overdueAbnormal }}</div><div class="metric-label">逾期/异常</div></div>
     </section>
 
-    <section class="steps">
-      <div class="step"><strong>1. 提交申请</strong><br><span class="muted">内部查阅者填写理由、时长、到馆时间。</span></div>
-      <div class="step"><strong>2. 后台审批</strong><br><span class="muted">检查档案状态、盘点范围和是否借出。</span></div>
-      <div class="step"><strong>3. 凭证核验</strong><br><span class="muted">单位盖章凭证到馆核验。</span></div>
-      <div class="step"><strong>4. 出库归还</strong><br><span class="muted">确认出库后借出，归还检查后恢复正常。</span></div>
-    </section>
-
     <section class="borrow-layout">
       <aside class="card panel list-col">
         <div class="tabs">
@@ -81,7 +74,6 @@
 
             <div class="card panel">
               <h2 class="section-title">凭证、出库与归还</h2>
-              <div class="notice warning">借阅凭证包含单位意见盖章区和已归还盖章区，不等于出库记录。</div>
               <div class="field"><label>凭证号</label><input v-model="voucherNo" placeholder="VCH-xxxxxx"></div>
               <div class="field"><label>应还时间</label><input v-model="dueAt" type="datetime-local"></div>
               <div class="field"><label>归还检查结果</label>
@@ -290,8 +282,6 @@ onMounted(loadList)
 .metric { padding: 16px; text-align: center; }
 .metric-num { font-size: 26px; font-weight: 700; color: var(--primary); }
 .metric-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
-.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
-.step { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; font-size: 13px; }
 .borrow-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 16px; align-items: start; }
 .list-col { padding: 10px; max-height: 680px; overflow-y: auto; }
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -301,7 +291,7 @@ onMounted(loadList)
 .request-card { display: grid; gap: 5px; width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; text-align: left; cursor: pointer; }
 .request-card:hover { background: #fafafa; }
 .request-card.active { border-color: #8abcbf; background: #f2f8f8; }
-.detail-area { display: grid; gap: 16px; }
+.detail-area { display: grid; gap: 16px; max-height: calc(100vh - 200px); overflow-y: auto; }
 .section-title { font-size: 15px; font-weight: 700; margin: 0 0 8px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .field { display: grid; gap: 4px; }
@@ -329,5 +319,5 @@ onMounted(loadList)
 .status.warning { background: #fff7e6; color: #fa8c16; }
 .status.danger { background: #fff1f0; color: #f5222d; }
 .status.info { background: #e6f7ff; color: #1890ff; }
-@media (max-width: 1080px) { .metric-row, .steps, .grid.two { grid-template-columns: 1fr; } .borrow-layout { grid-template-columns: 1fr; } }
+@media (max-width: 1080px) { .metric-row, .grid.two { grid-template-columns: 1fr; } .borrow-layout { grid-template-columns: 1fr; } }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <div class="destroy-approval">
     <div class="notice info">
-      馆领导审批即本馆批准凭证，不引入第三方审批节点。审批通过后清册进入待销毁，由档案管理员现场确认销毁。
+      审批通过后清册将进入待销毁流程，由档案管理员现场确认销毁。
     </div>
     <div class="card panel">
       <div class="detail-kv"><span>清册号</span><strong>{{ list.listNo }}</strong></div>
