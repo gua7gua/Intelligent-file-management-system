@@ -14,4 +14,6 @@ public class ArchiveSummaryResponse {
     private String categoryName;
     private String carrierStatus;
     private Boolean hasElectronicFile;
+    /** 来源类型：transfer/collection/compilation（公众门户"来源"列展示） */
+    private String sourceType;
 }
