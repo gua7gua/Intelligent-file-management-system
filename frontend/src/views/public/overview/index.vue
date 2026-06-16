@@ -12,11 +12,37 @@
       <!-- 操作入口 -->
       <section class="card panel" style="margin-top: 18px">
         <div class="detail-head">
-          <h2 class="section-title">{{ authStore.user?.realName ? authStore.user.realName + '，欢迎回来' : '欢迎使用公众档案服务' }}</h2>
+          <div>
+            <h2 class="section-title">{{ authStore.user?.realName ? authStore.user.realName + '，欢迎回来' : '欢迎使用公众档案服务' }}</h2>
+            <p v-if="overview.user.phone" class="muted" style="margin: 4px 0 0">
+              {{ overview.user.phone }}
+              <span :class="['status', userStatusClass(overview.user.status)]" style="margin-left: 10px">{{ userStatusLabel(overview.user.status) }}</span>
+            </p>
+          </div>
         </div>
         <div class="actions" style="margin-top: 12px">
           <router-link to="/public/search" class="button">公开档案检索</router-link>
           <router-link to="/public/collection" class="button secondary">提交征集清单</router-link>
+        </div>
+      </section>
+
+      <!-- 公开馆藏统计 -->
+      <section class="grid four" style="margin-top: 16px">
+        <div class="metric">
+          <span class="label">公开档案总量</span>
+          <span class="value">{{ overview.stats.openArchiveCount.toLocaleString() }}</span>
+        </div>
+        <div class="metric">
+          <span class="label">电子文件数</span>
+          <span class="value">{{ overview.stats.electronicFileCount.toLocaleString() }}</span>
+        </div>
+        <div class="metric">
+          <span class="label">近 30 日新增公开</span>
+          <span class="value">{{ overview.stats.latestOpenCount.toLocaleString() }}</span>
+        </div>
+        <div class="metric">
+          <span class="label">全馆征集批次</span>
+          <span class="value">{{ overview.stats.collectionCount.toLocaleString() }}</span>
         </div>
       </section>
 
@@ -72,12 +98,12 @@
 
       <!-- 下载记录 -->
       <section style="margin-top: 18px">
-        <h2 class="section-title">下载记录</h2>
+        <h2 class="section-title">下载记录 <span class="muted" style="font-size: 13px; font-weight: 400">共 {{ overview.stats.myDownloadCount }} 次</span></h2>
         <div class="table-wrap" style="margin-top: 12px">
           <table>
             <thead>
               <tr>
-                <th>档案</th>
+                <th>档号 / 题名</th>
                 <th>访问类型</th>
                 <th>访问时间</th>
               </tr>
@@ -87,7 +113,10 @@
                 <td colspan="3"><div class="empty">暂无下载记录</div></td>
               </tr>
               <tr v-for="dl in overview.downloadLogs" :key="dl.id">
-                <td class="mono">档案 #{{ dl.archiveId }}</td>
+                <td>
+                  <strong class="mono">{{ dl.archiveNo || `档案 #${dl.archiveId}` }}</strong>
+                  <div v-if="dl.title" class="muted">{{ dl.title }}</div>
+                </td>
                 <td>{{ accessTypeLabel(dl.accessType) }}</td>
                 <td>{{ dl.accessedAt }}</td>
               </tr>
@@ -116,6 +145,15 @@ const defaultOverview: PublicOverviewData = {
   collectionSummary: { total: 0, draft: 0, inProgress: 0, completed: 0 },
   recentCollections: [],
   downloadLogs: [],
+  stats: {
+    openArchiveCount: 0,
+    electronicFileCount: 0,
+    collectionCount: 0,
+    latestOpenCount: 0,
+    myPendingCollections: 0,
+    myDownloadCount: 0,
+  },
+  user: { realName: '', phone: '', status: 'active' },
   summarizedAt: '',
 }
 
@@ -131,6 +169,14 @@ function collectionStatusClass(status: string): string {
     rejected: 'danger',
   }
   return map[status] || ''
+}
+
+function userStatusClass(status: string): string {
+  return status === 'disabled' ? 'danger' : 'success'
+}
+
+function userStatusLabel(status: string): string {
+  return status === 'disabled' ? '已停用' : '正常'
 }
 
 function accessTypeLabel(t: string): string {

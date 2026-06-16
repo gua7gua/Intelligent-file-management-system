@@ -80,6 +80,15 @@ export interface PublicHomeData {
   recentArchives: PublicArchive[]
 }
 
+/** 公开馆藏统计（§5.1.1 GET /api/public/stats，免登录门面数据）。 */
+export interface PublicStatsResponse {
+  openArchiveCount: number
+  electronicFileCount: number
+  collectionCount: number
+  latestOpenCount: number
+  categories: Array<{ name: string; count: number }>
+}
+
 export interface PublicSearchParams extends PageParams {
   keyword?: string
   archiveNo?: string
@@ -114,14 +123,38 @@ export interface PublicCollectionSummary {
 export interface PublicDownloadLog {
   id: number
   archiveId: number
+  /** 档号（联表 archives 填充，便于直接展示）。 */
+  archiveNo?: string
+  /** 档案题名（联表 archives 填充）。 */
+  title?: string
   accessType: string
   accessedAt: string
+}
+
+/** 公众概览（§5.1 dashboard）内嵌的公开馆藏 + 本人统计。 */
+export interface PublicDashboardStats {
+  openArchiveCount: number
+  electronicFileCount: number
+  collectionCount: number
+  latestOpenCount: number
+  myPendingCollections: number
+  myDownloadCount: number
+}
+
+/** 当前公众用户基础资料。 */
+export interface PublicDashboardUser {
+  realName: string
+  phone: string
+  /** active | disabled */
+  status: 'active' | 'disabled'
 }
 
 export interface PublicOverviewData {
   collectionSummary: PublicCollectionSummary
   recentCollections: PublicCollectionBatch[]
   downloadLogs: PublicDownloadLog[]
+  stats: PublicDashboardStats
+  user: PublicDashboardUser
   summarizedAt: string
 }
 

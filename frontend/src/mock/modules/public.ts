@@ -10,6 +10,7 @@ import type {
   PublicRegisterRequest,
   PublicResetPasswordRequest,
   PublicSmsCodeRequest,
+  PublicStatsResponse,
 } from '@/types/public'
 import { mockDictionaries } from './dictionary'
 
@@ -237,10 +238,44 @@ export const mockPublicOverview: PublicOverviewData = {
     },
   ],
   downloadLogs: [
-    { id: 1, archiveId: 1, accessType: 'download', accessedAt: '2026-05-20T09:30:00+08:00' },
-    { id: 2, archiveId: 4, accessType: 'download', accessedAt: '2026-05-18T14:00:00+08:00' },
-    { id: 3, archiveId: 2, accessType: 'download', accessedAt: '2026-04-10T11:00:00+08:00' },
+    {
+      id: 1,
+      archiveId: 1,
+      archiveNo: 'A-2024-0001',
+      title: '2024 年度城市老旧小区改造工程档案',
+      accessType: 'download',
+      accessedAt: '2026-05-20T09:30:00+08:00',
+    },
+    {
+      id: 2,
+      archiveId: 4,
+      archiveNo: 'A-2024-0005',
+      title: '克拉玛依老城改造影像资料集',
+      accessType: 'download',
+      accessedAt: '2026-05-18T14:00:00+08:00',
+    },
+    {
+      id: 3,
+      archiveId: 2,
+      archiveNo: 'A-2025-0012',
+      title: '2025 年度教育工作总结',
+      accessType: 'download',
+      accessedAt: '2026-04-10T11:00:00+08:00',
+    },
   ],
+  stats: {
+    openArchiveCount: 128,
+    electronicFileCount: 56,
+    collectionCount: 30,
+    latestOpenCount: 12,
+    myPendingCollections: 1,
+    myDownloadCount: 3,
+  },
+  user: {
+    realName: '小周',
+    phone: '138****0005',
+    status: 'active',
+  },
   summarizedAt: '2026-06-16T08:30:00+08:00',
 }
 
@@ -258,6 +293,16 @@ export const mockMyCollections: PageData<PublicCollectionBatch> = {
 
 export function mockGetPublicHome(): Promise<PublicHomeData> {
   return Promise.resolve(mockPublicHome)
+}
+
+export function mockGetPublicStats(): Promise<PublicStatsResponse> {
+  return Promise.resolve({
+    openArchiveCount: mockPublicHome.stats.openArchiveCount,
+    electronicFileCount: mockPublicHome.stats.electronicFileCount,
+    collectionCount: mockPublicHome.stats.collectionCount,
+    latestOpenCount: mockPublicHome.stats.latestOpenCount,
+    categories: mockPublicHome.categories,
+  })
 }
 
 export function mockSearchPublicArchives(params?: import('@/types/public').PublicSearchParams): Promise<PublicArchivePage> {
