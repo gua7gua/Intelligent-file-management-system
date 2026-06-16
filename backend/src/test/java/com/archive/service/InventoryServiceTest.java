@@ -72,6 +72,8 @@ class InventoryServiceTest {
                 Map.of("archive_id", 101, "box_id", 5, "location_id", 7, "loan_status", "available")));
         when(taskMapper.selectById(1L)).thenReturn(draftTask(1L));
         when(itemMapper.selectList(any())).thenReturn(List.of());
+        // getDetail 内 loadRoomNos/loadCategoryNames/loadTaskStats 用单参 queryForList 回填展示字段
+        when(jdbc.queryForList(anyString())).thenReturn(List.of());
 
         InventoryTaskCreateRequest req = new InventoryTaskCreateRequest();
         req.setTaskName("401 盘点");
@@ -113,6 +115,8 @@ class InventoryServiceTest {
         t.setId(id);
         t.setTaskNo("INV-000001");
         t.setStatus(InventoryTaskStatus.draft);
+        t.setRoomId(ROOM_ID);
+        t.setCategoryId(CATEGORY_ID);
         return t;
     }
 }

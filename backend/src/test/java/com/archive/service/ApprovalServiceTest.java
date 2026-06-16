@@ -11,10 +11,16 @@ import com.archive.enums.ApprovalType;
 import com.archive.enums.DestructionListStatus;
 import com.archive.enums.LifecycleStatus;
 import com.archive.exception.BusinessException;
+import com.archive.mapper.AppraisalBatchMapper;
 import com.archive.mapper.ArchiveChangeLogMapper;
 import com.archive.mapper.ArchiveMapper;
 import com.archive.mapper.ApprovalRequestMapper;
+import com.archive.mapper.CategoryMapper;
+import com.archive.mapper.DestructionItemMapper;
 import com.archive.mapper.DestructionListMapper;
+import com.archive.mapper.FondsMapper;
+import com.archive.mapper.OrganizationMapper;
+import com.archive.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -31,7 +37,13 @@ class ApprovalServiceTest {
     private ApprovalRequestMapper approvalMapper;
     private ArchiveMapper archiveMapper;
     private DestructionListMapper destructionListMapper;
+    private DestructionItemMapper destructionItemMapper;
     private ArchiveChangeLogMapper changeLogMapper;
+    private UserMapper userMapper;
+    private CategoryMapper categoryMapper;
+    private OrganizationMapper organizationMapper;
+    private FondsMapper fondsMapper;
+    private AppraisalBatchMapper appraisalBatchMapper;
     private AuditService auditService;
 
     @BeforeEach
@@ -39,10 +51,17 @@ class ApprovalServiceTest {
         approvalMapper = mock(ApprovalRequestMapper.class);
         archiveMapper = mock(ArchiveMapper.class);
         destructionListMapper = mock(DestructionListMapper.class);
+        destructionItemMapper = mock(DestructionItemMapper.class);
         changeLogMapper = mock(ArchiveChangeLogMapper.class);
+        userMapper = mock(UserMapper.class);
+        categoryMapper = mock(CategoryMapper.class);
+        organizationMapper = mock(OrganizationMapper.class);
+        fondsMapper = mock(FondsMapper.class);
+        appraisalBatchMapper = mock(AppraisalBatchMapper.class);
         auditService = mock(AuditService.class);
         service = new ApprovalService(approvalMapper, archiveMapper, destructionListMapper,
-                changeLogMapper, auditService);
+                destructionItemMapper, changeLogMapper, userMapper, categoryMapper,
+                organizationMapper, fondsMapper, appraisalBatchMapper, auditService);
     }
 
     @Test

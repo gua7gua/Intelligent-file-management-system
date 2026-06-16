@@ -18,6 +18,7 @@ import com.archive.mapper.AppraisalBatchMapper;
 import com.archive.mapper.AppraisalItemMapper;
 import com.archive.mapper.ArchiveChangeLogMapper;
 import com.archive.mapper.ArchiveMapper;
+import com.archive.mapper.CategoryMapper;
 import com.archive.mapper.DestructionItemMapper;
 import com.archive.mapper.DestructionListMapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
@@ -47,6 +48,7 @@ class AppraisalServiceTest {
     private DestructionListMapper destructionListMapper;
     private DestructionItemMapper destructionItemMapper;
     private ArchiveChangeLogMapper changeLogMapper;
+    private CategoryMapper categoryMapper;
     private AppraisalNoUtil appraisalNoUtil;
     private DestructionNoUtil destructionNoUtil;
     private AuditService auditService;
@@ -59,13 +61,14 @@ class AppraisalServiceTest {
         destructionListMapper = mock(DestructionListMapper.class);
         destructionItemMapper = mock(DestructionItemMapper.class);
         changeLogMapper = mock(ArchiveChangeLogMapper.class);
+        categoryMapper = mock(CategoryMapper.class);
         appraisalNoUtil = mock(AppraisalNoUtil.class);
         destructionNoUtil = mock(DestructionNoUtil.class);
         auditService = mock(AuditService.class);
 
         service = new AppraisalService(batchMapper, itemMapper, archiveMapper,
                 destructionListMapper, destructionItemMapper, changeLogMapper,
-                appraisalNoUtil, destructionNoUtil, auditService);
+                categoryMapper, appraisalNoUtil, destructionNoUtil, auditService);
     }
 
     @Test
@@ -118,12 +121,15 @@ class AppraisalServiceTest {
         page.setRecords(List.of(b));
         page.setTotal(1L);
         when(batchMapper.selectPage(any(), any())).thenReturn(page);
-        when(itemMapper.selectCount(any())).thenReturn(5L);
+        // listBatches 通过 selectList 回填明细数 (hitCount)，模拟 5 条明细
+        when(itemMapper.selectList(any())).thenReturn(List.of(
+                new AppraisalItem(), new AppraisalItem(), new AppraisalItem(),
+                new AppraisalItem(), new AppraisalItem()));
 
         var r = service.listBatches(null, null, null, null, 1, 20);
 
         assertThat(r.getRecords()).hasSize(1);
-        assertThat(r.getRecords().get(0).getItemCount()).isEqualTo(5);
+        assertThat(r.getRecords().get(0).getHitCount()).isEqualTo(5);
         assertThat(r.getRecords().get(0).getStatus()).isEqualTo("draft");
     }
 
