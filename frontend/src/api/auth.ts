@@ -1,5 +1,5 @@
 import request from './request'
-import type { LoginParams, LoginResult } from '@/types/user'
+import type { LoginParams, LoginResult, UserInfo } from '@/types/user'
 import type {
   PublicRegisterRequest,
   PublicResetPasswordRequest,
@@ -16,8 +16,8 @@ export function loginApi(data: LoginParams): Promise<LoginResult> {
   return request.post('/auth/login', data)
 }
 
-/** 获取当前用户信息（恢复会话） */
-export function getUserInfoApi(): Promise<{ user: LoginResult['user'] }> {
+/** 获取当前用户信息（恢复会话）。/auth/me 的 data 直接是 user 对象（无 {user} 包装） */
+export function getUserInfoApi(): Promise<UserInfo> {
   if (USE_MOCK) {
     return import('@/mock/modules/auth').then((m) => m.mockUserInfo())
   }

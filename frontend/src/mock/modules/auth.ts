@@ -110,12 +110,12 @@ export function mockLoginResponse(loginName: string, portal: string): LoginResul
   }
 }
 
-/** 模拟获取当前用户信息 */
-export function mockUserInfo(): { user: UserInfo } {
+/** 模拟获取当前用户信息（/auth/me 的 data 直接是 user 对象，与真实后端一致） */
+export function mockUserInfo(): UserInfo {
   const token = localStorage.getItem('token') || ''
   // token 格式: mock-token-{realName}-{timestamp}
   const match = token.match(/^mock-token-(.+)-\d+$/)
   const realName = match ? match[1] : ''
   const entry = Object.values(mockUsers).find((u) => u.user.realName === realName) || mockUsers.admin
-  return { user: entry.user }
+  return entry.user
 }

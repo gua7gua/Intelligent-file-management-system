@@ -37,8 +37,8 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return
     try {
       const data = await getUserInfoApi()
-      user.value = data.user
-      roles.value = data.user.roles
+      user.value = data
+      roles.value = data.roles
     } catch {
       logout()
     }
