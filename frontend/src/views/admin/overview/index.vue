@@ -8,11 +8,6 @@ const router = useRouter()
 const summary = ref<DashboardSummary | null>(null)
 const loading = ref(true)
 const errorMsg = ref('')
-const role = ref<'后台管理员' | '前台管理员' | '馆领导' | '系统管理员'>('后台管理员')
-
-const roleNotice = computed(
-  () => `当前示例角色：${role.value}。前端入口仅模拟展示，后端接口仍按角色、密级和数据范围鉴权。`,
-)
 
 interface MetricCard {
   label: string
@@ -66,18 +61,6 @@ onMounted(load)
       <p class="page-subtitle">按当前角色展示待办和入口。概览页只做提醒与跳转，不直接审批、销毁或批量修改档案。</p>
     </section>
 
-    <div class="role" style="margin-top:16px;">
-      <label for="roleSelect">角色</label>
-      <select id="roleSelect" v-model="role">
-        <option>后台管理员</option>
-        <option>前台管理员</option>
-        <option>馆领导</option>
-        <option>系统管理员</option>
-      </select>
-    </div>
-
-    <p class="notice" style="margin-top:12px;">{{ roleNotice }}</p>
-
     <p v-if="loading" class="notice" style="margin-top:16px;">加载中…</p>
     <p v-else-if="errorMsg" class="notice" style="margin-top:16px;">
       {{ errorMsg }} <button class="button" @click="load">重试</button>
@@ -129,7 +112,6 @@ onMounted(load)
           <span>{{ log.action }}</span>
           <span class="muted">{{ log.operatedAt }}</span>
         </div>
-        <p class="hint">日志审计只查询和导出，不允许页面删除或修改日志。</p>
       </div>
     </section>
   </div>
@@ -144,8 +126,6 @@ onMounted(load)
 .metric.danger .value { color: var(--danger, #c0392b); }
 .metric.warning { border-color: var(--warning, #e6a23c); }
 .metric.warning .value { color: var(--warning, #e6a23c); }
-.role { display:flex; align-items:center; gap:8px; }
-.role select { padding: 4px 8px; }
 @media (max-width: 760px) {
   .todo { align-items:flex-start; flex-direction:column; }
   .log-row { grid-template-columns:1fr; }

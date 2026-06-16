@@ -3,7 +3,7 @@
     <section>
       <h1 class="page-title">档案销毁</h1>
       <p class="page-subtitle">
-        销毁清册由鉴定批次自动生成。检查清册快照后提交馆领导审批；审批通过后填写销毁方式、两名监销人并上传现场照片，最终确认销毁（不可逆）。
+        检查清册快照后提交馆领导审批，审批通过后填写销毁方式、两名监销人并上传现场照片，最终确认销毁（不可逆）。
       </p>
     </section>
 
@@ -64,7 +64,7 @@
             <table>
               <thead>
                 <tr>
-                  <th>档号快照</th><th>题名快照</th><th>分类</th><th>保管期限</th><th>密级</th><th>鉴定意见</th><th>文件删除</th>
+                  <th>档号快照</th><th>题名快照</th><th>分类</th><th>保管期限</th><th>密级</th><th>鉴定意见</th><th>物理文件处理</th>
                 </tr>
               </thead>
               <tbody>
@@ -118,7 +118,6 @@
             <el-button v-if="listDetail.status === 'draft'" type="primary" @click="handleSubmit">提交审批</el-button>
             <el-button v-if="listDetail.status === 'pending_destroy'" type="danger" @click="confirmVisible = true">确认销毁</el-button>
             <router-link v-if="listDetail.status === 'pending_approval'" to="/admin/approval" class="button ghost">前往审批工作台</router-link>
-            <span v-if="listDetail.status === 'pending_approval'" class="hint">馆领导审批即本馆批准凭证，不引入第三方节点。</span>
             <span v-if="listDetail.status === 'destroyed'" class="hint">该清册已完成销毁，证据链永久保留。</span>
           </div>
         </template>
@@ -279,5 +278,6 @@ onMounted(async () => {
 .status.warning { background: #fff7e6; color: #fa8c16; }
 .status.danger { background: #fff1f0; color: #f5222d; }
 .status.info { background: #e6f7ff; color: #1890ff; }
+.detail { max-height: calc(100vh - 200px); overflow-y: auto; }
 @media (max-width: 1100px) { .metric-row { grid-template-columns: repeat(2, 1fr); } .destruction-layout { grid-template-columns: 1fr; } .evidence { grid-template-columns: 1fr; } }
 </style>

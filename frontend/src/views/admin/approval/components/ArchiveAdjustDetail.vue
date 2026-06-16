@@ -1,9 +1,9 @@
 <template>
   <div class="adjust-detail">
     <div v-if="!detail.evidenceMatched" class="notice danger">
-      凭证档案来源关系不匹配（单位/全宗不一致），不可通过，只能退回补正。
+      凭证档案信息异常，请联系提交人核对后再审批。
     </div>
-    <div v-else-if="!detail.evidenceArchive" class="notice warning">凭证档案缺失，不可通过。</div>
+    <div v-else-if="!detail.evidenceArchive" class="notice warning">佐证材料缺失，暂无法审批。</div>
 
     <div class="dual">
       <div class="card panel">

@@ -335,6 +335,7 @@ onMounted(loadBatches)
 
 .appraisal-layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 16px; align-items: start; }
 .batch-list { padding: 10px; max-height: 640px; overflow-y: auto; }
+.detail { max-height: calc(100vh - 200px); overflow-y: auto; }
 .batch-card { padding: 10px 12px; border-bottom: 1px solid var(--border); cursor: pointer; }
 .batch-card:hover { background: #fafafa; }
 .batch-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

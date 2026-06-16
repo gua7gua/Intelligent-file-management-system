@@ -77,7 +77,7 @@
               <el-button type="primary" :disabled="!canApprove" @click="handleApprove">审批通过</el-button>
               <el-button type="danger" @click="handleReject">退回补正</el-button>
             </div>
-            <p v-if="!canApprove && (detail.approvalType !== 'destruction')" class="hint">凭证异常，不可通过，仅可退回补正。</p>
+            <p v-if="!canApprove && (detail.approvalType !== 'destruction')" class="hint">凭证信息异常，暂不可通过，可退回补正。</p>
           </template>
           <div v-else class="notice" :class="detail.status === 'approved' ? 'success' : 'danger'">
             该审批单已{{ detail.status === 'approved' ? '通过' : '退回' }}，目标对象已相应更新。
@@ -170,7 +170,7 @@ async function handleApprove() {
   try {
     const updated = await approveApproval(detail.value.id, { opinion: opinion.value.trim() })
     detail.value = updated
-    ElMessage.success('审批已通过。密级/开放调整字段已生效，销毁清册已进入待销毁。')
+    ElMessage.success('审批已通过。')
     await loadApprovals()
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : '审批失败')
@@ -250,5 +250,6 @@ textarea { width: 100%; min-height: 60px; padding: 6px 8px; border: 1px solid va
 .notice { padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px; margin-top: 12px; }
 .notice.success { background: #f6ffed; color: #389e0d; }
 .notice.danger { background: #fff1f0; color: #a8071a; }
+.detail { max-height: calc(100vh - 200px); overflow-y: auto; }
 @media (max-width: 1100px) { .metric-row { grid-template-columns: repeat(2, 1fr); } .approval-layout { grid-template-columns: 1fr; } }
 </style>

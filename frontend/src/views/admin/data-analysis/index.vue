@@ -104,10 +104,6 @@ onMounted(load)
       </div>
     </div>
 
-    <div class="notice warning">
-      AI 输出必须经过 JSON 提取、字段白名单、枚举、权限和状态校验。密级、保管期限、公开状态、允许数字化、档号、架位、销毁状态不在本页直接覆盖。
-    </div>
-
     <p v-if="loading" class="notice" style="margin-top:16px;">加载中…</p>
     <p v-else-if="errorMsg" class="notice" style="margin-top:16px;">
       {{ errorMsg }} <button class="button" @click="load">重试</button>
@@ -228,30 +224,6 @@ onMounted(load)
         </div>
 
         <div class="card panel">
-          <h2 class="section-title">AI JSON 建议</h2>
-          <div class="ai-box">
-            <pre v-if="selectedItem?.suggestion">{{ JSON.stringify(selectedItem.suggestion, null, 2) }}</pre>
-            <pre v-else class="muted">该建议无 AI 候选 JSON（规则扫描或受保护字段已剥离）。</pre>
-          </div>
-        </div>
-
-        <div class="card panel">
-          <h2 class="section-title">字段边界</h2>
-          <div class="field-tags">
-            <span class="status success">可建议：title</span>
-            <span class="status success">可建议：responsible</span>
-            <span class="status success">可建议：formedDate</span>
-            <span class="status success">可建议：category</span>
-            <span class="status success">可建议：tags</span>
-            <span class="status success">可建议：summary</span>
-            <span class="status danger">禁止直接改密级</span>
-            <span class="status danger">禁止直接改保管期限</span>
-            <span class="status danger">禁止直接改公开状态</span>
-            <span class="status danger">禁止直接改档号/架位</span>
-          </div>
-        </div>
-
-        <div class="card panel">
           <h2 class="section-title">待处理队列</h2>
           <ul class="queue">
             <li v-for="q in adoptedQueue" :key="q.id"><span class="mono">{{ q.archiveNo }}</span> {{ q.title }}</li>
@@ -261,7 +233,7 @@ onMounted(load)
 
         <div class="notice">
           <strong>处理边界</strong>
-          <div>采纳或不采纳只更新 <span class="mono">analysis_items.status</span>；正式档案字段仍需在档案管理页面由人工确认并记录变更日志。</div>
+          <div>采纳或不采纳只更新建议状态；正式档案字段需在档案管理页人工确认。</div>
         </div>
       </aside>
     </div>
@@ -275,6 +247,7 @@ onMounted(load)
 .field { display: grid; gap: 4px; }
 .field select { padding: 6px 8px; }
 .check { display: flex; align-items: center; gap: 6px; }
+.check input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; }
 .task-strip { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-top: 12px; }
 .task-cell { display: grid; gap: 4px; padding: 8px; background: #f7f9fc; border-radius: 6px; }
 .task-cell span { font-size: 12px; color: #909399; }
@@ -285,8 +258,6 @@ onMounted(load)
 .task-item:hover { border-color: var(--primary, #1f6f78); }
 .task-item.active { border-color: var(--primary, #1f6f78); background: rgba(31,111,120,0.06); }
 .detail-line { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
-.ai-box pre { background: #0f172a; color: #e2e8f0; padding: 10px; border-radius: 6px; font-size: 12px; overflow: auto; margin: 0; white-space: pre-wrap; }
-.field-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .queue { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .actions { display: flex; align-items: center; gap: 8px; }
 .tabs { display: flex; gap: 4px; }
