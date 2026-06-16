@@ -27,3 +27,11 @@ export function updateOrganization(organizationId: number, body: OrganizationUpd
   }
   return request.put(`/admin/organizations/${organizationId}`, body)
 }
+
+/** 删除组织（§17.8，仅 sys_admin；无关联全宗和用户时方可删除，否则后端返回 409） */
+export function deleteOrganization(organizationId: number): Promise<void> {
+  if (USE_MOCK) {
+    return import('@/mock/modules/organizations').then((m) => m.mockDeleteOrganization(organizationId))
+  }
+  return request.delete(`/admin/organizations/${organizationId}`)
+}

@@ -70,12 +70,19 @@
             <ul class="mini-list">
               <li v-for="o in organizations" :key="o.id">
                 <strong>{{ o.orgName }}</strong>
-                <span class="muted">{{ orgTypeLabel[o.orgType] || o.orgType }} · 状态 {{ o.status === 'active' ? '正常' : '停用' }}</span>
+                <span class="muted">{{ orgTypeLabel[o.orgType] || o.orgType }} · 全宗 {{ o.fondsCount }} · 用户 {{ o.userCount }} · {{ o.status === 'active' ? '正常' : '停用' }}</span>
                 <el-button
+                  v-if="o.status === 'active'"
                   size="small"
-                  :type="o.status === 'active' ? 'warning' : 'success'"
+                  :type="isOrgLinked(o) ? 'warning' : 'danger'"
+                  @click="removeOrDisableOrg(o)"
+                >{{ isOrgLinked(o) ? '停用' : '删除' }}</el-button>
+                <el-button
+                  v-else
+                  size="small"
+                  type="success"
                   @click="toggleOrgStatus(o)"
-                >{{ o.status === 'active' ? '停用' : '启用' }}</el-button>
+                >启用</el-button>
               </li>
             </ul>
           </div>
@@ -172,7 +179,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createUser, getRoles, getUserDetail, getUsers, resetUserPassword, updateUser, updateUserStatus } from '@/api/user-management'
-import { createOrganization, getOrganizations, updateOrganization } from '@/api/organizations'
+import { createOrganization, deleteOrganization, getOrganizations, updateOrganization } from '@/api/organizations'
 import { getFonds } from '@/api/fonds'
 import type { Role, User } from '@/types/user-management'
 import type { Organization } from '@/types/organization'
@@ -382,7 +389,41 @@ async function submitOrg() {
   }
 }
 
-// 组织停用/启用（§17.7 更新 status；停用而非物理删除，保留历史档案归属）
+// 组织是否有关联（用于决定显示「删除」还是「停用」）
+function isOrgLinked(o: Organization): boolean {
+  return (o.fondsCount ?? 0) > 0 || (o.userCount ?? 0) > 0
+}
+
+// 组织删除/停用（§17.8）：无关联全宗和用户时可删除，有关联则停用
+async function removeOrDisableOrg(o: Organization) {
+  const linked = isOrgLinked(o)
+  const action = linked ? '停用' : '删除'
+  try {
+    await ElMessageBox.confirm(
+      linked
+        ? `组织「${o.orgName}」存在关联全宗或用户，将改为停用？`
+        : `确认删除组织「${o.orgName}」？删除后不可恢复。`,
+      `${action}组织`,
+      { type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  try {
+    if (linked) {
+      await updateOrganization(o.id, { status: 'disabled' })
+    } else {
+      await deleteOrganization(o.id)
+    }
+    ElMessage.success(`已${action}组织。`)
+    const res = await getOrganizations()
+    organizations.value = res.records
+  } catch (e) {
+    ElMessage.error((e as Error).message || `${action}组织失败`)
+  }
+}
+
+// 组织启用（已停用 → 启用；§17.7 更新 status）
 async function toggleOrgStatus(o: Organization) {
   const next: 'active' | 'disabled' = o.status === 'active' ? 'disabled' : 'active'
   const action = next === 'disabled' ? '停用' : '启用'

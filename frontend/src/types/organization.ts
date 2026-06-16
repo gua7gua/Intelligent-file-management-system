@@ -16,6 +16,10 @@ export interface Organization {
   contactName?: string
   contactPhone?: string
   status: 'active' | 'disabled'
+  /** 关联全宗数（未删除），用于判断删除或停用 */
+  fondsCount: number
+  /** 关联用户数（未删除） */
+  userCount: number
 }
 
 /** 新增组织请求体（§17.5） */
