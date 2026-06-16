@@ -255,9 +255,13 @@ public class PendingArchiveService {
         if (item == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "清单条目不存在");
         }
-        if (item.getStatus() != ItemStatus.accepted) {
+        // 允许 accepted 或 pending_archive 重新确认入库字段：
+        // 否则用户确认后发现所选档案盒分类不一致（confirmArchive 抛「同盒档案分类必须一致」），
+        // 既无法改 categoryId（已非 accepted）也无法改盒匹配，流程卡死。见 B13-5。
+        if (item.getStatus() != ItemStatus.accepted
+                && item.getStatus() != ItemStatus.pending_archive) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT,
-                    "条目状态不是已接收，无法确认入库字段");
+                    "条目状态不是已接收或待入库，无法确认入库字段");
         }
 
         item.setConfirmedTitle(req.getConfirmedTitle());
