@@ -167,7 +167,8 @@ public class SearchService {
                 a.getFormedYear(), categoryNameById.get(a.getCategoryId()),
                 a.getCarrierStatus() == null ? null : a.getCarrierStatus().name(),
                 fileCount != null && fileCount > 0,
-                a.getSourceType() == null ? null : a.getSourceType().name());
+                a.getSourceType() == null ? null : a.getSourceType().name(),
+                a.getSecurityLevel());
     }
 
     private Map<Integer, String> loadCategoryNames() {
