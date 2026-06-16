@@ -456,14 +456,23 @@ async function handleArchive() {
   archiving.value = true
   try {
     // 仅在「已接收」态需要先确认字段；suggested/confirmed/pending_archive 已确认过，直接入库
+    // 注意：前端 activeItem.itemStatus 可能滞后于后端（archive 失败后未刷新），
+    // 导致误判为 accepted 仍走 confirmItem，后端返回 409 BUSINESS_CONFLICT（已确认过）。
+    // 此时静默跳过 confirmation，直接走 archive 即可。
     if (activeItem.value.itemStatus === 'accepted') {
-      await confirmItem(activeItem.value.id, {
-        confirmedTitle: form.title,
-        confirmedResponsibleText: form.responsible,
-        confirmedFormedDate: form.formedDate,
-        confirmedCategoryId: form.categoryId,
-        confirmedTags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-      })
+      try {
+        await confirmItem(activeItem.value.id, {
+          confirmedTitle: form.title,
+          confirmedResponsibleText: form.responsible,
+          confirmedFormedDate: form.formedDate,
+          confirmedCategoryId: form.categoryId,
+          confirmedTags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        })
+      } catch (e) {
+        // 已确认过（409 BUSINESS_CONFLICT）属预期，继续入库
+        const msg = e instanceof Error ? e.message : ''
+        if (!/不是已接收|BUSINESS_CONFLICT|已确认/.test(msg)) throw e
+      }
     }
     const result = await archiveItem(activeItem.value.id, {
       fondsId: form.fondsId,

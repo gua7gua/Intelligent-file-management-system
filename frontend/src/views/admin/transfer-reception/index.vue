@@ -461,6 +461,10 @@ async function confirmReceive() {
     ElMessage.success(
       rejected ? '已确认部分接收，回退条目将写入回执。' : '已确认全部接收，条目进入后台待入库。',
     )
+    // 刷新左栏批次列表（接收后批次从待验收变成已接收/部分接收，列表卡片状态需同步），
+    // 同时刷新当前 activeBatch 详情避免本地状态滞后。
+    await loadBatches()
+    if (activeBatch.value) await selectBatch(activeBatch.value.batch.id)
   } catch {
     ElMessage.error('确认接收失败')
   }
