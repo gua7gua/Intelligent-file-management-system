@@ -149,16 +149,16 @@
             <tr v-if="searchResults.records.length === 0">
               <td colspan="8"><div class="empty">没有符合条件的公开档案</div></td>
             </tr>
-            <tr v-for="record in searchResults.records" :key="record.id">
+            <tr v-for="record in searchResults.records" :key="record.archiveId">
               <td class="mono">{{ record.archiveNo }}</td>
               <td>{{ record.title }}</td>
-              <td>{{ record.responsible }}</td>
-              <td>{{ record.category }}</td>
+              <td>{{ record.responsibleText }}</td>
+              <td>{{ record.categoryName }}</td>
               <td>{{ record.formedYear }}</td>
               <td>{{ carrierLabel(record.carrierStatus) }}</td>
               <td>{{ sourceLabel(record.sourceType) }}</td>
               <td>
-                <button class="button ghost" type="button" @click="showDetail(record.id)">详情</button>
+                <button class="button ghost" type="button" @click="showDetail(record.archiveId)">详情</button>
               </td>
             </tr>
           </tbody>
@@ -176,8 +176,8 @@
         <span class="status success">公开</span>
       </div>
       <div class="detail-meta" style="margin-top: 12px">
-        <div class="meta-item"><span>责任者</span><strong>{{ detailData.responsible }}</strong></div>
-        <div class="meta-item"><span>分类</span><strong>{{ detailData.category }}</strong></div>
+        <div class="meta-item"><span>责任者</span><strong>{{ detailData.responsibleText }}</strong></div>
+        <div class="meta-item"><span>分类</span><strong>{{ detailData.categoryName }}</strong></div>
         <div class="meta-item"><span>形成日期</span><strong>{{ detailData.formedDate }}</strong></div>
         <div class="meta-item"><span>保管期限</span><strong>{{ detailData.retentionPeriod }}</strong></div>
       </div>
@@ -270,7 +270,8 @@ function carrierLabel(status: string): string {
   return map[status] || status
 }
 
-function sourceLabel(sourceType: string): string {
+function sourceLabel(sourceType?: string): string {
+  if (!sourceType) return '-'
   const map: Record<string, string> = { transfer: '移交', collection: '征集', compilation: '编撰' }
   return map[sourceType] || sourceType
 }
@@ -359,7 +360,13 @@ onMounted(async () => {
   const keyword = route?.query?.keyword as string
   if (keyword) {
     searchParams.keyword = keyword
-    handleSearch()
+  }
+  // 默认展示公开档案列表
+  await handleSearch()
+  // 从首页"查看详情"带 archiveId 进入时，自动展开详情
+  const archiveId = route?.query?.archiveId
+  if (archiveId) {
+    showDetail(Number(archiveId))
   }
 })
 </script>

@@ -23,12 +23,17 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('token', data.token)
   }
 
-  /** 登出 */
-  function logout() {
+  /** 清除登录态（不跳转） */
+  function clearAuth() {
     token.value = null
     user.value = null
     roles.value = []
     localStorage.removeItem('token')
+  }
+
+  /** 登出 */
+  function logout() {
+    clearAuth()
     router.push('/login')
   }
 
@@ -40,7 +45,8 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = data
       roles.value = data.roles
     } catch {
-      logout()
+      // token 失效：仅清除登录态，不主动跳转，由路由守卫按目标页决定（匿名页可继续访问）
+      clearAuth()
     }
   }
 

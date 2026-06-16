@@ -77,8 +77,10 @@ import { ref, reactive, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { validatePublicRegister } from '@/utils/publicValidation'
 import { sendPublicSmsCode, registerPublicUser } from '@/api/auth'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 const form = reactive({
   realName: '',
@@ -147,6 +149,8 @@ async function handleSubmit() {
       password: form.password,
       realName: form.realName,
     })
+    // 注册成功后自动登录，直接进入公众概览
+    await authStore.login(form.phone, form.password, 'public')
     resultMessage.value = `注册成功，即将进入公众概览。`
     resultType.value = ''
     setTimeout(() => router.push('/public/overview'), 2000)
