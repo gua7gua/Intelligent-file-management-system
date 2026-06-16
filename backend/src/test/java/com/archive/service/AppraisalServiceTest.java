@@ -20,6 +20,7 @@ import com.archive.mapper.ArchiveChangeLogMapper;
 import com.archive.mapper.ArchiveMapper;
 import com.archive.mapper.DestructionItemMapper;
 import com.archive.mapper.DestructionListMapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.archive.util.AppraisalNoUtil;
 import com.archive.util.DestructionNoUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 class AppraisalServiceTest {
@@ -254,13 +256,18 @@ class AppraisalServiceTest {
 
         service.completeBatch(1L);
 
+        // extend 分支用 UpdateWrapper 强制写 retention_period/retention_until（规避 MyBatis-Plus
+        // updateById 跳过 null，导致延期"永久"时 retention_until 残留旧值违反 CHECK 约束）；
+        // destroy 分支仍走 updateById。
         ArgumentCaptor<Archive> archiveCaptor = ArgumentCaptor.forClass(Archive.class);
-        verify(archiveMapper, times(2)).updateById(archiveCaptor.capture());
-        java.util.List<Archive> updated = archiveCaptor.getAllValues();
-        Archive a10 = updated.stream().filter(a -> a.getId() == 10L).findFirst().orElseThrow();
-        assertThat(a10.getRetentionPeriod()).isEqualTo(RetentionPeriod._30y);
-        Archive a11 = updated.stream().filter(a -> a.getId() == 11L).findFirst().orElseThrow();
+        verify(archiveMapper).updateById(archiveCaptor.capture());
+        Archive a11 = archiveCaptor.getValue();
+        assertThat(a11.getId()).isEqualTo(11L);
         assertThat(a11.getLifecycleStatus()).isEqualTo(LifecycleStatus.pending_destruction);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<UpdateWrapper<Archive>> uwCaptor = ArgumentCaptor.forClass(UpdateWrapper.class);
+        verify(archiveMapper).update(isNull(), uwCaptor.capture());
+        assertThat(uwCaptor.getValue().getSqlSet()).contains("retention_period");
 
         ArgumentCaptor<ArchiveChangeLog> logCaptor = ArgumentCaptor.forClass(ArchiveChangeLog.class);
         verify(changeLogMapper).insert(logCaptor.capture());

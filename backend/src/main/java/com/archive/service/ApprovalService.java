@@ -170,7 +170,7 @@ public class ApprovalService {
         archiveMapper.updateById(a);
         writeChangeLog(a.getId(), "security_level",
                 oldLevel != null ? String.valueOf(oldLevel) : null, ap.getNewValue(),
-                ap.getReason(), "security_adjust", ap.getId(), uid, now);
+                ap.getReason(), "approval", ap.getId(), uid, now);
     }
 
     private void applyOpenAdjust(ApprovalRequest ap, Long uid, OffsetDateTime now) {
@@ -179,7 +179,7 @@ public class ApprovalService {
         a.setOpenStatus(ap.getNewValue());
         archiveMapper.updateById(a);
         writeChangeLog(a.getId(), "open_status", oldStatus, ap.getNewValue(),
-                ap.getReason(), "open_adjust", ap.getId(), uid, now);
+                ap.getReason(), "approval", ap.getId(), uid, now);
     }
 
     private void applyDestructionApprove(ApprovalRequest ap) {

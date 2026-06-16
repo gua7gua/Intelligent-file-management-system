@@ -27,6 +27,7 @@ import com.archive.mapper.DestructionListMapper;
 import com.archive.util.AppraisalNoUtil;
 import com.archive.util.DestructionNoUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -291,9 +292,17 @@ public class AppraisalService {
             }
             if (it.getAppraisalResult() == AppraisalResult.extend) {
                 RetentionPeriod oldPeriod = a.getRetentionPeriod();
-                a.setRetentionPeriod(resolveRetentionPeriod(it.getNewRetentionPeriod()));
+                RetentionPeriod newPeriod = resolveRetentionPeriod(it.getNewRetentionPeriod());
+                // 延期为"永久"时 newRetentionUntil 为 null。MyBatis-Plus updateById 默认跳过 null 字段，
+                // 会令 retention_until 残留旧值，违反 ck_archives_retention_until（永久须 retention_until IS NULL）。
+                // 故用 UpdateWrapper 显式 set 两个字段（.set 始终写入，含 null）。
+                UpdateWrapper<Archive> uw = new UpdateWrapper<>();
+                uw.eq("id", a.getId())
+                        .set("retention_period", newPeriod != null ? newPeriod.getDbValue() : null)
+                        .set("retention_until", it.getNewRetentionUntil());
+                archiveMapper.update(null, uw);
+                a.setRetentionPeriod(newPeriod);
                 a.setRetentionUntil(it.getNewRetentionUntil());
-                archiveMapper.updateById(a);
                 writeChangeLog(a.getId(), "retention_period",
                         oldPeriod != null ? oldPeriod.getDbValue() : null,
                         a.getRetentionPeriod() != null ? a.getRetentionPeriod().getDbValue() : null,
