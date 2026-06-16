@@ -16,25 +16,52 @@
     </div>
 
     <section class="work-layout">
-      <!-- 左栏：待处理批次 -->
-      <div class="card panel" style="margin:0">
-        <h2 class="section-title">待处理批次</h2>
-        <div v-if="batchLoading" class="panel-scroll detail-empty">加载中...</div>
-        <div v-else-if="batches.length === 0" class="panel-scroll detail-empty">暂无待入库批次</div>
-        <div v-else class="panel-scroll">
-          <button
-            v-for="b in batches"
-            :key="b.id"
-            class="batch-card"
-            :class="{ active: activeBatch?.id === b.id }"
-            type="button"
-            @click="selectBatch(b)"
-          >
-            <strong>{{ b.title }}</strong>
-            <span class="batch-no">{{ b.batchNo }}</span>
-            <span>接收 {{ b.acceptedCount }} / 回退 {{ b.returnedCount }}</span>
-            <span class="hint">AI：{{ aiLabel(b.aiStatus) }}</span>
-          </button>
+      <!-- 左栏：待处理批次 + 已入库待上架 -->
+      <div class="left-col">
+        <div class="card panel" style="margin:0">
+          <h2 class="section-title">待处理批次</h2>
+          <div v-if="batchLoading" class="panel-scroll detail-empty">加载中...</div>
+          <div v-else-if="batches.length === 0" class="panel-scroll detail-empty">暂无待入库批次</div>
+          <div v-else class="panel-scroll">
+            <button
+              v-for="b in batches"
+              :key="b.id"
+              class="batch-card"
+              :class="{ active: activeBatch?.id === b.id }"
+              type="button"
+              @click="selectBatch(b)"
+            >
+              <strong>{{ b.title }}</strong>
+              <span class="batch-no">{{ b.batchNo }}</span>
+              <span>接收 {{ b.acceptedCount }} / 回退 {{ b.returnedCount }}</span>
+              <span class="hint">AI：{{ aiLabel(b.aiStatus) }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card panel" style="margin:0">
+          <h2 class="section-title">已入库待上架</h2>
+          <div v-if="shelvableLoading" class="panel-scroll detail-empty">加载中...</div>
+          <div v-else-if="shelvableBatches.length === 0" class="panel-scroll detail-empty">暂无待上架批次</div>
+          <div v-else class="panel-scroll">
+            <div
+              v-for="b in shelvableBatches"
+              :key="b.id"
+              class="batch-card shelvable-card"
+            >
+              <strong>{{ b.title }}</strong>
+              <span class="batch-no">{{ b.batchNo }}</span>
+              <span>待上架 {{ b.pendingShelfCount ?? 0 }} 件</span>
+              <el-button
+                size="small"
+                type="primary"
+                :loading="shelvingId === b.id"
+                @click="handleShelveBatch(b)"
+              >
+                确认上架
+              </el-button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -201,6 +228,11 @@ const batchLoading = ref(false)
 const aiLoading = ref(false)
 const archiving = ref(false)
 
+// 已入库待上架批次（status=archived 且 pendingShelfCount>0）
+const shelvableBatches = ref<PendingBatch[]>([])
+const shelvableLoading = ref(false)
+const shelvingId = ref<number | null>(null)
+
 const form = reactive({
   title: '',
   responsible: '',
@@ -322,6 +354,34 @@ async function loadBatches() {
   }
 }
 
+// 加载已入库且含 pending_shelf 档案的批次
+async function loadShelvableBatches() {
+  shelvableLoading.value = true
+  try {
+    const res = await getPendingBatches({ status: 'archived', pageNo: 1, pageSize: 100 })
+    shelvableBatches.value = res.records.filter((b) => (b.pendingShelfCount ?? 0) > 0)
+  } catch {
+    shelvableBatches.value = []
+  } finally {
+    shelvableLoading.value = false
+  }
+}
+
+// 批次级确认上架（来自左侧「已入库待上架」分区）
+async function handleShelveBatch(b: PendingBatch) {
+  shelvingId.value = b.id
+  try {
+    await shelveBatch(b.id, { note: '纸质档案已放入预占架位' })
+    ElMessage.success(`${b.batchNo} 已确认上架，进入正常利用范围。`)
+    await Promise.all([loadShelvableBatches(), loadBatches()])
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '上架失败'
+    ElMessage.error(msg)
+  } finally {
+    shelvingId.value = null
+  }
+}
+
 async function selectBatch(b: PendingBatch) {
   activeBatch.value = b
   try {
@@ -435,6 +495,7 @@ async function handleShelve() {
 
 onMounted(() => {
   loadBatches()
+  loadShelvableBatches()
   loadArchiveOptions()
 })
 </script>
@@ -458,6 +519,13 @@ onMounted(() => {
   align-items: start;
   height: calc(100vh - 240px);
   min-height: 560px;
+}
+
+.left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-self: start;
 }
 
 .panel-scroll {
@@ -490,6 +558,10 @@ onMounted(() => {
   font-family: monospace;
   font-size: 12px;
   color: var(--muted);
+}
+
+.shelvable-card {
+  border-left: 3px solid #8abcbf;
 }
 
 .item-card {
