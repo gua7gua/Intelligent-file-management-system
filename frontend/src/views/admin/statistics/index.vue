@@ -151,9 +151,9 @@ onMounted(load)
         <div class="card panel">
           <h2 class="section-title">领导关注指标</h2>
           <div class="timeline">
-            <li><span>本月</span><div>馆藏新增 {{ overview.metrics[1]?.value.toLocaleString() ?? '—' }} 件，纸质相关待上架待统计。</div></li>
-            <li><span>本季度</span><div>借阅申请 318 件，已归还 291 件，逾期 7 件。</div></li>
-            <li><span>年度</span><div>销毁审批 12 册，已销毁 9 册，清册永久留存。</div></li>
+            <li><span>本月</span><div>馆藏新增 {{ overview.metrics[1]?.value.toLocaleString() ?? '—' }} 件，待上架 {{ overview.metrics[2]?.value.toLocaleString() ?? '—' }} 件。</div></li>
+            <li><span>借阅</span><div>累计申请 {{ overview.totals?.borrowCount?.toLocaleString?.() ?? '—' }} 件（来自 borrow_requests）。</div></li>
+            <li><span>年度</span><div>待销毁清册 {{ overview.metrics[3]?.value.toLocaleString() ?? '—' }} 册，已销毁 {{ overview.totals?.destroyedCount?.toLocaleString?.() ?? '—' }} 册。</div></li>
           </div>
         </div>
       </aside>

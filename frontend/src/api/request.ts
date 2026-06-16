@@ -40,6 +40,10 @@ request.interceptors.request.use(
 // 响应拦截器：解包响应、统一错误处理
 request.interceptors.response.use(
   (response) => {
+    // 文件流（blob）直接透传：xlsx/pdf 等导出场景，response.data 是 Blob 而非 R<T>
+    if (response.config.responseType === 'blob' || response.data instanceof Blob) {
+      return response.data
+    }
     const res = response.data
     if (res.code === 'OK') {
       return res.data
