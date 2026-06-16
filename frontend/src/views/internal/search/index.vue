@@ -171,14 +171,14 @@
               <tr v-if="searched && results.records.length === 0">
                 <td colspan="7"><div class="empty">没有符合条件的档案</div></td>
               </tr>
-              <tr v-for="record in results.records" :key="record.id" class="result-row" @click="selectArchive(record.id)">
+              <tr v-for="record in results.records" :key="record.archiveId" class="result-row" @click="selectArchive(record.archiveId)">
                 <td class="mono">{{ record.archiveNo }}</td>
                 <td>{{ record.title }}</td>
                 <td>{{ record.categoryName }}</td>
                 <td><span :class="['status', record.securityLevel > 0 ? 'warning' : 'success']">{{ securityLabel(record.securityLevel) }}</span></td>
                 <td>{{ carrierLabel(record.carrierStatus) }}</td>
                 <td><span class="status success">{{ usageHint(record) }}</span></td>
-                <td><button class="button ghost" type="button" @click.stop="selectArchive(record.id)">详情</button></td>
+                <td><button class="button ghost" type="button" @click.stop="selectArchive(record.archiveId)">详情</button></td>
               </tr>
             </tbody>
           </table>
