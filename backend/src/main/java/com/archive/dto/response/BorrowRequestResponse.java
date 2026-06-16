@@ -34,6 +34,12 @@ public class BorrowRequestResponse {
     private String returnNote;
     private OffsetDateTime createdAt;
 
+    /** 可借检查结果（管理端 §12.2 审批辅助信息，内部端不返回） */
+    private String checkCarrier;
+    private String checkLifecycle;
+    private String checkLoan;
+    private String checkInventory;
+
     private ArchiveSummary archive;
     private BorrowerSummary borrower;
     private LocationSummary location;
@@ -45,6 +51,9 @@ public class BorrowRequestResponse {
         private String archiveNo;
         private String title;
         private String carrierStatus;
+        private String lifecycleStatus;
+        private String loanStatus;
+        private String conditionStatus;
     }
 
     @Data
