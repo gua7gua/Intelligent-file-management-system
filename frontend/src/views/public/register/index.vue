@@ -38,10 +38,10 @@
             <button
               type="button"
               class="button secondary"
-              :disabled="codeSent"
+              :disabled="countdown > 0"
               @click="handleSendCode"
             >
-              {{ codeSent ? '验证码已发送' : '发送验证码' }}
+              {{ countdown > 0 ? `${countdown}s 后重发` : '发送验证码' }}
             </button>
           </div>
         </div>
@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { validatePublicRegister } from '@/utils/publicValidation'
 import { sendPublicSmsCode, registerPublicUser } from '@/api/auth'
@@ -90,19 +90,37 @@ const form = reactive({
   accepted: false,
 })
 
-const codeSent = ref(false)
+const countdown = ref(0)
+let smsTimer: ReturnType<typeof setInterval> | null = null
 const resultMessage = ref('')
 const resultType = ref('')
 
+const phonePattern = /^1[3-9]\d{9}$/
+
+function startCountdown() {
+  countdown.value = 60
+  if (smsTimer) clearInterval(smsTimer)
+  smsTimer = setInterval(() => {
+    countdown.value -= 1
+    if (countdown.value <= 0) {
+      countdown.value = 0
+      if (smsTimer) {
+        clearInterval(smsTimer)
+        smsTimer = null
+      }
+    }
+  }, 1000)
+}
+
 async function handleSendCode() {
-  if (!form.phone.trim()) {
-    resultMessage.value = '请先输入手机号。'
+  if (!phonePattern.test(form.phone.trim())) {
+    resultMessage.value = '请输入正确的 11 位手机号。'
     resultType.value = 'danger'
     return
   }
   try {
     await sendPublicSmsCode({ phone: form.phone, scene: 'register' })
-    codeSent.value = true
+    startCountdown()
     resultMessage.value = '验证码已发送至手机号。'
     resultType.value = ''
   } catch {
@@ -110,6 +128,10 @@ async function handleSendCode() {
     resultType.value = 'danger'
   }
 }
+
+onUnmounted(() => {
+  if (smsTimer) clearInterval(smsTimer)
+})
 
 async function handleSubmit() {
   resultMessage.value = ''

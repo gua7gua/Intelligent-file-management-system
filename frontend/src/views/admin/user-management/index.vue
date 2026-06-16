@@ -71,6 +71,11 @@
               <li v-for="o in organizations" :key="o.id">
                 <strong>{{ o.orgName }}</strong>
                 <span class="muted">org_type = {{ o.orgType }} · 状态 {{ o.status === 'active' ? 'active' : 'disabled' }}</span>
+                <el-button
+                  size="small"
+                  :type="o.status === 'active' ? 'warning' : 'success'"
+                  @click="toggleOrgStatus(o)"
+                >{{ o.status === 'active' ? '停用' : '启用' }}</el-button>
               </li>
             </ul>
           </div>
@@ -171,7 +176,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createUser, getRoles, getUserDetail, getUsers, resetUserPassword, updateUser, updateUserStatus } from '@/api/user-management'
-import { createOrganization, getOrganizations } from '@/api/organizations'
+import { createOrganization, getOrganizations, updateOrganization } from '@/api/organizations'
 import { getFonds } from '@/api/fonds'
 import type { Role, User } from '@/types/user-management'
 import type { Organization } from '@/types/organization'
@@ -372,6 +377,25 @@ async function submitOrg() {
     ElMessage.error((e as Error).message || '新增组织失败')
   } finally {
     orgSaving.value = false
+  }
+}
+
+// 组织停用/启用（§17.7 更新 status；停用而非物理删除，保留历史档案归属）
+async function toggleOrgStatus(o: Organization) {
+  const next: 'active' | 'disabled' = o.status === 'active' ? 'disabled' : 'active'
+  const action = next === 'disabled' ? '停用' : '启用'
+  try {
+    await ElMessageBox.confirm(`确认${action}组织「${o.orgName}」？`, `${action}组织`, { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await updateOrganization(o.id, { status: next })
+    ElMessage.success(`已${action}组织。`)
+    const res = await getOrganizations()
+    organizations.value = res.records
+  } catch (e) {
+    ElMessage.error((e as Error).message || `${action}组织失败`)
   }
 }
 

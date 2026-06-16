@@ -69,7 +69,7 @@
           </div>
           <div class="meta-line">
             <span>{{ batch.batchNo }}</span>
-            <span>捐赠人：{{ batch.donorName }}</span>
+            <span>捐赠人：{{ batch.contactName }}</span>
             <span>条目：{{ batch.itemCount }}</span>
             <span v-if="batch.scheduledReceiveAt">到馆：{{ formatDateTime(batch.scheduledReceiveAt) }}</span>
             <span v-else>提交：{{ batch.submittedAt.slice(0, 10) }}</span>
@@ -92,13 +92,13 @@
           <div>
             <h2 class="section-title">{{ selectedBatch.title }}</h2>
             <p class="page-subtitle">
-              {{ selectedBatch.batchNo }} · {{ selectedBatch.donorName }} · {{ batchPhaseLabel }}
+              {{ selectedBatch.batchNo }} · {{ selectedBatch.contactName }} · {{ batchPhaseLabel }}
             </p>
           </div>
           <span class="status" :class="statusClass(selectedBatch.status)">{{ selectedBatch.statusText }}</span>
         </div>
         <div class="detail-grid">
-          <div class="info-tile"><span>联系电话</span><strong>{{ selectedBatch.donorPhone }}</strong></div>
+          <div class="info-tile"><span>联系电话</span><strong>{{ selectedBatch.contactPhone }}</strong></div>
           <div class="info-tile"><span>来源标识</span><strong>征集</strong></div>
           <div class="info-tile"><span>目标属性</span><strong>永久 / 非密 / 公开</strong></div>
           <div class="info-tile"><span>公开生效</span><strong>正式入库并满足利用条件后</strong></div>
@@ -173,7 +173,7 @@
               </div>
               <div v-if="uploading" style="text-align: center; padding: 12px; color: var(--muted);">文件上传中...</div>
               <div v-if="stagingFiles.length > 0" class="match-grid">
-                <div v-for="file in stagingFiles" :key="file.id" class="match-card">
+                <div v-for="file in stagingFiles" :key="file.fileId" class="match-card">
                   <div>
                     <strong>{{ file.originalFilename }}</strong>
                     <div class="hint">{{ fileScanHint(file) }}</div>
@@ -198,7 +198,7 @@
               <tbody>
                 <tr v-for="item in receptionItems" :key="item.id">
                   <td>{{ item.title }}</td>
-                  <td>{{ item.carrierType }}</td>
+                  <td>{{ carrierStatusLabel(item.carrierStatus) }}</td>
                   <td>
                     <select v-model="item.result">
                       <option value="pending">待验收</option>
@@ -254,6 +254,7 @@ import { getCollections, scheduleCollection, rejectCollection } from '@/api/coll
 import {
   getReceptionBatchDetail,
   uploadStagingFiles,
+  updateItemAcceptance,
   completeBatchAcceptance,
   exportReceipt,
 } from '@/api/reception'
@@ -358,6 +359,12 @@ function matchStatusClass(status: string): string {
     unmatched: 'warning', duplicate: 'warning', failed: 'danger', staging: 'info',
   }
   return map[status] || ''
+}
+function carrierStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    electronic: '纯电子', paper_electronic: '纸质+电子', paper: '纯纸质',
+  }
+  return map[status] || status
 }
 
 function fileScanHint(file: StagingFile): string {
@@ -483,6 +490,14 @@ async function handleCompleteReceive() {
     return
   }
   try {
+    // 逐条提交征集验收结论（复用 §7.5 PUT /admin/reception/items/{itemId}/acceptance）
+    for (const i of items) {
+      await updateItemAcceptance(i.id, {
+        result: i.result as 'accepted' | 'rejected',
+        acceptanceNote: i.acceptanceNote || undefined,
+        rejectReason: i.rejectReason || undefined,
+      })
+    }
     await completeBatchAcceptance(selectedBatch.value.id, { acceptanceNote: '征集到馆验收完成' })
     ElMessage.success('已确认接收，条目进入后续入库流程')
   } catch {

@@ -31,11 +31,12 @@ describe('Preservation', () => {
     expect(w.text()).toContain('对象存储连接超时')
   })
 
-  it('renders four-property check cards with not_configured authenticity', async () => {
+  it('renders four-property check options with authenticity marked unconfigured', async () => {
     const w = await mountIt()
     await wait()
     expect(w.text()).toContain('完整性')
     expect(w.text()).toContain('真实性')
-    expect(w.text()).toContain('not_configured')
+    // 真实性本期未接入外部签名体系，在检测项选择器中标注「本期未配置」
+    expect(w.text()).toContain('本期未配置')
   })
 })

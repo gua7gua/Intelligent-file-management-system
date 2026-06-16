@@ -45,7 +45,7 @@ export function downloadPublicArchiveFile(fileId: number): Promise<Blob> {
 
 export function getPublicOverview(): Promise<PublicOverviewData> {
   if (USE_MOCK) return import('@/mock/modules/public').then((m) => m.mockGetPublicOverview())
-  return request.get('/public/overview')
+  return request.get('/public/dashboard')
 }
 
 export function getMyCollections(params?: PageParams): Promise<PageData<PublicCollectionBatch>> {

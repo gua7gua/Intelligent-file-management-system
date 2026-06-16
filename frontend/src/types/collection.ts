@@ -1,11 +1,9 @@
 // src/types/collection.ts
 import type { ReceptionBatch } from './reception'
 
-/** 征集批次（扩展验收批次） */
+/** 征集批次（扩展验收批次，联系人字段继承自 ReceptionBatch：contactName/contactPhone） */
 export interface CollectionBatch extends ReceptionBatch {
   sourceType: 'collection'
-  donorName: string
-  donorPhone: string
   agreementAcceptedAt?: string
   contactNote?: string
   scheduledReceiveAt?: string

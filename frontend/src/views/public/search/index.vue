@@ -29,29 +29,95 @@
     <!-- 结构化搜索表单 -->
     <section class="card panel" style="margin-top: 16px">
       <h2 class="section-title">条件检索</h2>
-      <div class="form-grid" style="margin-top: 12px">
-        <div class="field">
-          <label for="searchKeyword">关键词</label>
-          <input id="searchKeyword" v-model="searchParams.keyword" placeholder="题名、责任者或档案号" />
+
+      <!-- 公开元数据 -->
+      <div class="filter-block">
+        <div class="filter-block-head">
+          <strong>公开元数据</strong>
+          <span class="hint">只查询非密、公开、正常且未销毁档案</span>
         </div>
-        <div class="field">
-          <label for="searchYearStart">起始年度</label>
-          <input id="searchYearStart" v-model.number="searchParams.formedYearStart" type="number" placeholder="如 2020" />
-        </div>
-        <div class="field">
-          <label for="searchYearEnd">截止年度</label>
-          <input id="searchYearEnd" v-model.number="searchParams.formedYearEnd" type="number" placeholder="如 2025" />
-        </div>
-        <div class="field">
-          <label for="searchCarrier">载体状态</label>
-          <select id="searchCarrier" v-model="searchParams.carrierStatus">
-            <option value="">不限</option>
-            <option value="electronic">纯电子</option>
-            <option value="paper_electronic">纸质+电子</option>
-            <option value="paper">纯纸质</option>
-          </select>
+        <div class="form-grid">
+          <div class="field">
+            <label for="searchKeyword">关键词</label>
+            <input id="searchKeyword" v-model="searchParams.keyword" placeholder="题名、责任者、档号、文件名" />
+          </div>
+          <div class="field">
+            <label for="searchArchiveNo">档号</label>
+            <input id="searchArchiveNo" v-model="searchParams.archiveNo" placeholder="如 A-2024-0001" />
+          </div>
+          <div class="field">
+            <label for="searchTitle">题名</label>
+            <input id="searchTitle" v-model="searchParams.title" placeholder="题名模糊检索" />
+          </div>
+          <div class="field">
+            <label for="searchResponsible">责任者</label>
+            <input id="searchResponsible" v-model="searchParams.responsibleText" placeholder="形成单位或人员" />
+          </div>
+          <div class="field">
+            <label for="searchCategory">档案门类</label>
+            <select id="searchCategory" v-model="searchParams.categoryId">
+              <option :value="undefined">全部</option>
+              <option v-for="c in categoryOptions" :key="c.value" :value="c.value">{{ c.label }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="searchTags">公开标签</label>
+            <input id="searchTags" v-model="searchParams.tagIds" placeholder="多个标签用逗号分隔" />
+          </div>
         </div>
       </div>
+
+      <!-- 时间、来源与载体 -->
+      <div class="filter-block">
+        <div class="filter-block-head">
+          <strong>时间、来源与载体</strong>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="searchYearStart">起始年度</label>
+            <input id="searchYearStart" v-model.number="searchParams.formedYearStart" type="number" placeholder="如 2020" />
+          </div>
+          <div class="field">
+            <label for="searchYearEnd">截止年度</label>
+            <input id="searchYearEnd" v-model.number="searchParams.formedYearEnd" type="number" placeholder="如 2025" />
+          </div>
+          <div class="field">
+            <label for="searchSource">档案来源</label>
+            <select id="searchSource" v-model="searchParams.sourceType">
+              <option value="">全部</option>
+              <option v-for="s in sourceOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="searchCarrier">载体状态</label>
+            <select id="searchCarrier" v-model="searchParams.carrierStatus">
+              <option value="">不限</option>
+              <option value="electronic">纯电子</option>
+              <option value="paper_electronic">纸质+电子</option>
+              <option value="paper">纯纸质</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 电子文件 -->
+      <div class="filter-block">
+        <div class="filter-block-head">
+          <strong>电子文件</strong>
+          <span class="hint">下载电子文件仍需登录公众账号</span>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="searchFileState">电子文件</label>
+            <select id="searchFileState" v-model="fileState">
+              <option value="">全部</option>
+              <option value="true">有电子文件</option>
+              <option value="false">仅公开元数据</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="actions" style="margin-top: 12px">
         <button class="button" type="button" @click="handleSearch">检索</button>
         <button class="button ghost" type="button" @click="resetSearch">重置</button>
@@ -140,7 +206,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   searchPublicArchives,
@@ -148,6 +214,8 @@ import {
   generatePublicSearchQuery,
   downloadPublicArchiveFile,
 } from '@/api/public'
+import { getDictionariesApi } from '@/api/dictionary'
+import type { DictItem } from '@/types/components'
 import type { PublicSearchParams, PublicAiQueryResult, PublicArchive, PublicArchiveDetail } from '@/types/public'
 
 const route = useRoute()
@@ -156,7 +224,23 @@ const aiQueryText = ref('')
 const aiLoading = ref(false)
 const aiResult = ref<PublicAiQueryResult | null>(null)
 
+// 档案门类字典（categoryId 为整数），来源于全量字典
+const categoryOptions = ref<DictItem[]>([])
+const sourceOptions = [
+  { value: 'transfer', label: '移交' },
+  { value: 'collection', label: '征集' },
+  { value: 'compilation', label: '编研' },
+]
+
 const searchParams = reactive<PublicSearchParams>({})
+// hasElectronicFile 为布尔值，原生 select 以字符串代理写入
+const fileState = computed<string>({
+  get: () =>
+    searchParams.hasElectronicFile === true ? 'true' : searchParams.hasElectronicFile === false ? 'false' : '',
+  set: (v) => {
+    searchParams.hasElectronicFile = v === 'true' ? true : v === 'false' ? false : undefined
+  },
+})
 const searchLoading = ref(false)
 const searchError = ref('')
 const searchResults = ref<{ records: (PublicArchive & { openStatus: 'open' })[]; total: number }>({ records: [], total: 0 })
@@ -195,7 +279,7 @@ async function handleSearch() {
   searchError.value = ''
   detailData.value = null
   try {
-    const params: PublicSearchParams = { ...searchParams }
+    const params = cleanParams(searchParams)
     const result = await searchPublicArchives(params)
     searchResults.value = { records: result.records, total: result.total }
   } catch (e: any) {
@@ -203,6 +287,16 @@ async function handleSearch() {
   } finally {
     searchLoading.value = false
   }
+}
+
+// 剔除空值，避免把空字符串/undefined 作为查询参数下发
+function cleanParams(src: PublicSearchParams): PublicSearchParams {
+  const out: PublicSearchParams = {}
+  for (const [k, v] of Object.entries(src)) {
+    if (v === undefined || v === null || v === '') continue
+    ;(out as Record<string, unknown>)[k] = v
+  }
+  return out
 }
 
 function resetSearch() {
@@ -234,7 +328,15 @@ async function handleDownload(fileId: number, filename: string) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // 加载门类字典，供档案门类下拉使用
+  try {
+    const dict = await getDictionariesApi()
+    categoryOptions.value = dict.categories ?? []
+  } catch {
+    categoryOptions.value = []
+  }
+
   const keyword = route?.query?.keyword as string
   if (keyword) {
     searchParams.keyword = keyword
@@ -244,6 +346,23 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.filter-block {
+  margin-top: 14px;
+}
+
+.filter-block:first-of-type {
+  margin-top: 12px;
+}
+
+.filter-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
 .detail-head {
   display: flex;
   flex-wrap: wrap;

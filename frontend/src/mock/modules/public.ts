@@ -11,6 +11,12 @@ import type {
   PublicResetPasswordRequest,
   PublicSmsCodeRequest,
 } from '@/types/public'
+import { mockDictionaries } from './dictionary'
+
+// 档案门类 categoryId(整数) -> 门类名 的映射，供公开检索 mock 过滤使用
+const categoryLabelById = new Map<number, string>(
+  (mockDictionaries.categories ?? []).map((c) => [Number(c.value), String(c.label)]),
+)
 
 // ——————————————————————————————————
 // 模拟数据
@@ -21,7 +27,7 @@ const archive1: PublicArchiveDetail = {
   archiveNo: 'A-2024-0001',
   title: '2024 年度城市老旧小区改造工程档案',
   responsible: '克拉玛依市住建局',
-  category: '城市建设',
+  category: '科技档案',
   formedYear: 2024,
   carrierStatus: 'paper_electronic',
   sourceType: 'transfer',
@@ -58,7 +64,7 @@ const archive2: PublicArchiveDetail = {
   archiveNo: 'A-2025-0012',
   title: '2025 年度教育工作总结',
   responsible: '克拉玛依市教育局',
-  category: '教育',
+  category: '文书档案',
   formedYear: 2025,
   carrierStatus: 'paper_electronic',
   sourceType: 'transfer',
@@ -78,7 +84,7 @@ const archive3: PublicArchiveDetail = {
   archiveNo: 'A-2025-0008',
   title: '2025 年度招生计划文件',
   responsible: '克拉玛依市教育局',
-  category: '教育',
+  category: '文书档案',
   formedYear: 2025,
   carrierStatus: 'paper',
   sourceType: 'transfer',
@@ -98,7 +104,7 @@ const archive4: PublicArchiveDetail = {
   archiveNo: 'A-2024-0005',
   title: '克拉玛依老城改造影像资料集',
   responsible: '克拉玛依市档案馆',
-  category: '历史文化',
+  category: '音像档案',
   formedYear: 2023,
   carrierStatus: 'electronic',
   sourceType: 'collection',
@@ -179,27 +185,20 @@ export const mockPublicArchiveDetails: Record<number, PublicArchiveDetail> = {
 }
 
 export const mockPublicOverview: PublicOverviewData = {
-  user: {
-    realName: '张三',
-    phone: '13800000005',
-    status: 'active',
+  collectionSummary: {
+    total: 1,
+    draft: 0,
+    inProgress: 1,
+    completed: 0,
   },
-  stats: {
-    openArchiveCount: 128,
-    electronicFileCount: 56,
-    collectionCount: 12,
-    latestOpenCount: 8,
-    myPendingCollections: 1,
-    myDownloadCount: 5,
-  },
-  collections: [
+  recentCollections: [
     {
       id: 1,
       batchNo: 'CL-2026-0001',
       title: '家族老照片捐赠',
-      donorName: '张三',
-      donorPhone: '13800000005',
-      donationNote: '家族保存的克拉玛依 1980-2000 年老照片',
+      contactName: '张三',
+      contactPhone: '13800000005',
+      archiveYear: 1980,
       status: 'pending_contact',
       statusText: '待联系',
       submittedAt: '2026-06-01T10:00:00+08:00',
@@ -237,36 +236,19 @@ export const mockPublicOverview: PublicOverviewData = {
       ],
     },
   ],
-  downloads: [
-    {
-      id: 1,
-      archiveNo: 'A-2024-0001',
-      title: '2024 年度城市老旧小区改造工程档案',
-      downloadedAt: '2026-05-20T09:30:00+08:00',
-      accessStatus: 'available',
-    },
-    {
-      id: 2,
-      archiveNo: 'A-2024-0005',
-      title: '克拉玛依老城改造影像资料集',
-      downloadedAt: '2026-05-18T14:00:00+08:00',
-      accessStatus: 'available',
-    },
-    {
-      id: 3,
-      archiveNo: 'A-2025-0003',
-      title: '涉密建设规划材料',
-      downloadedAt: '2026-04-10T11:00:00+08:00',
-      accessStatus: 'permission_changed',
-    },
+  downloadLogs: [
+    { id: 1, archiveId: 1, accessType: 'download', accessedAt: '2026-05-20T09:30:00+08:00' },
+    { id: 2, archiveId: 4, accessType: 'download', accessedAt: '2026-05-18T14:00:00+08:00' },
+    { id: 3, archiveId: 2, accessType: 'download', accessedAt: '2026-04-10T11:00:00+08:00' },
   ],
+  summarizedAt: '2026-06-16T08:30:00+08:00',
 }
 
 export const mockMyCollections: PageData<PublicCollectionBatch> = {
-  records: mockPublicOverview.collections,
+  records: mockPublicOverview.recentCollections,
   pageNo: 1,
   pageSize: 20,
-  total: mockPublicOverview.collections.length,
+  total: mockPublicOverview.recentCollections.length,
   hasNext: false,
 }
 
@@ -290,6 +272,32 @@ export function mockSearchPublicArchives(params?: import('@/types/public').Publi
         r.responsible.toLowerCase().includes(kw) ||
         r.tags.some((t) => t.toLowerCase().includes(kw)),
     )
+  }
+  if (params?.archiveNo) {
+    const v = params.archiveNo.toLowerCase()
+    records = records.filter((r) => r.archiveNo.toLowerCase().includes(v))
+  }
+  if (params?.title) {
+    const v = params.title.toLowerCase()
+    records = records.filter((r) => r.title.toLowerCase().includes(v))
+  }
+  if (params?.responsibleText) {
+    const v = params.responsibleText.toLowerCase()
+    records = records.filter((r) => r.responsible.toLowerCase().includes(v))
+  }
+  if (params?.tagIds) {
+    const tags = params.tagIds
+      .split(',')
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean)
+    if (tags.length > 0) {
+      records = records.filter((r) => tags.some((t) => r.tags.some((rt) => rt.toLowerCase().includes(t))))
+    }
+  }
+  if (params?.categoryId !== undefined && params.categoryId !== null) {
+    // 前端按门类名匹配（mock 档案以门类名作为 category 字段）
+    const label = categoryLabelById.get(params.categoryId)
+    records = label ? records.filter((r) => r.category === label) : records
   }
   if (params?.formedYearStart) {
     records = records.filter((r) => r.formedYear >= params.formedYearStart!)
@@ -337,6 +345,22 @@ export function mockGeneratePublicSearchQuery(data: PublicAiQueryRequest): Promi
     conditions.keyword = keywordMatch[1].trim()
   } else if (text.includes('老城改造')) {
     conditions.keyword = '老城改造'
+  }
+
+  // 来源识别
+  if (text.includes('征集') || text.includes('捐赠')) {
+    conditions.sourceType = 'collection'
+  } else if (text.includes('编研') || text.includes('编撰')) {
+    conditions.sourceType = 'compilation'
+  } else if (text.includes('移交')) {
+    conditions.sourceType = 'transfer'
+  }
+
+  // 电子文件属性识别
+  if (text.includes('纸质') && !text.includes('电子')) {
+    conditions.hasElectronicFile = false
+  } else if (text.includes('电子') || text.includes('照片') || text.includes('影像') || text.includes('视频')) {
+    conditions.hasElectronicFile = true
   }
 
   return Promise.resolve({
@@ -391,9 +415,9 @@ export function mockSubmitCollectionBatch(batchId: number): Promise<PublicCollec
     id: batchId,
     batchNo: `CL-2026-${String(batchId).padStart(4, '0')}`,
     title: '已提交征集清单',
-    donorName: '张三',
-    donorPhone: '13800000005',
-    donationNote: '',
+    contactName: '张三',
+    contactPhone: '13800000005',
+    archiveYear: 0,
     status: 'pending_contact',
     statusText: '待联系',
     submittedAt: new Date().toISOString(),
