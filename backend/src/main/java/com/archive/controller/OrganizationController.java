@@ -52,4 +52,14 @@ public class OrganizationController {
         }
         return R.ok(organizationService.updateOrganization(organizationId, req));
     }
+
+    @DeleteMapping("/{organizationId}")
+    @Operation(summary = "删除组织（仅系统管理员；无关联全宗和用户时方可删除，否则请改用停用）")
+    public R<Void> delete(@PathVariable Long organizationId) {
+        if (!AuthContext.hasRole(RoleCode.sys_admin)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "仅系统管理员可删除组织");
+        }
+        organizationService.deleteOrganization(organizationId);
+        return R.ok();
+    }
 }

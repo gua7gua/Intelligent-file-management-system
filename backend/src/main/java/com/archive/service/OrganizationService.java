@@ -6,16 +6,21 @@ import com.archive.dto.request.OrganizationCreateRequest;
 import com.archive.dto.request.OrganizationQuery;
 import com.archive.dto.request.OrganizationUpdateRequest;
 import com.archive.dto.response.OrganizationResponse;
+import com.archive.entity.Fonds;
 import com.archive.entity.Organization;
+import com.archive.entity.User;
 import com.archive.enums.OrgType;
 import com.archive.exception.BusinessException;
+import com.archive.mapper.FondsMapper;
 import com.archive.mapper.OrganizationMapper;
+import com.archive.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -24,6 +29,8 @@ import java.util.Map;
 public class OrganizationService {
 
     private final OrganizationMapper organizationMapper;
+    private final FondsMapper fondsMapper;
+    private final UserMapper userMapper;
     private final AuditService auditService;
 
     /** 17.4 查询组织 */
@@ -106,6 +113,27 @@ public class OrganizationService {
         return toResponse(existing);
     }
 
+    /** 17.8 删除组织：无关联全宗和用户时软删除；有关联则拒绝，提示改用停用 */
+    @Transactional
+    public void deleteOrganization(Long id) {
+        Organization existing = organizationMapper.selectById(id);
+        if (existing == null || existing.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "组织不存在");
+        }
+        long fondsCount = fondsMapper.selectCount(
+                new QueryWrapper<Fonds>().eq("organization_id", id).isNull("deleted_at"));
+        long userCount = userMapper.selectCount(
+                new QueryWrapper<User>().eq("organization_id", id).isNull("deleted_at"));
+        if (fondsCount > 0 || userCount > 0) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT,
+                    "存在关联全宗或用户，无法删除，请改用停用");
+        }
+        existing.setDeletedAt(OffsetDateTime.now());
+        organizationMapper.updateById(existing);
+        auditService.log("M06", "delete_organization", "organization", id,
+                Map.of("orgName", existing.getOrgName()));
+    }
+
     private OrganizationResponse toResponse(Organization o) {
         OrganizationResponse vo = new OrganizationResponse();
         vo.setId(o.getId());
@@ -115,6 +143,11 @@ public class OrganizationService {
         vo.setContactPhone(o.getContactPhone());
         vo.setStatus(o.getStatus());
         vo.setCreatedAt(o.getCreatedAt());
+        // 关联计数：前端据此决定显示「删除」还是「停用」（组织列表通常较小，逐条统计可接受）
+        vo.setFondsCount(fondsMapper.selectCount(
+                new QueryWrapper<Fonds>().eq("organization_id", o.getId()).isNull("deleted_at")));
+        vo.setUserCount(userMapper.selectCount(
+                new QueryWrapper<User>().eq("organization_id", o.getId()).isNull("deleted_at")));
         return vo;
     }
 }
