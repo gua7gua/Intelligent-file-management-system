@@ -90,6 +90,19 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 非法参数异常 — 主要是用户传入的枚举值不在合法范围内
+     * （保管期限、载体状态、组织类型、用户类型等 Service 层 Enum.valueOf 解析时抛出）。
+     * 统一映射为 400，避免非法输入触发 500。
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<R<Void>> handleIllegalArgumentException(IllegalArgumentException e, HttpServletRequest request) {
+        log.warn("非法参数: {}", e.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(R.<Void>fail(ErrorCode.BAD_REQUEST, "请求参数不合法").traceId(getTraceId(request)));
+    }
+
+    /**
      * 兜底 — 所有未捕获的异常。
      */
     @ExceptionHandler(Exception.class)
