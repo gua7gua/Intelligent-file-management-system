@@ -130,8 +130,8 @@ function statusClass(status: string): string {
 function canExportVoucher(status: string): boolean {
   return status === 'approved' || status === 'voucher_issued'
 }
-function formatDate(iso: string): string {
-  return iso.slice(0, 10)
+function formatDate(iso?: string | null): string {
+  return iso ? iso.slice(0, 10) : '—'
 }
 
 async function loadList() {

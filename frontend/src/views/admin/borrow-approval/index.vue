@@ -131,6 +131,21 @@ const returnOptions: { value: ReturnCheckResultValue; label: string }[] = [
   { value: ReturnCheckResult.OTHER, label: '其他' },
 ]
 
+/**
+ * 将 <input type="datetime-local"> 的本地值（"YYYY-MM-DDTHH:mm"）转为带本地时区偏移的
+ * ISO 字符串（"YYYY-MM-DDTHH:mm:00±HH:MM"），供后端 OffsetDateTime 反序列化。
+ */
+function toOffsetIso(localValue: string): string {
+  if (!localValue) return localValue
+  const d = new Date(localValue)
+  if (Number.isNaN(d.getTime())) return localValue
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const offset = -d.getTimezoneOffset()
+  const sign = offset >= 0 ? '+' : '-'
+  const abs = Math.abs(offset)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+}
+
 const metrics = computed(() => {
   const all = allRequests.value
   return {
@@ -227,7 +242,8 @@ async function onExport() {
 
 async function onCheckout() {
   if (!detail.value) return
-  const data: BorrowCheckoutData = { voucherNo: voucherNo.value, dueAt: dueAt.value }
+  // datetime-local 值为 "YYYY-MM-DDTHH:mm"，后端 OffsetDateTime 需要带时区偏移的 ISO，补秒与本地偏移
+  const data: BorrowCheckoutData = { voucherNo: voucherNo.value, dueAt: toOffsetIso(dueAt.value) }
   const errors = validateBorrowCheckout(detail.value, data)
   if (errors.length) {
     errors.forEach((e) => ElMessage.warning(e))
