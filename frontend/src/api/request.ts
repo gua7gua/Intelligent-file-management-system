@@ -8,12 +8,29 @@ const request = axios.create({
   timeout: 15000,
 })
 
+// 递归清理空字符串：后端 LocalDate/枚举等字段不接受空串，统一转为 null
+function cleanEmptyStrings(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(cleanEmptyStrings)
+  if (obj && typeof obj === 'object') {
+    const out: any = {}
+    for (const [k, v] of Object.entries(obj)) {
+      out[k] = v === '' ? null : cleanEmptyStrings(v)
+    }
+    return out
+  }
+  return obj
+}
+
 // 请求拦截器：注入 token
 request.interceptors.request.use(
   (config) => {
     const authStore = useAuthStore()
     if (authStore.token) {
       config.headers.Authorization = `Bearer ${authStore.token}`
+    }
+    // POST/PUT body 递归清理空字符串，避免空串导致后端 LocalDate 等反序列化 400
+    if (config.data && typeof config.data === 'object') {
+      config.data = cleanEmptyStrings(config.data)
     }
     return config
   },
