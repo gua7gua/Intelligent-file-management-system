@@ -203,8 +203,33 @@ public class AnalysisService {
                 .eq("task_id", taskId).isNull("deleted_at").orderByAsc("id"));
         AnalysisTaskDetailResponse resp = new AnalysisTaskDetailResponse();
         copy(t, resp);
+        enrichTaskStats(t, resp, items);
+        resp.setRule(toRule(t.getRuleSnapshot()));
         resp.setItems(items.stream().map(this::toItemResponse).toList());
         return resp;
+    }
+
+    /** 从 rule_snapshot 还原 AnalysisRule（前端 detail.rule 需要）。 */
+    private AnalysisRule toRule(Map<String, Object> snap) {
+        if (snap == null) {
+            return null;
+        }
+        AnalysisRule r = new AnalysisRule();
+        Object cids = snap.get("categoryIds");
+        if (cids instanceof List<?> list) {
+            List<Integer> ids = new ArrayList<>();
+            for (Object o : list) {
+                if (o instanceof Number n) ids.add(n.intValue());
+            }
+            r.setCategoryIds(ids);
+        }
+        Object ys = snap.get("formedYearStart");
+        if (ys instanceof Number n) r.setFormedYearStart(n.intValue());
+        Object ye = snap.get("formedYearEnd");
+        if (ye instanceof Number n) r.setFormedYearEnd(n.intValue());
+        Object ai = snap.get("includeAiSuggestion");
+        if (ai instanceof Boolean b) r.setIncludeAiSuggestion(b);
+        return r;
     }
 
     /** 20.7 处理研判项（仅改状态，不动档案） */
@@ -238,11 +263,87 @@ public class AnalysisService {
         r.setLatestAiTaskId(t.getLatestAiTaskId());
         r.setStartedAt(t.getStartedAt());
         r.setCompletedAt(t.getCompletedAt());
+        r.setCreatedAt(t.getCreatedAt());
+        r.setProgress(switch (t.getStatus() == null ? AnalysisTaskStatus.running : t.getStatus()) {
+            case completed, failed -> 1.0;
+            case partial_completed -> 0.5;
+            default -> t.getLatestAiTaskId() != null ? 0.5 : 1.0;
+        });
+        r.setScopeText(buildScopeText(t));
+    }
+
+    /** 范围摘要：解析 rule_snapshot，例如「科技档案 / 文书档案 2010~2026」。 */
+    private String buildScopeText(AnalysisTask t) {
+        Map<String, Object> snap = t.getRuleSnapshot();
+        if (snap == null) {
+            return "正式档案";
+        }
+        StringBuilder sb = new StringBuilder();
+        Object cids = snap.get("categoryIds");
+        if (cids instanceof List<?> list && !list.isEmpty()) {
+            List<Integer> ids = new ArrayList<>();
+            for (Object o : list) {
+                if (o instanceof Number n) ids.add(n.intValue());
+            }
+            if (!ids.isEmpty()) {
+                List<String> names = jdbcTemplate.queryForList(
+                        "SELECT category_name FROM categories WHERE id IN (" +
+                        ids.stream().map(x -> "?").collect(java.util.stream.Collectors.joining(",")) + ")",
+                        String.class, ids.toArray());
+                if (!names.isEmpty()) {
+                    sb.append(String.join(" / ", names));
+                }
+            }
+        }
+        Object ys = snap.get("formedYearStart");
+        Object ye = snap.get("formedYearEnd");
+        if (ys instanceof Number && ye instanceof Number) {
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(((Number) ys).intValue()).append('~').append(((Number) ye).intValue());
+        }
+        return sb.length() == 0 ? "正式档案" : sb.toString();
+    }
+
+    /** 为任务响应填充扫描数/异常数/已采纳数（列表项复用统计）。 */
+    private void enrichTaskStats(AnalysisTask t, AnalysisTaskResponse r, List<AnalysisItem> items) {
+        // 扫描数：从 rule_snapshot 范围聚合（实时）
+        long scanned = countScanned(t);
+        long abnormal = items != null ? items.size() : countItems(t.getId(), null);
+        long adopted = items != null ? items.stream().filter(i -> i.getStatus() == AnalysisItemStatus.adopted).count()
+                : countItems(t.getId(), "adopted");
+        r.setScannedCount(scanned);
+        r.setAbnormalCount(abnormal);
+        r.setAdoptedCount(adopted);
+    }
+
+    private long countScanned(AnalysisTask t) {
+        try {
+            AnalysisRule rule = toRule(t.getRuleSnapshot());
+            if (rule == null) {
+                rule = new AnalysisRule();
+            }
+            return scopedArchiveIds(rule).size();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private long countItems(Long taskId, String status) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM analysis_items WHERE task_id=? AND deleted_at IS NULL");
+        List<Object> args = new ArrayList<>();
+        args.add(taskId);
+        if (status != null) {
+            sql.append(" AND status=?");
+            args.add(status);
+        }
+        Long v = jdbcTemplate.queryForObject(sql.toString(), Long.class, args.toArray());
+        return v != null ? v : 0L;
     }
 
     private AnalysisTaskResponse toResponse(AnalysisTask t) {
         AnalysisTaskResponse r = new AnalysisTaskResponse();
         copy(t, r);
+        enrichTaskStats(t, r, null);
         return r;
     }
 
@@ -251,12 +352,69 @@ public class AnalysisService {
         r.setId(it.getId());
         r.setTaskId(it.getTaskId());
         r.setArchiveId(it.getArchiveId());
-        r.setIssueType(it.getIssueType() != null ? it.getIssueType().name() : null);
+        String issue = it.getIssueType() != null ? it.getIssueType().name() : null;
+        r.setIssueType(issue);
+        r.setProblemType(issue);
         r.setIssueDetail(it.getIssueDetail());
         r.setSuggestion(it.getSuggestion());
         r.setStatus(it.getStatus() != null ? it.getStatus().name() : null);
         r.setHandledAt(it.getHandledAt());
+        r.setHandledBy(it.getHandledBy());
+
+        // 回填档案档号 / 题名 + 派生 problemDesc / suggestedAction
+        if (it.getArchiveId() != null) {
+            try {
+                Archive a = archiveMapper.selectById(it.getArchiveId());
+                if (a != null) {
+                    r.setArchiveNo(a.getArchiveNo());
+                    r.setTitle(a.getTitle());
+                }
+            } catch (Exception ignored) {
+                // 单条异常不影响整体响应
+            }
+        }
+        r.setProblemDesc(buildProblemDesc(it));
+        r.setSuggestedAction(buildSuggestedAction(it));
         return r;
+    }
+
+    /** 按 issueType + issueDetail 派生人类可读的问题描述。 */
+    private String buildProblemDesc(AnalysisItem it) {
+        if (it.getIssueType() == null) {
+            return "—";
+        }
+        Map<String, Object> d = it.getIssueDetail();
+        switch (it.getIssueType()) {
+            case missing_field -> {
+                Object fields = d == null ? null : d.get("fields");
+                return "缺失字段：" + (fields instanceof List<?> l && !l.isEmpty()
+                        ? String.join("、", l.stream().map(String::valueOf).toList())
+                        : "未知字段");
+            }
+            case category_conflict -> {
+                Object reason = d == null ? null : d.get("reason");
+                return reason == null ? "门类冲突" : String.valueOf(reason);
+            }
+            case tag_suggestion -> {
+                Object reason = d == null ? null : d.get("reason");
+                return reason == null ? "可补充标签建议" : String.valueOf(reason);
+            }
+            default -> {
+                return "—";
+            }
+        }
+    }
+
+    /** 按 issueType 派生建议动作。 */
+    private String buildSuggestedAction(AnalysisItem it) {
+        if (it.getIssueType() == null) {
+            return "—";
+        }
+        return switch (it.getIssueType()) {
+            case missing_field -> "在档案详情页补全缺失字段后人工确认";
+            case category_conflict -> "复核公开状态与密级，调整其中一项";
+            case tag_suggestion -> "采纳建议标签，后续在档案管理页人工维护";
+        };
     }
 
     private boolean isBlank(String s) {
