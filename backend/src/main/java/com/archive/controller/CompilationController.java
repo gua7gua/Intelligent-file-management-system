@@ -14,8 +14,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 /**
  * 档案编研接口（M13）。
  */
@@ -58,7 +56,7 @@ public class CompilationController {
 
     @PostMapping("/api/admin/compilations/{id}/archive")
     @Operation(summary = "19.6 编研成果入库")
-    public R<Map<String, Object>> archive(@PathVariable Long id, @RequestBody @Valid CompilationArchiveRequest req) {
-        return R.ok(Map.of("archiveId", compilationService.archive(id, req)));
+    public R<CompilationDetailResponse> archive(@PathVariable Long id, @RequestBody @Valid CompilationArchiveRequest req) {
+        return R.ok(compilationService.archive(id, req));
     }
 }

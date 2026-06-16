@@ -7,6 +7,7 @@ import com.archive.config.FileProperties;
 import com.archive.dto.request.CompilationArchiveRequest;
 import com.archive.dto.request.CompilationQuery;
 import com.archive.dto.request.CompilationSaveRequest;
+import com.archive.dto.response.CompilationAttachmentResponse;
 import com.archive.dto.response.CompilationDetailResponse;
 import com.archive.dto.response.CompilationMaterialResponse;
 import com.archive.dto.response.CompilationResponse;
@@ -30,6 +31,8 @@ import java.security.MessageDigest;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 档案编研服务（M13）。
@@ -60,6 +63,16 @@ public class CompilationService {
         }
     }
 
+    /** JDBC 查询 uploaded_at 返回 Timestamp/OffsetDateTime/LocalDateTime 不一，统一转为 OffsetDateTime。 */
+    private OffsetDateTime toOffsetDateTime(Object v) {
+        if (v == null) return null;
+        if (v instanceof OffsetDateTime o) return o;
+        if (v instanceof java.sql.Timestamp t) return t.toInstant().atOffset(java.time.ZoneOffset.UTC);
+        if (v instanceof java.time.LocalDateTime l) return l.atOffset(java.time.ZoneOffset.UTC);
+        if (v instanceof java.util.Date d) return d.toInstant().atOffset(java.time.ZoneOffset.UTC);
+        return null;
+    }
+
     /** 19.1 查询编研成果 */
     public PageResult<CompilationResponse> list(CompilationQuery q) {
         requireRole();
@@ -71,8 +84,12 @@ public class CompilationService {
         }
         w.orderByDesc("created_at");
         Page<Compilation> p = compilationMapper.selectPage(new Page<>(q.getPageNo(), q.getPageSize()), w);
-        return new PageResult<>(p.getRecords().stream().map(this::toListResponse).toList(),
-                q.getPageNo(), q.getPageSize(), p.getTotal());
+        List<Compilation> rows = p.getRecords();
+        List<CompilationResponse> resp = rows.stream().map(this::toListResponse).toList();
+        if (!resp.isEmpty()) {
+            enrichListResponses(resp, rows);
+        }
+        return new PageResult<>(resp, q.getPageNo(), q.getPageSize(), p.getTotal());
     }
 
     /** 19.2 / 19.4 创建或更新草稿 */
@@ -137,21 +154,62 @@ public class CompilationService {
         r.setCompilationType(c.getCompilationType());
         r.setStatus(c.getStatus() != null ? c.getStatus().name() : null);
         r.setCreatedAt(c.getCreatedAt());
+        r.setUpdatedAt(c.getUpdatedAt());
         r.setDateRangeText(c.getDateRangeText());
         r.setKeywords(c.getKeywords());
         r.setSummary(c.getSummary());
         r.setContentHtml(c.getContentHtml());
         r.setGeneratedFileAttachmentId(c.getGeneratedFileAttachmentId());
         r.setGeneratedArchiveId(c.getGeneratedArchiveId());
-        r.setMaterials(materialMapper.selectList(new QueryWrapper<CompilationMaterial>()
-                .eq("compilation_id", id).isNull("deleted_at").orderByAsc("sort_no")).stream().map(m -> {
+        r.setArchiveId(c.getGeneratedArchiveId());
+
+        List<CompilationMaterial> materials = materialMapper.selectList(new QueryWrapper<CompilationMaterial>()
+                .eq("compilation_id", id).isNull("deleted_at").orderByAsc("sort_no"));
+        r.setMaterialCount(materials.size());
+
+        // 素材档案 archiveNo/title 批量补全
+        Set<Long> matArchiveIds = materials.stream().map(CompilationMaterial::getArchiveId)
+                .filter(java.util.Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, Archive> matArchiveMap = matArchiveIds.isEmpty() ? Map.of() :
+                archiveMapper.selectList(new QueryWrapper<Archive>().in("id", matArchiveIds)
+                        .select("id", "archive_no", "title")).stream()
+                        .collect(Collectors.toMap(Archive::getId, a -> a, (a, b) -> a));
+        r.setMaterials(materials.stream().map(m -> {
             CompilationMaterialResponse mr = new CompilationMaterialResponse();
             mr.setId(m.getId());
             mr.setArchiveId(m.getArchiveId());
             mr.setSortNo(m.getSortNo());
             mr.setQuoteNote(m.getQuoteNote());
+            Archive ma = matArchiveMap.get(m.getArchiveId());
+            if (ma != null) {
+                mr.setArchiveNo(ma.getArchiveNo());
+                mr.setTitle(ma.getTitle());
+            }
             return mr;
         }).toList());
+
+        // 入库档号 + 正文附件摘要
+        if (c.getGeneratedArchiveId() != null) {
+            Archive ga = archiveMapper.selectById(c.getGeneratedArchiveId());
+            if (ga != null) r.setArchiveNo(ga.getArchiveNo());
+        }
+        if (c.getGeneratedFileAttachmentId() != null) {
+            try {
+                Map<String, Object> att = jdbcTemplate.queryForMap(
+                        "SELECT id, original_filename, uploaded_at FROM business_attachments WHERE id = ?",
+                        c.getGeneratedFileAttachmentId());
+                CompilationAttachmentResponse a = new CompilationAttachmentResponse();
+                a.setId(c.getGeneratedFileAttachmentId());
+                a.setFileName(att.get("original_filename") != null ? String.valueOf(att.get("original_filename")) : "编研正文.pdf");
+                a.setFileUrl("/api/admin/compilations/" + id + "/attachment/" + c.getGeneratedFileAttachmentId());
+                a.setAttachmentType("report");
+                a.setGeneratedAt(toOffsetDateTime(att.get("uploaded_at")));
+                if (a.getGeneratedAt() == null) a.setGeneratedAt(c.getCreatedAt());
+                r.setAttachment(a);
+            } catch (Exception ignore) {
+                // 附件记录缺失时不阻断详情返回
+            }
+        }
         return r;
     }
 
@@ -186,7 +244,7 @@ public class CompilationService {
 
     /** 19.6 入库（镜像 PendingArchiveService.confirmArchive） */
     @Transactional
-    public Long archive(Long id, CompilationArchiveRequest req) {
+    public CompilationDetailResponse archive(Long id, CompilationArchiveRequest req) {
         requireRole();
         Compilation c = mustGet(id);
         if (c.getStatus() != CompilationStatus.generated) {
@@ -271,7 +329,7 @@ public class CompilationService {
         compilationMapper.updateById(c);
         auditService.log("M13", "archive_compilation", "compilation", id,
                 Map.of("archiveId", a.getId(), "archiveNo", archiveNo));
-        return a.getId();
+        return getDetail(id);
     }
 
     private Compilation mustGet(Long id) {
@@ -290,7 +348,59 @@ public class CompilationService {
         r.setCompilationType(c.getCompilationType());
         r.setStatus(c.getStatus() != null ? c.getStatus().name() : null);
         r.setCreatedAt(c.getCreatedAt());
+        r.setUpdatedAt(c.getUpdatedAt());
+        r.setArchiveId(c.getGeneratedArchiveId());
         return r;
+    }
+
+    /** 批量补全列表字段：archiveNo、materialCount、attachment。避免 N+1 查询。 */
+    private void enrichListResponses(List<CompilationResponse> resp, List<Compilation> rows) {
+        // 1. 归档的档案 archiveNo（一次查询所有 generated_archive_id）
+        Set<Long> archiveIds = rows.stream()
+                .map(Compilation::getGeneratedArchiveId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, String> archiveNoMap = archiveIds.isEmpty() ? Map.of() :
+                archiveMapper.selectList(new QueryWrapper<Archive>().in("id", archiveIds)
+                        .select("id", "archive_no")).stream()
+                        .collect(Collectors.toMap(Archive::getId, Archive::getArchiveNo, (a, b) -> a));
+        // 2. materialCount（按 compilation_id 分组聚合）
+        Set<Long> compIds = rows.stream().map(Compilation::getId).collect(Collectors.toSet());
+        Map<Long, Long> materialCountMap = compIds.isEmpty() ? Map.of() :
+                materialMapper.selectList(new QueryWrapper<CompilationMaterial>()
+                        .in("compilation_id", compIds).isNull("deleted_at")).stream()
+                        .collect(Collectors.groupingBy(CompilationMaterial::getCompilationId, Collectors.counting()));
+        // 3. attachment 信息（business_attachments 一次查询）
+        Set<Long> attachIds = rows.stream()
+                .map(Compilation::getGeneratedFileAttachmentId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, Map<String, Object>> attachMap = attachIds.isEmpty() ? Map.of() :
+                jdbcTemplate.queryForList("SELECT id, original_filename, uploaded_at FROM business_attachments WHERE id IN (" +
+                        attachIds.stream().map(String::valueOf).collect(Collectors.joining(",")) + ")").stream()
+                        .collect(Collectors.toMap(m -> ((Number) m.get("id")).longValue(), m -> m, (a, b) -> a));
+
+        for (int i = 0; i < resp.size(); i++) {
+            Compilation c = rows.get(i);
+            CompilationResponse r = resp.get(i);
+            if (c.getGeneratedArchiveId() != null) {
+                r.setArchiveNo(archiveNoMap.get(c.getGeneratedArchiveId()));
+            }
+            r.setMaterialCount(materialCountMap.getOrDefault(c.getId(), 0L).intValue());
+            if (c.getGeneratedFileAttachmentId() != null) {
+                Map<String, Object> att = attachMap.get(c.getGeneratedFileAttachmentId());
+                if (att != null) {
+                    CompilationAttachmentResponse a = new CompilationAttachmentResponse();
+                    a.setId(c.getGeneratedFileAttachmentId());
+                    a.setFileName(att.get("original_filename") != null ? String.valueOf(att.get("original_filename")) : "编研正文.pdf");
+                    a.setFileUrl("/api/admin/compilations/" + c.getId() + "/attachment/" + c.getGeneratedFileAttachmentId());
+                    a.setAttachmentType("report");
+                    a.setGeneratedAt(toOffsetDateTime(att.get("uploaded_at")));
+                    if (a.getGeneratedAt() == null) a.setGeneratedAt(c.getCreatedAt());
+                    r.setAttachment(a);
+                }
+            }
+        }
     }
 
     private String sha256(byte[] data) {
