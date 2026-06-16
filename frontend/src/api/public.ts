@@ -9,18 +9,31 @@ import type {
   PublicHomeData,
   PublicOverviewData,
   PublicSearchParams,
+  PublicStatsResponse,
 } from '@/types/public'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false'
 
+export function getPublicStats(): Promise<PublicStatsResponse> {
+  if (USE_MOCK) return import('@/mock/modules/public').then((m) => m.mockGetPublicStats())
+  return request.get('/public/stats')
+}
+
 export function getPublicHome(): Promise<PublicHomeData> {
   if (USE_MOCK) return import('@/mock/modules/public').then((m) => m.mockGetPublicHome())
-  // 后端暂无专用首页接口，临时用搜索接口替代
-  return request.get('/public/archives/search', { params: { pageNo: 1, pageSize: 6 } }).then(() => ({
-    stats: { openArchiveCount: 0, electronicFileCount: 0, collectionCount: 0, latestOpenCount: 0 },
-    categories: [],
-    recentArchives: [],
-  }))
+  // 公开馆藏统计来自 /public/stats，最近公开档案来自公开检索
+  return Promise.all([getPublicStats(), searchPublicArchives({ pageNo: 1, pageSize: 6 })]).then(
+    ([stats, page]) => ({
+      stats: {
+        openArchiveCount: stats.openArchiveCount,
+        electronicFileCount: stats.electronicFileCount,
+        collectionCount: stats.collectionCount,
+        latestOpenCount: stats.latestOpenCount,
+      },
+      categories: stats.categories,
+      recentArchives: page.records,
+    }),
+  )
 }
 
 export function searchPublicArchives(params?: PublicSearchParams): Promise<PublicArchivePage> {

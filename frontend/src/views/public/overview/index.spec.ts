@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
+import { createPinia } from 'pinia'
 import PublicOverview from './index.vue'
 
 async function waitForAsyncData() {
@@ -9,7 +10,7 @@ async function waitForAsyncData() {
 
 describe('PublicOverview', () => {
   it('renders personal overview, collections, and download records', async () => {
-    const wrapper = mount(PublicOverview)
+    const wrapper = mount(PublicOverview, { global: { plugins: [createPinia()] } })
     await waitForAsyncData()
 
     expect(wrapper.text()).toContain('公众概览')
