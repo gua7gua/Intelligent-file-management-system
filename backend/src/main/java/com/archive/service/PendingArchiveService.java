@@ -48,6 +48,7 @@ public class PendingArchiveService {
     private final CategoryMapper categoryMapper;
     private final FondsMapper fondsMapper;
     private final AuditService auditService;
+    private final AiTaskMapper aiTaskMapper;
 
     // ==================== 9.1 查询待入库批次 ====================
 
@@ -111,8 +112,13 @@ public class PendingArchiveService {
             resp.setItemCount((int) itemCount);
             resp.setArchivedCount((int) archivedCount);
             resp.setPendingArchiveCount((int) pendingCount);
-            // AI 任务状态暂不关联查询
-            resp.setLatestAiTaskStatus(null);
+            // 关联查询该批次最近一次 AI 补全任务状态（business_type=intake_batch）
+            AiTask latestAiTask = aiTaskMapper.selectOne(new QueryWrapper<AiTask>()
+                    .eq("business_type", "intake_batch")
+                    .eq("business_id", batch.getId())
+                    .orderByDesc("started_at")
+                    .last("limit 1"));
+            resp.setLatestAiTaskStatus(latestAiTask != null ? latestAiTask.getStatus() : null);
 
             records.add(resp);
         }
@@ -521,6 +527,32 @@ public class PendingArchiveService {
         r.setRetentionPeriod(item.getRetentionPeriod() != null ? item.getRetentionPeriod().getDbValue() : null);
         r.setFileMatchStatus(item.getFileMatchStatus() != null ? item.getFileMatchStatus().name() : null);
         r.setAiSuggestion(item.getAiSuggestion() != null ? item.getAiSuggestion().toString() : null);
+        // 拆出结构化 AI 建议字段，供前端表单回填
+        Map<String, Object> ai = item.getAiSuggestion();
+        if (ai != null) {
+            Object title = ai.get("title");
+            if (title != null) r.setSuggestedTitle(String.valueOf(title));
+            Object responsible = ai.get("responsible");
+            if (responsible != null) r.setSuggestedResponsible(String.valueOf(responsible));
+            Object formedDate = ai.get("formedDate");
+            if (formedDate instanceof String s && !s.isBlank()) {
+                try {
+                    r.setSuggestedFormedDate(LocalDate.parse(s));
+                } catch (Exception ignore) {
+                    // 日期格式不规范时忽略，不阻断响应
+                }
+            }
+            Object categoryId = ai.get("categoryId");
+            if (categoryId instanceof Number n) r.setSuggestedCategoryId(n.intValue());
+            Object tags = ai.get("tags");
+            if (tags instanceof List<?> list) {
+                List<String> tagList = new ArrayList<>();
+                for (Object t : list) {
+                    if (t != null) tagList.add(String.valueOf(t));
+                }
+                if (!tagList.isEmpty()) r.setSuggestedTags(tagList);
+            }
+        }
         r.setConfirmedTitle(item.getConfirmedTitle());
         r.setConfirmedResponsibleText(item.getConfirmedResponsibleText());
         r.setConfirmedFormedDate(item.getConfirmedFormedDate());

@@ -32,6 +32,13 @@ public class PendingItemResponse {
     /** AI 补全建议 JSON。 */
     private String aiSuggestion;
 
+    /** AI 建议的结构化字段，便于前端直接回填表单。 */
+    private String suggestedTitle;
+    private String suggestedResponsible;
+    private LocalDate suggestedFormedDate;
+    private Integer suggestedCategoryId;
+    private List<String> suggestedTags;
+
     private String confirmedTitle;
 
     private String confirmedResponsibleText;
