@@ -149,10 +149,6 @@
             <label>标签</label>
             <input v-model="editForm.tagsStr" />
           </div>
-          <div class="field">
-            <label>摘要</label>
-            <textarea v-model="editForm.summary" rows="3" />
-          </div>
           <div class="actions">
             <el-button type="primary" @click="handleSaveMeta">保存元数据</el-button>
             <el-button @click="handlePreview">预览</el-button>
@@ -257,7 +253,6 @@ const editForm = reactive({
   formedDate: '',
   categoryId: 1,
   tagsStr: '',
-  summary: '',
 })
 
 // ── 审批表单 ──
@@ -280,7 +275,6 @@ function syncEditForm(d: ArchiveDetail) {
   editForm.formedDate = d.formedDate
   editForm.categoryId = d.categoryId
   editForm.tagsStr = d.tags.join(',')
-  editForm.summary = d.summary || ''
 }
 
 // ── 数据加载 ──
