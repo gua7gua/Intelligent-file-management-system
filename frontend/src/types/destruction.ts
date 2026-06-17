@@ -28,12 +28,14 @@ export interface DestructionItem {
   fileDeletedAt?: string
 }
 
-/** 销毁清册附件（现场照片） */
+/** 销毁清册附件（现场照片）
+ *  字段名与后端 DestructionListDetailResponse.Photo / 其他附件响应保持一致（originalFilename）。 */
 export interface DestructionPhoto {
   id: number
-  fileName: string
+  originalFilename: string
+  mimeType: string
   fileSize: number
-  uploadedAt: string
+  sha256: string
 }
 
 /** 销毁清册摘要（列表行） */

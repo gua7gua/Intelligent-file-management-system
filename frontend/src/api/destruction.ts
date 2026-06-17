@@ -51,9 +51,10 @@ export function uploadDestructionPhotos(listId: number, files: File[]): Promise<
   }
   const form = new FormData()
   files.forEach((f) => form.append('files', f))
-  return request.post(`/admin/destruction-lists/${listId}/photos`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  // 注意：不要手动设 Content-Type=multipart/form-data，否则会覆盖浏览器自动生成的
+  // 带 boundary 的 header，导致后端 Tomcat 报 "no multipart boundary was found"（人#13）。
+  // 让 axios 检测到 FormData 后自动设带 boundary 的 Content-Type。
+  return request.post(`/admin/destruction-lists/${listId}/photos`, form)
 }
 
 /** 确认销毁（§15.5） */
