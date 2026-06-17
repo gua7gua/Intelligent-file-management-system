@@ -83,7 +83,6 @@
               </div>
               <div class="field"><label>归还检查说明</label><textarea v-model="returnNote" placeholder="异常归还时必填"></textarea></div>
               <div class="actions">
-                <button class="button secondary" :disabled="!canExport" @click="onExport">导出凭证</button>
                 <button class="button" :disabled="!canCheckout" @click="onCheckout">确认出库</button>
                 <button class="button ghost" :disabled="!canReturn" @click="onReturn">确认归还</button>
               </div>
@@ -102,7 +101,7 @@ import type { BorrowApprovalDetail, BorrowApproveData, BorrowCheckoutData, Borro
 import { BorrowStatusLabel, ReturnCheckResult } from '@/types/enums'
 import type { ReturnCheckResultValue } from '@/types/enums'
 import {
-  approveBorrowRequest, checkoutBorrowRequest, exportBorrowVoucher,
+  approveBorrowRequest, checkoutBorrowRequest,
   getBorrowApprovalDetail, getBorrowApprovals, returnBorrowRequest,
 } from '@/api/borrow-approval'
 import { validateBorrowApprove, validateBorrowCheckout, validateBorrowReturn } from '@/utils/borrowApprovalValidation'
@@ -163,7 +162,6 @@ const filteredList = computed(() => {
   return allRequests.value.filter((r) => r.status === s)
 })
 
-const canExport = computed(() => !!detail.value && ['approved', 'voucher_issued'].includes(detail.value.status))
 const canCheckout = computed(() => !!detail.value && ['approved', 'voucher_issued'].includes(detail.value.status))
 const canReturn = computed(() => detail.value?.status === 'checked_out')
 
@@ -225,18 +223,6 @@ async function onApprove(approved: boolean) {
     await loadList()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '操作失败')
-  }
-}
-
-async function onExport() {
-  if (!detail.value) return
-  try {
-    const result = await exportBorrowVoucher(detail.value.id)
-    voucherNo.value = result.voucherNo
-    detail.value = await getBorrowApprovalDetail(detail.value.id)
-    ElMessage.success(result.firstIssued ? `借阅凭证已生成：${result.voucherNo}` : `凭证号：${result.voucherNo}（复用）`)
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '导出失败')
   }
 }
 
