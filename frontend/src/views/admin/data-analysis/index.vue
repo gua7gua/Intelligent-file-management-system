@@ -69,7 +69,7 @@ async function doHandle(action: 'adopted' | 'rejected') {
 async function startScan() {
   try {
     const detail = await createAnalysisTask({
-      taskType: newTaskType.value,
+      scanMethod: newTaskType.value,
       rule: { categoryIds: [1, 3], formedYearStart: 2010, formedYearEnd: 2026, includeAiSuggestion: newIncludeAi.value },
     })
     ElMessage.success('扫描已开始')
@@ -162,6 +162,7 @@ onMounted(load)
             >
               <strong class="mono">{{ t.taskNo }}</strong>
               <span class="muted">{{ t.scopeText }}</span>
+              <span class="muted">{{ AnalysisTaskTypeLabel[t.scanMethod ?? 'mixed'] }}</span>
               <span class="status">{{ AnalysisTaskStatusLabel[t.status] }}</span>
               <span class="muted">{{ t.abnormalCount }} 项</span>
             </li>
@@ -254,7 +255,7 @@ onMounted(load)
 .progress { height: 8px; background: #f0f2f5; border-radius: 4px; overflow: hidden; }
 .progress span { display: block; height: 100%; background: var(--primary, #1f6f78); transition: width .3s; }
 .task-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; max-height: 180px; overflow: auto; }
-.task-item { display: grid; grid-template-columns: 120px minmax(0,1fr) 70px 60px; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; }
+.task-item { display: grid; grid-template-columns: 120px minmax(0,1fr) 70px 70px 60px; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; }
 .task-item:hover { border-color: var(--primary, #1f6f78); }
 .task-item.active { border-color: var(--primary, #1f6f78); background: rgba(31,111,120,0.06); }
 .detail-line { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
