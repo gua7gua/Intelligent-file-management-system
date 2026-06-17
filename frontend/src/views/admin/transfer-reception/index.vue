@@ -94,7 +94,7 @@
             <div class="detail-head">
               <h2 class="section-title">{{ activeBatch.batch.title }}</h2>
               <p class="muted" style="margin-top: -6px;">
-                {{ activeBatch.batch.batchNo }} / {{ activeBatch.batch.organizationName }} / {{ activeBatch.batch.contactName }} {{ activeBatch.batch.contactPhone }}
+                {{ receptionHeader(activeBatch.batch) }}
               </p>
             </div>
             <div class="summary-row" style="margin-top: 12px;">
@@ -314,6 +314,15 @@ const batchStatusLabel = computed(() => {
   if (pending > 0) return '待移交'
   return rejected > 0 ? '部分接收' : '已接收'
 })
+
+// 详情头部：批次号 / 组织名 / 联系人 电话，组织名为空时跳过该项以避免孤立斜杠
+function receptionHeader(batch: { batchNo: string; organizationName?: string | null; contactName?: string | null; contactPhone?: string | null }): string {
+  const parts: string[] = [batch.batchNo]
+  if (batch.organizationName) parts.push(batch.organizationName)
+  const contact = [batch.contactName, batch.contactPhone].filter(Boolean).join(' ')
+  if (contact) parts.push(contact)
+  return parts.join(' / ')
+}
 const acceptedCount = computed(() =>
   activeBatch.value ? activeBatch.value.items.filter((i) => i.result === 'accepted').length : 0,
 )
