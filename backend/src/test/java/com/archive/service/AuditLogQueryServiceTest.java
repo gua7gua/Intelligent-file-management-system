@@ -5,7 +5,9 @@ import com.archive.common.CursorResult;
 import com.archive.dto.request.AuditLogQuery;
 import com.archive.dto.response.AuditLogResponse;
 import com.archive.entity.AuditLog;
+import com.archive.mapper.ArchiveMapper;
 import com.archive.mapper.AuditLogMapper;
+import com.archive.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +27,7 @@ class AuditLogQueryServiceTest {
     @BeforeEach
     void setup() {
         auditLogMapper = mock(AuditLogMapper.class);
-        service = new AuditLogQueryService(auditLogMapper);
+        service = new AuditLogQueryService(auditLogMapper, mock(UserMapper.class), mock(ArchiveMapper.class));
     }
 
     @Test

@@ -6,6 +6,8 @@ import com.archive.dto.request.ArchiveAccessLogQuery;
 import com.archive.dto.response.ArchiveAccessLogResponse;
 import com.archive.entity.ArchiveAccessLog;
 import com.archive.mapper.ArchiveAccessLogMapper;
+import com.archive.mapper.ArchiveMapper;
+import com.archive.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,7 +26,7 @@ class ArchiveAccessLogQueryServiceTest {
     @BeforeEach
     void setup() {
         mapper = mock(ArchiveAccessLogMapper.class);
-        service = new ArchiveAccessLogQueryService(mapper);
+        service = new ArchiveAccessLogQueryService(mapper, mock(UserMapper.class), mock(ArchiveMapper.class));
     }
 
     @Test
