@@ -148,17 +148,11 @@
                 <option :value="undefined">请选择</option>
                 <option v-for="b in boxOptions" :key="b.id" :value="b.id">{{ b.boxNo }}（{{ b.locationCode }}）</option>
               </select>
+              <div class="hint">盒即架位，选择档案盒即确定其所在架位（括号内为架位号）。</div>
             </div>
             <div class="detail-field">
               <label>盒脊信息</label>
               <input v-model="form.spine" placeholder="如 2025 会计凭证 01" />
-            </div>
-            <div class="detail-field">
-              <label>架位</label>
-              <select v-model="form.locationId">
-                <option :value="undefined">请选择</option>
-                <option v-for="loc in locationOptions" :key="loc.id" :value="loc.id">{{ loc.locationCode }}</option>
-              </select>
             </div>
           </template>
           <div v-else class="notice" style="margin-top:8px">纯电子档案无需盒号和架位。</div>
@@ -206,9 +200,9 @@ import {
   shelveBatch,
 } from '@/api/archive'
 import { getFonds } from '@/api/fonds'
-import { getArchiveBoxes, getStorageLocations } from '@/api/warehouse'
+import { getArchiveBoxes } from '@/api/warehouse'
 import type { FondsItem } from '@/types/fonds'
-import type { ArchiveBox, StorageLocation } from '@/types/warehouse'
+import type { ArchiveBox } from '@/types/warehouse'
 
 // ── 分类选项 ──
 const categories = [
@@ -242,24 +236,20 @@ const form = reactive({
   fondsId: 0,
   spine: '',
   boxId: undefined as number | undefined,
-  locationId: undefined as number | undefined,
 })
 
-// 入库选项：全宗 / 档案盒 / 架位（来自库房主数据，提供真实 ID）
+// 入库选项：全宗 / 档案盒（盒即架位，来自库房主数据，提供真实 ID）
 const fondsOptions = ref<FondsItem[]>([])
 const boxOptions = ref<ArchiveBox[]>([])
-const locationOptions = ref<StorageLocation[]>([])
 
 async function loadArchiveOptions() {
   try {
-    const [fonds, boxes, locations] = await Promise.all([
+    const [fonds, boxes] = await Promise.all([
       getFonds({ pageSize: 100 }),
       getArchiveBoxes({ pageSize: 100 }),
-      getStorageLocations({ pageSize: 100 }),
     ])
     fondsOptions.value = fonds.records
     boxOptions.value = boxes.records
-    locationOptions.value = locations.records
   } catch {
     // 选项加载失败不阻塞主流程，选择器留空
   }
@@ -337,7 +327,6 @@ function syncFormFromItem(it: PendingItem) {
   form.fondsId = (it as PendingItem & { fondsId?: number }).fondsId ?? 0
   form.spine = it.spine || ''
   form.boxId = (it as PendingItem & { boxId?: number }).boxId
-  form.locationId = (it as PendingItem & { locationId?: number }).locationId
 }
 
 // ── 数据加载 ──
@@ -447,8 +436,8 @@ async function handleArchive() {
     return
   }
   if (activeItem.value.carrierStatus !== 'electronic') {
-    if (!form.boxId || !form.locationId) {
-      ElMessage.warning('纸质档案入库前必须选择档案盒和架位。')
+    if (!form.boxId) {
+      ElMessage.warning('纸质档案入库前必须选择档案盒。')
       return
     }
   }
@@ -477,7 +466,6 @@ async function handleArchive() {
     const result = await archiveItem(activeItem.value.id, {
       fondsId: form.fondsId,
       boxId: form.boxId,
-      locationId: form.locationId,
     })
     ElMessage.success(`${activeItem.value.inputTitle} 已入库，档号 ${result.archiveNo}。`)
     if (activeBatch.value) await selectBatch(activeBatch.value)
