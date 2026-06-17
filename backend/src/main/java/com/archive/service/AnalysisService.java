@@ -84,7 +84,10 @@ public class AnalysisService {
 
         AnalysisTask t = new AnalysisTask();
         t.setTaskNo(noUtil.generate());
-        t.setTaskType(req.getTaskType());
+        // 方案 A：scan_method 记录用户选择的扫描方式，task_type 固定为 mixed
+        // （规则扫描统一覆盖缺字段 + 门类冲突两种检查，结果类型为综合）。
+        t.setScanMethod(req.getScanMethod());
+        t.setTaskType(AnalysisTaskType.mixed);
         t.setStatus(AnalysisTaskStatus.running);
         // 用 LinkedHashMap 构造规则快照（允许 null 值，Map.of 会拒绝 null）
         Map<String, Object> snap = new java.util.LinkedHashMap<>();
@@ -96,7 +99,7 @@ public class AnalysisService {
         t.setStartedAt(OffsetDateTime.now());
         taskMapper.insert(t);
 
-        runRuleScan(t.getId(), req.getTaskType(), archiveIds);
+        runRuleScan(t.getId(), AnalysisTaskType.mixed, archiveIds);
 
         boolean wantAi = Boolean.TRUE.equals(rule.getIncludeAiSuggestion());
         Long aiTaskId = null;
@@ -127,7 +130,9 @@ public class AnalysisService {
             }
         }
         auditService.log("M14", "create_analysis_task", "analysis_task", t.getId(),
-                Map.of("taskType", req.getTaskType().name(), "archives", archiveIds.size()));
+                Map.of("scanMethod", req.getScanMethod().name(),
+                        "taskType", AnalysisTaskType.mixed.name(),
+                        "archives", archiveIds.size()));
         return toResponse(t);
     }
 
@@ -259,6 +264,7 @@ public class AnalysisService {
         r.setId(t.getId());
         r.setTaskNo(t.getTaskNo());
         r.setTaskType(t.getTaskType() != null ? t.getTaskType().name() : null);
+        r.setScanMethod(t.getScanMethod() != null ? t.getScanMethod().name() : null);
         r.setStatus(t.getStatus() != null ? t.getStatus().name() : null);
         r.setLatestAiTaskId(t.getLatestAiTaskId());
         r.setStartedAt(t.getStartedAt());

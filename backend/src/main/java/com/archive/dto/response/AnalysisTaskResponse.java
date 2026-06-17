@@ -17,6 +17,8 @@ public class AnalysisTaskResponse {
     private Long id;
     private String taskNo;
     private String taskType;
+    /** 扫描方式（rule/ai/mixed）。 */
+    private String scanMethod;
     private String status;
     private Long latestAiTaskId;
     private OffsetDateTime startedAt;
