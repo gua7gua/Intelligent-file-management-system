@@ -156,9 +156,9 @@ public class ApprovalService {
                 r.setTargetArchiveTitle(a.getTitle());
                 r.setTargetArchive(toArchiveSummary(a));
             }
-            // 凭证匹配：目标档案与凭证档案存在且为同一份
-            r.setEvidenceMatched(ap.getEvidenceArchiveId() != null
-                    && ap.getEvidenceArchiveId().equals(ap.getTargetId()));
+            // 凭证匹配：密级调整的凭证是另一份档案（如授权书），
+            // 只要凭证档案存在且能在上方解析出 evidenceArchive 即视为匹配
+            r.setEvidenceMatched(ap.getEvidenceArchiveId() != null && r.getEvidenceArchive() != null);
         } else if ("destruction_list".equals(ap.getTargetType()) && ap.getTargetId() != null) {
             DestructionList l = destructionListMapper.selectById(ap.getTargetId());
             if (l != null) {
