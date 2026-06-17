@@ -18,7 +18,7 @@
         <div class="detail-line"><span class="muted">形成日期</span><strong>{{ detail.formedDate }}</strong></div>
         <div class="detail-line"><span class="muted">密级</span><strong>{{ securityLabel(detail.securityLevel) }}</strong></div>
         <div class="detail-line"><span class="muted">载体状态</span><strong>{{ carrierLabel(detail.carrierStatus) }}</strong></div>
-        <div class="detail-line"><span class="muted">纸质借阅</span><strong>{{ detail.canBorrow ? '可申请' : '不支持' }}</strong></div>
+        <div class="detail-line"><span class="muted">纸质借阅</span><strong>{{ canBorrowPaper ? '可申请' : '不支持' }}</strong></div>
       </div>
       <p v-if="detail.summary" class="muted" style="margin-top: 8px">{{ detail.summary }}</p>
       <div class="notice" style="margin-top: 10px">如需纸质原件，请提交借阅申请，由管理员审批并到馆核验。</div>
@@ -49,7 +49,7 @@
       </div>
 
       <div class="actions" style="margin-top: 12px">
-        <button class="button" type="button" :disabled="!detail.canBorrow" :title="detail.borrowHint" @click="toggleBorrowForm">
+        <button class="button" type="button" :disabled="!canBorrowPaper" :title="borrowHint" @click="toggleBorrowForm">
           {{ showBorrowForm ? '收起申请' : '申请借阅' }}
         </button>
       </div>
@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
+import { ref, reactive, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   createBorrowRequest,
@@ -124,9 +124,31 @@ const borrowForm = reactive({
 function securityLabel(level: number): string {
   return SecurityLevelLabel[level] ?? '未知'
 }
+// 取浏览器本地时区偏移字符串，如 "+08:00"、"-05:00"。用于把 datetime-local 的无时区值
+// 补成后端 OffsetDateTime 能解析的格式。
+function getCurrentOffset(): string {
+  const offsetMin = -new Date().getTimezoneOffset()
+  const sign = offsetMin >= 0 ? '+' : '-'
+  const abs = Math.abs(offsetMin)
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0')
+  const mm = String(abs % 60).padStart(2, '0')
+  return `${sign}${hh}:${mm}`
+}
 function carrierLabel(status: string): string {
   return CarrierStatusLabel[status] ?? status
 }
+// 纸质借阅资格兜底：后端详情当前不返回 canBorrow/borrowHint（人#6），前端按 §11.7
+// 的借阅前置条件近似推断——只有载体含纸质（paper / paper_electronic）的档案可申请纸质借阅，
+// 纯电子档案不可借。密级/单位/盘点等强约束仍由后端 11.7 提交时强制校验。
+const canBorrowPaper = computed(() => {
+  if (!detail.value) return false
+  return detail.value.carrierStatus === 'paper' || detail.value.carrierStatus === 'paper_electronic'
+})
+const borrowHint = computed(() => {
+  if (!detail.value) return ''
+  if (canBorrowPaper.value) return '可申请纸质借阅，由管理员审批并到馆核验'
+  return '纯电子档案不支持纸质借阅'
+})
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -190,11 +212,17 @@ async function handleDownload(file: InternalFile) {
 
 async function submitBorrow() {
   if (!detail.value) return
+  // datetime-local 控件产出 "YYYY-MM-DDTHH:mm"（无时区），后端 expectedVisitAt 为 OffsetDateTime，
+  // 必须补本地时区偏移（如 +08:00）才能被 Jackson 反序列化。
+  // 注意：不能用 new Date(rawVisit)——它把无时区字符串当 UTC 解析，再 toISOString 会偏移 8 小时。
+  // 直接在原始字符串末尾拼接本地时区偏移即可。
+  const rawVisit = borrowForm.expectedVisitAt
+  const expectedVisitAt = rawVisit ? `${rawVisit}${getCurrentOffset()}` : rawVisit
   const data = {
-    archiveId: detail.value.id,
+    archiveId: detail.value.archiveId,
     reason: borrowForm.reason,
     expectedDays: borrowForm.expectedDays,
-    expectedVisitAt: borrowForm.expectedVisitAt,
+    expectedVisitAt,
     contactPhone: borrowForm.contactPhone,
   }
   const errors = validateBorrowRequest(data)

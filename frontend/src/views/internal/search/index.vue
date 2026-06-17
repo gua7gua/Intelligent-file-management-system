@@ -47,8 +47,7 @@
                 <label>档案门类</label>
                 <select v-model.number="params.categoryId">
                   <option :value="undefined">全部</option>
-                  <option :value="1">文书档案</option>
-                  <option :value="3">科技档案</option>
+                  <option v-for="c in categoryOptions" :key="c.categoryId" :value="c.categoryId">{{ c.categoryName }}</option>
                 </select>
               </div>
               <div class="field"><label>形成/移交单位</label><input v-model="params.organizationName"></div>
@@ -194,10 +193,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import ArchiveDetailPanel from '@/views/internal/components/ArchiveDetailPanel.vue'
 import { generateInternalAiQuery, searchInternalArchives } from '@/api/internal'
+import { getDictionariesApi } from '@/api/dictionary'
 import { CarrierStatusLabel, SecurityLevelLabel } from '@/types/enums'
 import type { InternalArchive, InternalAiQueryResult, InternalSearchParams } from '@/types/internal'
 
@@ -205,6 +205,14 @@ const aiText = ref('')
 const aiLoading = ref(false)
 const aiError = ref('')
 const aiResult = ref<InternalAiQueryResult | null>(null)
+
+// 档案门类字典（含 categoryId/categoryCode/categoryName），来源于全量字典
+interface CategoryOption {
+  categoryId: number
+  categoryCode: string
+  categoryName: string
+}
+const categoryOptions = ref<CategoryOption[]>([])
 
 const params = reactive<InternalSearchParams>({})
 const fondsInput = ref('')
@@ -248,10 +256,58 @@ async function handleAiQuery() {
   }
 }
 
+// 将 AI 返回的检索条件映射为后端 /internal/archives/search 接受的查询参数。
+// 后端 InternalSearchQuery 期望：keyword(String 单数)、categoryId(Integer)、
+// formedYearStart/End(Integer)、responsibleText、carrierStatus、securityLevelMax、openStatus。
+// AI 输出 schema 与之不同（keywords 数组 / category code / formedDateRange 日期数组），
+// 在此层做适配，避免后端 DTO 与 AI 契约耦合。
 function applyAiConditions() {
   if (!aiResult.value) return
-  Object.assign(params, aiResult.value.conditions)
-  ElMessage.success('条件已填充到表单，请确认后检索')
+  const c = aiResult.value.conditions as Record<string, unknown> | undefined
+  if (!c) return
+  // 先清空旧条件，避免上一次的手动筛选混入
+  Object.keys(params).forEach((key) => delete (params as Record<string, unknown>)[key])
+
+  // keywords 数组 → 取首个填入关键词框（满足"应用条件后表单填充"的视觉反馈）。
+  // 与公众端策略一致：首次检索不下发 keyword，后端 keyword 是单字段 SQL like 连续子串匹配，
+  // AI 抽取的"克拉玛依"在数据中可能写作"克拉玛依市"，强制过滤会漏掉本应命中的档案。
+  // 结构化条件（门类/年度/责任者/密级/开放状态）更可靠，由它们兜底命中；关键词保留在表单框
+  // 供用户看见 AI 的抽词结果，用户若想用关键词缩小范围可自行点"检索"重新过滤。
+  const kws = Array.isArray(c.keywords) ? (c.keywords as unknown[]).filter((x): x is string => typeof x === 'string' && x.trim() !== '') : []
+  if (kws.length > 0) {
+    params.keyword = kws[0]
+  }
+  // category code → categoryId（通过门类字典反查；查不到则忽略，避免下发后端无法识别的字符串）
+  if (typeof c.category === 'string' && c.category) {
+    const matched = categoryOptions.value.find((o) => o.categoryCode === c.category)
+    if (matched) params.categoryId = matched.categoryId
+  }
+  // formedDateRange [start, end] → formedYearStart/End（取年份整数）
+  if (Array.isArray(c.formedDateRange)) {
+    const [s, e] = c.formedDateRange as [unknown, unknown]
+    const sy = s ? parseInt(String(s).slice(0, 4), 10) : NaN
+    const ey = e ? parseInt(String(e).slice(0, 4), 10) : NaN
+    if (!Number.isNaN(sy)) params.formedYearStart = sy
+    if (!Number.isNaN(ey)) params.formedYearEnd = ey
+  }
+  if (typeof c.responsible === 'string' && c.responsible.trim()) {
+    params.responsibleText = c.responsible
+  }
+  if (typeof c.carrierStatus === 'string' && c.carrierStatus) {
+    params.carrierStatus = c.carrierStatus as InternalSearchParams['carrierStatus']
+  }
+  if (typeof c.securityLevelMax === 'number' && Number.isFinite(c.securityLevelMax)) {
+    params.securityLevelMax = c.securityLevelMax
+  }
+  if (typeof c.openStatus === 'string' && c.openStatus) {
+    params.openStatus = c.openStatus as InternalSearchParams['openStatus']
+  }
+  // 首次检索暂不下发 keyword（见上方注释），临时摘出后调 handleSearch，完成后再放回表单框显示。
+  const keywordToShow = params.keyword
+  delete params.keyword
+  handleSearch().finally(() => {
+    if (keywordToShow) params.keyword = keywordToShow
+  })
 }
 
 function clearAi() {
@@ -303,6 +359,24 @@ function resetSearch() {
   aiResult.value = null
   aiText.value = ''
 }
+
+onMounted(async () => {
+  // 加载门类字典，供档案门类下拉和 AI 条件映射使用
+  // 后端返回 categories: [{categoryId, categoryCode, categoryName, enabled}]
+  try {
+    const dict = await getDictionariesApi()
+    const raw = (dict.categories ?? []) as Array<Record<string, unknown>>
+    categoryOptions.value = raw
+      .filter((c) => c.enabled !== false && c.categoryId != null)
+      .map((c) => ({
+        categoryId: Number(c.categoryId),
+        categoryCode: String(c.categoryCode ?? ''),
+        categoryName: String(c.categoryName ?? ''),
+      }))
+  } catch {
+    categoryOptions.value = []
+  }
+})
 </script>
 
 <style scoped>
