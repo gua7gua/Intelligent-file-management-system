@@ -478,6 +478,8 @@ async function handleShelve() {
     await shelveBatch(activeBatch.value.id, { note: '纸质档案已放入预占架位' })
     ElMessage.success(`${activeItem.value?.inputTitle} 已确认上架，进入正常利用范围。`)
     if (activeBatch.value) await selectBatch(activeBatch.value)
+    // 刷新左栏「已入库待上架」分区，使已上架批次从该分区移除
+    await loadShelvableBatches()
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '上架失败'
     ElMessage.error(msg)
