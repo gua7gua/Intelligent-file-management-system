@@ -145,6 +145,19 @@ function toOffsetIso(localValue: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
 }
 
+/**
+ * 将后端返回的 ISO 偏移字符串（如 "2026-07-01T10:00:00+08:00"）转换为
+ * <input type="datetime-local"> 所需的本地格式 "YYYY-MM-DDTHH:mm"。
+ * 直接把带时区的 ISO 字符串塞给 datetime-local 不会被浏览器识别，导致应还时间不回填。
+ */
+function fromOffsetIso(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 const metrics = computed(() => {
   const all = allRequests.value
   return {
@@ -203,7 +216,7 @@ async function selectRequest(id: number) {
 function resetForms() {
   rejectReason.value = ''
   voucherNo.value = detail.value?.voucherNo ?? ''
-  dueAt.value = detail.value?.dueAt ?? ''
+  dueAt.value = fromOffsetIso(detail.value?.dueAt)
   returnCheckResult.value = ReturnCheckResult.NORMAL
   returnNote.value = ''
 }
