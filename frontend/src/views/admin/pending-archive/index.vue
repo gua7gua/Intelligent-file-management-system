@@ -319,8 +319,8 @@ function syncFormFromItem(it: PendingItem) {
   form.formedDate = it.confirmedFormedDate || it.suggestedFormedDate || ''
   form.categoryId = it.confirmedCategoryId || it.suggestedCategoryId || 0
   form.tags = (it.confirmedTags || it.suggestedTags || []).join(',')
-  form.fondsId = (it as PendingItem & { fondsId?: number }).fondsId ?? 0
-  form.boxId = (it as PendingItem & { boxId?: number }).boxId
+  form.fondsId = it.archiveFondsId ?? (it as PendingItem & { fondsId?: number }).fondsId ?? 0
+  form.boxId = it.archiveBoxId ?? (it as PendingItem & { boxId?: number }).boxId
 }
 
 // ── 数据加载 ──
