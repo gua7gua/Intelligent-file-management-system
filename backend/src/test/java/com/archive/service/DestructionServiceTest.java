@@ -19,6 +19,7 @@ import com.archive.enums.LifecycleStatus;
 import com.archive.enums.ScanResult;
 import com.archive.exception.BusinessException;
 import com.archive.mapper.ApprovalRequestMapper;
+import com.archive.mapper.AppraisalBatchMapper;
 import com.archive.mapper.ArchiveBoxItemMapper;
 import com.archive.mapper.ArchiveBoxMapper;
 import com.archive.mapper.ArchiveFileMapper;
@@ -26,6 +27,7 @@ import com.archive.mapper.ArchiveMapper;
 import com.archive.mapper.BusinessAttachmentMapper;
 import com.archive.mapper.DestructionItemMapper;
 import com.archive.mapper.DestructionListMapper;
+import com.archive.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -50,6 +52,8 @@ class DestructionServiceTest {
     private ArchiveFileMapper archiveFileMapper;
     private ArchiveBoxItemMapper archiveBoxItemMapper;
     private ArchiveBoxMapper archiveBoxMapper;
+    private AppraisalBatchMapper appraisalBatchMapper;
+    private UserMapper userMapper;
     private MinioService minioService;
     private ClamAvScanner clamAvScanner;
     private FileProperties fileProperties;
@@ -65,6 +69,8 @@ class DestructionServiceTest {
         archiveFileMapper = mock(ArchiveFileMapper.class);
         archiveBoxItemMapper = mock(ArchiveBoxItemMapper.class);
         archiveBoxMapper = mock(ArchiveBoxMapper.class);
+        appraisalBatchMapper = mock(AppraisalBatchMapper.class);
+        userMapper = mock(UserMapper.class);
         minioService = mock(MinioService.class);
         clamAvScanner = mock(ClamAvScanner.class);
         fileProperties = mock(FileProperties.class);
@@ -72,6 +78,7 @@ class DestructionServiceTest {
 
         service = new DestructionService(listMapper, itemMapper, archiveMapper, approvalMapper,
                 attachmentMapper, archiveFileMapper, archiveBoxItemMapper, archiveBoxMapper,
+                appraisalBatchMapper, userMapper,
                 minioService, clamAvScanner, fileProperties, auditService);
     }
 

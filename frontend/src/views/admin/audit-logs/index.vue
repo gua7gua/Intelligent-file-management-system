@@ -43,7 +43,7 @@
           <tbody>
             <tr v-for="l in records" :key="l.id">
               <td class="mono">{{ l.operatedAt }}</td>
-              <td>{{ l.actorName || '未知用户' }}</td>
+              <td>{{ l.actorName || `用户#${l.actorUserId}` }}</td>
               <td>{{ actorTypeLabel[l.actorType] || l.actorType }}</td>
               <td>{{ l.moduleName }}</td>
               <td>{{ l.operationType }}</td>
@@ -175,7 +175,7 @@ function reset() {
 function exportLogs() {
   const rows = records.value.map((l) => ({
     operatedAt: l.operatedAt,
-    actor: l.actorName || '未知用户',
+    actor: l.actorName || `用户#${l.actorUserId}`,
     actorType: actorTypeLabel[l.actorType] || l.actorType,
     moduleName: l.moduleName,
     operationType: l.operationType,

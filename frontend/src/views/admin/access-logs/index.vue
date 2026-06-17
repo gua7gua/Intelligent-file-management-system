@@ -42,9 +42,9 @@
           <tbody>
             <tr v-for="l in records" :key="l.id">
               <td class="mono">{{ l.accessedAt }}</td>
-              <td>{{ l.userName || (l.userId ? '未知用户' : '匿名') }}</td>
+              <td>{{ l.userName || (l.userId ? `用户#${l.userId}` : '匿名') }}</td>
               <td>{{ l.userType }}</td>
-              <td>{{ l.archiveNo || '未知档案' }}</td>
+              <td>{{ l.archiveNo || `档案#${l.archiveId}` }}</td>
               <td>{{ accessTypeLabel[l.accessType] || l.accessType }}</td>
               <td class="mono">{{ l.ipAddress || '-' }}</td>
             </tr>
@@ -146,9 +146,9 @@ function reset() {
 function exportLogs() {
   const rows = records.value.map((l) => ({
     accessedAt: l.accessedAt,
-    user: l.userName || (l.userId ? '未知用户' : '匿名'),
+    user: l.userName || (l.userId ? `用户#${l.userId}` : '匿名'),
     userType: l.userType,
-    archive: l.archiveNo || '未知档案',
+    archive: l.archiveNo || `档案#${l.archiveId}`,
     accessType: accessTypeLabel[l.accessType] || l.accessType,
     ipAddress: l.ipAddress ?? '',
   }))

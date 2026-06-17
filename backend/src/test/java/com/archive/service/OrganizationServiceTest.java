@@ -7,7 +7,9 @@ import com.archive.dto.response.OrganizationResponse;
 import com.archive.entity.Organization;
 import com.archive.enums.OrgType;
 import com.archive.exception.BusinessException;
+import com.archive.mapper.FondsMapper;
 import com.archive.mapper.OrganizationMapper;
+import com.archive.mapper.UserMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,13 +26,17 @@ class OrganizationServiceTest {
 
     private OrganizationService service;
     private OrganizationMapper organizationMapper;
+    private FondsMapper fondsMapper;
+    private UserMapper userMapper;
     private AuditService auditService;
 
     @BeforeEach
     void setup() {
         organizationMapper = mock(OrganizationMapper.class);
+        fondsMapper = mock(FondsMapper.class);
+        userMapper = mock(UserMapper.class);
         auditService = mock(AuditService.class);
-        service = new OrganizationService(organizationMapper, auditService);
+        service = new OrganizationService(organizationMapper, fondsMapper, userMapper, auditService);
     }
 
     @Test

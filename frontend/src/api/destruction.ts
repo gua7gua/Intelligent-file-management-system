@@ -1,7 +1,6 @@
 // src/api/destruction.ts
 import request from './request'
 import type { PageData, PageParams } from '@/types/api'
-import type { ApprovalRequest } from '@/types/approval'
 import type {
   DestructionConfirmData,
   DestructionList,
@@ -31,11 +30,14 @@ export function getDestructionListDetail(listId: number): Promise<DestructionLis
   return request.get(`/admin/destruction-lists/${listId}`)
 }
 
-/** 提交销毁审批（§15.3） */
+/** 提交销毁审批（§15.3）
+ *  后端实现返回更新后的清册详情（含 approvalRequestId），与接口文档「返回审批单」存在差异；
+ *  调用方据此刷新清册状态并取得 approvalRequestId 用于跳转审批工作台。
+ */
 export function submitDestructionApproval(
   listId: number,
   data: DestructionSubmitApprovalData,
-): Promise<ApprovalRequest> {
+): Promise<DestructionListDetail> {
   if (USE_MOCK) {
     return import('@/mock/modules/destruction').then((m) => m.mockSubmitDestructionApproval(listId, data))
   }

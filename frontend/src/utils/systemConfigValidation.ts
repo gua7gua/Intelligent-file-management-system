@@ -8,7 +8,7 @@ export interface ConfigValidationResult {
 /** 数值范围校验规则（key → [min, max]） */
 const numberRanges: Record<string, [number, number]> = {
   'upload.max_file_size_mb': [1, 2048],
-  'warehouse.usage_warning_threshold': [50, 100],
+  'warehouse.usage_warning_threshold': [0, 1],
   'borrow.default_days': [1, 90],
 }
 

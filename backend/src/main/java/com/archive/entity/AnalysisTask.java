@@ -1,5 +1,6 @@
 package com.archive.entity;
 
+import com.archive.enums.AnalysisScanMethod;
 import com.archive.enums.AnalysisTaskStatus;
 import com.archive.enums.AnalysisTaskType;
 import com.baomidou.mybatisplus.annotation.EnumValue;
@@ -24,6 +25,10 @@ public class AnalysisTask extends BaseEntity {
 
     @EnumValue
     private AnalysisTaskType taskType;
+
+    /** 扫描方式（rule/ai/mixed），与 task_type（结果类型）分离。 */
+    @EnumValue
+    private AnalysisScanMethod scanMethod;
 
     @EnumValue
     private AnalysisTaskStatus status;

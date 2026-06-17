@@ -83,7 +83,6 @@
               </div>
               <div class="field"><label>归还检查说明</label><textarea v-model="returnNote" placeholder="异常归还时必填"></textarea></div>
               <div class="actions">
-                <button class="button secondary" :disabled="!canExport" @click="onExport">导出凭证</button>
                 <button class="button" :disabled="!canCheckout" @click="onCheckout">确认出库</button>
                 <button class="button ghost" :disabled="!canReturn" @click="onReturn">确认归还</button>
               </div>
@@ -102,7 +101,7 @@ import type { BorrowApprovalDetail, BorrowApproveData, BorrowCheckoutData, Borro
 import { BorrowStatusLabel, ReturnCheckResult } from '@/types/enums'
 import type { ReturnCheckResultValue } from '@/types/enums'
 import {
-  approveBorrowRequest, checkoutBorrowRequest, exportBorrowVoucher,
+  approveBorrowRequest, checkoutBorrowRequest,
   getBorrowApprovalDetail, getBorrowApprovals, returnBorrowRequest,
 } from '@/api/borrow-approval'
 import { validateBorrowApprove, validateBorrowCheckout, validateBorrowReturn } from '@/utils/borrowApprovalValidation'
@@ -131,6 +130,21 @@ const returnOptions: { value: ReturnCheckResultValue; label: string }[] = [
   { value: ReturnCheckResult.OTHER, label: '其他' },
 ]
 
+/**
+ * 将 <input type="datetime-local"> 的本地值（"YYYY-MM-DDTHH:mm"）转为带本地时区偏移的
+ * ISO 字符串（"YYYY-MM-DDTHH:mm:00±HH:MM"），供后端 OffsetDateTime 反序列化。
+ */
+function toOffsetIso(localValue: string): string {
+  if (!localValue) return localValue
+  const d = new Date(localValue)
+  if (Number.isNaN(d.getTime())) return localValue
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const offset = -d.getTimezoneOffset()
+  const sign = offset >= 0 ? '+' : '-'
+  const abs = Math.abs(offset)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+}
+
 const metrics = computed(() => {
   const all = allRequests.value
   return {
@@ -148,7 +162,6 @@ const filteredList = computed(() => {
   return allRequests.value.filter((r) => r.status === s)
 })
 
-const canExport = computed(() => !!detail.value && ['approved', 'voucher_issued'].includes(detail.value.status))
 const canCheckout = computed(() => !!detail.value && ['approved', 'voucher_issued'].includes(detail.value.status))
 const canReturn = computed(() => detail.value?.status === 'checked_out')
 
@@ -213,21 +226,10 @@ async function onApprove(approved: boolean) {
   }
 }
 
-async function onExport() {
-  if (!detail.value) return
-  try {
-    const result = await exportBorrowVoucher(detail.value.id)
-    voucherNo.value = result.voucherNo
-    detail.value = await getBorrowApprovalDetail(detail.value.id)
-    ElMessage.success(result.firstIssued ? `借阅凭证已生成：${result.voucherNo}` : `凭证号：${result.voucherNo}（复用）`)
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '导出失败')
-  }
-}
-
 async function onCheckout() {
   if (!detail.value) return
-  const data: BorrowCheckoutData = { voucherNo: voucherNo.value, dueAt: dueAt.value }
+  // datetime-local 值为 "YYYY-MM-DDTHH:mm"，后端 OffsetDateTime 需要带时区偏移的 ISO，补秒与本地偏移
+  const data: BorrowCheckoutData = { voucherNo: voucherNo.value, dueAt: toOffsetIso(dueAt.value) }
   const errors = validateBorrowCheckout(detail.value, data)
   if (errors.length) {
     errors.forEach((e) => ElMessage.warning(e))

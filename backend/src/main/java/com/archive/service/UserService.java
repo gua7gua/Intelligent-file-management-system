@@ -102,7 +102,11 @@ public class UserService {
         user.setLoginName(req.getLoginName());
         user.setEmployeeNo(req.getEmployeeNo());
         user.setPhone(req.getPhone());
-        user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
+        String password = req.resolvePassword();
+        if (password == null || password.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "密码不能为空");
+        }
+        user.setPasswordHash(passwordEncoder.encode(password));
         user.setRealName(req.getRealName());
         user.setOrganizationId(req.getOrganizationId());
         user.setDepartmentName(req.getDepartmentName());

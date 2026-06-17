@@ -36,10 +36,11 @@ public class PendingArchiveController {
             @RequestParam(required = false) String sourceType,
             @RequestParam(required = false) String aiStatus,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
         return R.ok(pendingArchiveService.listPendingBatches(
-                sourceType, aiStatus, keyword, pageNo, pageSize));
+                sourceType, aiStatus, keyword, status, pageNo, pageSize));
     }
 
     @GetMapping("/batches/{batchId}")

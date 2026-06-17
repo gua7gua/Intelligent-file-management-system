@@ -9,7 +9,12 @@ import com.archive.dto.response.ApprovalResponse;
 import com.archive.entity.Archive;
 import com.archive.entity.ArchiveChangeLog;
 import com.archive.entity.ApprovalRequest;
+import com.archive.entity.Category;
+import com.archive.entity.DestructionItem;
 import com.archive.entity.DestructionList;
+import com.archive.entity.Fonds;
+import com.archive.entity.Organization;
+import com.archive.entity.User;
 import com.archive.enums.ApprovalStatus;
 import com.archive.enums.ApprovalType;
 import com.archive.enums.DestructionListStatus;
@@ -18,7 +23,12 @@ import com.archive.exception.BusinessException;
 import com.archive.mapper.ArchiveChangeLogMapper;
 import com.archive.mapper.ArchiveMapper;
 import com.archive.mapper.ApprovalRequestMapper;
+import com.archive.mapper.CategoryMapper;
+import com.archive.mapper.DestructionItemMapper;
 import com.archive.mapper.DestructionListMapper;
+import com.archive.mapper.FondsMapper;
+import com.archive.mapper.OrganizationMapper;
+import com.archive.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +53,13 @@ public class ApprovalService {
     private final ApprovalRequestMapper approvalMapper;
     private final ArchiveMapper archiveMapper;
     private final DestructionListMapper destructionListMapper;
+    private final DestructionItemMapper destructionItemMapper;
     private final ArchiveChangeLogMapper changeLogMapper;
+    private final UserMapper userMapper;
+    private final CategoryMapper categoryMapper;
+    private final OrganizationMapper organizationMapper;
+    private final FondsMapper fondsMapper;
+    private final com.archive.mapper.AppraisalBatchMapper appraisalBatchMapperBean;
     private final AuditService auditService;
 
     // ==================== 13.1 查询审批单 ====================
@@ -78,9 +94,24 @@ public class ApprovalService {
         r.setStatus(ap.getStatus() != null ? ap.getStatus().name() : null);
         r.setReason(ap.getReason());
         r.setSubmittedBy(ap.getSubmittedBy());
+        r.setSubmittedByName(resolveUserName(ap.getSubmittedBy()));
         r.setSubmittedAt(ap.getSubmittedAt());
         r.setApprovalOpinion(ap.getApprovalOpinion());
         r.setTargetSummary(resolveTargetSummary(ap));
+        // 目标摘要细分字段（前端列表展示用）
+        if ("archive".equals(ap.getTargetType()) && ap.getTargetId() != null) {
+            Archive a = archiveMapper.selectById(ap.getTargetId());
+            if (a != null) {
+                r.setTargetArchiveNo(a.getArchiveNo());
+                r.setTargetArchiveTitle(a.getTitle());
+            }
+        } else if ("destruction_list".equals(ap.getTargetType()) && ap.getTargetId() != null) {
+            DestructionList l = destructionListMapper.selectById(ap.getTargetId());
+            if (l != null) {
+                r.setTargetListNo(l.getListNo());
+                r.setTargetListName(l.getListName());
+            }
+        }
         return r;
     }
 
@@ -102,8 +133,10 @@ public class ApprovalService {
         r.setReason(ap.getReason());
         r.setStatus(ap.getStatus() != null ? ap.getStatus().name() : null);
         r.setSubmittedBy(ap.getSubmittedBy());
+        r.setSubmittedByName(resolveUserName(ap.getSubmittedBy()));
         r.setSubmittedAt(ap.getSubmittedAt());
         r.setApprovedBy(ap.getApprovedBy());
+        r.setApprovedByName(resolveUserName(ap.getApprovedBy()));
         r.setApprovedAt(ap.getApprovedAt());
         r.setApprovalOpinion(ap.getApprovalOpinion());
         r.setTargetSummary(resolveTargetSummary(ap));
@@ -111,9 +144,90 @@ public class ApprovalService {
             Archive ev = archiveMapper.selectById(ap.getEvidenceArchiveId());
             if (ev != null) {
                 r.setEvidenceArchiveNo(ev.getArchiveNo());
+                r.setEvidenceArchive(toArchiveSummary(ev));
+            }
+        }
+
+        // 按类型填充目标详情
+        if ("archive".equals(ap.getTargetType()) && ap.getTargetId() != null) {
+            Archive a = archiveMapper.selectById(ap.getTargetId());
+            if (a != null) {
+                r.setTargetArchiveNo(a.getArchiveNo());
+                r.setTargetArchiveTitle(a.getTitle());
+                r.setTargetArchive(toArchiveSummary(a));
+            }
+            // 凭证匹配：目标档案与凭证档案存在且为同一份
+            r.setEvidenceMatched(ap.getEvidenceArchiveId() != null
+                    && ap.getEvidenceArchiveId().equals(ap.getTargetId()));
+        } else if ("destruction_list".equals(ap.getTargetType()) && ap.getTargetId() != null) {
+            DestructionList l = destructionListMapper.selectById(ap.getTargetId());
+            if (l != null) {
+                r.setTargetListNo(l.getListNo());
+                r.setTargetListName(l.getListName());
+
+                ApprovalDetailResponse.DestructionListSummary ds = new ApprovalDetailResponse.DestructionListSummary();
+                ds.setId(l.getId());
+                ds.setListNo(l.getListNo());
+                ds.setListName(l.getListName());
+                QueryWrapper<DestructionItem> diw = new QueryWrapper<>();
+                diw.eq("destruction_list_id", l.getId()).orderByAsc("id");
+                List<DestructionItem> ditems = destructionItemMapper.selectList(diw);
+                ds.setItemCount(ditems.size());
+                if (l.getAppraisalBatchId() != null) {
+                    com.archive.entity.AppraisalBatch ab = appraisalBatchMapper(l.getAppraisalBatchId());
+                    if (ab != null) ds.setAppraisalBatchNo(ab.getBatchNo());
+                }
+                List<ApprovalDetailResponse.DestructionListItem> dvs = ditems.stream().map(it -> {
+                    ApprovalDetailResponse.DestructionListItem v = new ApprovalDetailResponse.DestructionListItem();
+                    v.setArchiveId(it.getArchiveId());
+                    v.setArchiveNoSnapshot(it.getArchiveNoSnapshot());
+                    v.setTitleSnapshot(it.getTitleSnapshot());
+                    v.setCategorySnapshot(it.getCategorySnapshot());
+                    v.setRetentionSnapshot(it.getRetentionSnapshot());
+                    v.setSecurityLevelSnapshot(it.getSecurityLevelSnapshot());
+                    v.setAppraisalOpinionSnapshot(it.getAppraisalOpinionSnapshot());
+                    return v;
+                }).collect(Collectors.toList());
+                ds.setItems(dvs);
+                r.setDestructionList(ds);
             }
         }
         return r;
+    }
+
+    private com.archive.entity.AppraisalBatch appraisalBatchMapper(Long id) {
+        // 占位，由 appraisalBatchMapper bean 注入
+        return appraisalBatchMapperBean.selectById(id);
+    }
+
+    private ApprovalDetailResponse.ArchiveSummary toArchiveSummary(Archive a) {
+        ApprovalDetailResponse.ArchiveSummary s = new ApprovalDetailResponse.ArchiveSummary();
+        s.setId(a.getId());
+        s.setArchiveNo(a.getArchiveNo());
+        s.setTitle(a.getTitle());
+        if (a.getCategoryId() != null) {
+            Category c = categoryMapper.selectById(a.getCategoryId());
+            s.setCategoryName(c != null ? c.getCategoryName() : null);
+        }
+        if (a.getOrganizationId() != null) {
+            Organization o = organizationMapper.selectById(a.getOrganizationId());
+            s.setOrganizationName(o != null ? o.getOrgName() : null);
+        }
+        if (a.getFondsId() != null) {
+            Fonds f = fondsMapper.selectById(a.getFondsId());
+            s.setFondsName(f != null ? f.getFondsName() : null);
+        }
+        s.setSecurityLevel(a.getSecurityLevel());
+        s.setOpenStatus(a.getOpenStatus());
+        s.setLifecycleStatus(a.getLifecycleStatus() != null ? a.getLifecycleStatus().name() : null);
+        return s;
+    }
+
+    /** 解析用户真实姓名，找不到返回 null。 */
+    private String resolveUserName(Long userId) {
+        if (userId == null) return null;
+        User u = userMapper.selectById(userId);
+        return u != null ? u.getRealName() : null;
     }
 
     private String resolveTargetSummary(ApprovalRequest ap) {

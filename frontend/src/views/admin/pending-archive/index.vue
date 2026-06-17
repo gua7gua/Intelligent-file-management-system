@@ -16,25 +16,52 @@
     </div>
 
     <section class="work-layout">
-      <!-- 左栏：待处理批次 -->
-      <div class="card panel" style="margin:0">
-        <h2 class="section-title">待处理批次</h2>
-        <div v-if="batchLoading" class="panel-scroll detail-empty">加载中...</div>
-        <div v-else-if="batches.length === 0" class="panel-scroll detail-empty">暂无待入库批次</div>
-        <div v-else class="panel-scroll">
-          <button
-            v-for="b in batches"
-            :key="b.id"
-            class="batch-card"
-            :class="{ active: activeBatch?.id === b.id }"
-            type="button"
-            @click="selectBatch(b)"
-          >
-            <strong>{{ b.title }}</strong>
-            <span class="batch-no">{{ b.batchNo }}</span>
-            <span>接收 {{ b.acceptedCount }} / 回退 {{ b.returnedCount }}</span>
-            <span class="hint">AI：{{ aiLabel(b.aiStatus) }}</span>
-          </button>
+      <!-- 左栏：待处理批次 + 已入库待上架 -->
+      <div class="left-col">
+        <div class="card panel" style="margin:0">
+          <h2 class="section-title">待处理批次</h2>
+          <div v-if="batchLoading" class="panel-scroll detail-empty">加载中...</div>
+          <div v-else-if="batches.length === 0" class="panel-scroll detail-empty">暂无待入库批次</div>
+          <div v-else class="panel-scroll">
+            <button
+              v-for="b in batches"
+              :key="b.id"
+              class="batch-card"
+              :class="{ active: activeBatch?.id === b.id }"
+              type="button"
+              @click="selectBatch(b)"
+            >
+              <strong>{{ b.title }}</strong>
+              <span class="batch-no">{{ b.batchNo }}</span>
+              <span>接收 {{ b.acceptedCount }} / 回退 {{ b.returnedCount }}</span>
+              <span class="hint">AI：{{ aiLabel(b.aiStatus) }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card panel" style="margin:0">
+          <h2 class="section-title">已入库待上架</h2>
+          <div v-if="shelvableLoading" class="panel-scroll detail-empty">加载中...</div>
+          <div v-else-if="shelvableBatches.length === 0" class="panel-scroll detail-empty">暂无待上架批次</div>
+          <div v-else class="panel-scroll">
+            <div
+              v-for="b in shelvableBatches"
+              :key="b.id"
+              class="batch-card shelvable-card"
+            >
+              <strong>{{ b.title }}</strong>
+              <span class="batch-no">{{ b.batchNo }}</span>
+              <span>待上架 {{ b.pendingShelfCount ?? 0 }} 件</span>
+              <el-button
+                size="small"
+                type="primary"
+                :loading="shelvingId === b.id"
+                @click="handleShelveBatch(b)"
+              >
+                确认上架
+              </el-button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -96,7 +123,7 @@
           </div>
           <div class="detail-field">
             <label>分类</label>
-            <select v-model="form.categoryId">
+            <select v-model.number="form.categoryId" @change="onCategoryChange">
               <option :value="0">请选择</option>
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
             </select>
@@ -121,17 +148,7 @@
                 <option :value="undefined">请选择</option>
                 <option v-for="b in boxOptions" :key="b.id" :value="b.id">{{ b.boxNo }}（{{ b.locationCode }}）</option>
               </select>
-            </div>
-            <div class="detail-field">
-              <label>盒脊信息</label>
-              <input v-model="form.spine" placeholder="如 2025 会计凭证 01" />
-            </div>
-            <div class="detail-field">
-              <label>架位</label>
-              <select v-model="form.locationId">
-                <option :value="undefined">请选择</option>
-                <option v-for="loc in locationOptions" :key="loc.id" :value="loc.id">{{ loc.locationCode }}</option>
-              </select>
+              <div class="hint">盒即架位，选择档案盒即确定其所在架位（括号内为架位号）。</div>
             </div>
           </template>
           <div v-else class="notice" style="margin-top:8px">纯电子档案无需盒号和架位。</div>
@@ -179,9 +196,9 @@ import {
   shelveBatch,
 } from '@/api/archive'
 import { getFonds } from '@/api/fonds'
-import { getArchiveBoxes, getStorageLocations } from '@/api/warehouse'
+import { getArchiveBoxes } from '@/api/warehouse'
 import type { FondsItem } from '@/types/fonds'
-import type { ArchiveBox, StorageLocation } from '@/types/warehouse'
+import type { ArchiveBox } from '@/types/warehouse'
 
 // ── 分类选项 ──
 const categories = [
@@ -201,6 +218,11 @@ const batchLoading = ref(false)
 const aiLoading = ref(false)
 const archiving = ref(false)
 
+// 已入库待上架批次（status=archived 且 pendingShelfCount>0）
+const shelvableBatches = ref<PendingBatch[]>([])
+const shelvableLoading = ref(false)
+const shelvingId = ref<number | null>(null)
+
 const form = reactive({
   title: '',
   responsible: '',
@@ -208,26 +230,21 @@ const form = reactive({
   categoryId: 0,
   tags: '',
   fondsId: 0,
-  spine: '',
   boxId: undefined as number | undefined,
-  locationId: undefined as number | undefined,
 })
 
-// 入库选项：全宗 / 档案盒 / 架位（来自库房主数据，提供真实 ID）
+// 入库选项：全宗 / 档案盒（盒即架位，来自库房主数据，提供真实 ID）
 const fondsOptions = ref<FondsItem[]>([])
 const boxOptions = ref<ArchiveBox[]>([])
-const locationOptions = ref<StorageLocation[]>([])
 
 async function loadArchiveOptions() {
   try {
-    const [fonds, boxes, locations] = await Promise.all([
+    const [fonds, boxes] = await Promise.all([
       getFonds({ pageSize: 100 }),
       getArchiveBoxes({ pageSize: 100 }),
-      getStorageLocations({ pageSize: 100 }),
     ])
     fondsOptions.value = fonds.records
     boxOptions.value = boxes.records
-    locationOptions.value = locations.records
   } catch {
     // 选项加载失败不阻塞主流程，选择器留空
   }
@@ -296,15 +313,14 @@ const canShelve = computed(() => {
 
 // ── 表单同步 ──
 function syncFormFromItem(it: PendingItem) {
-  form.title = it.suggestedTitle || it.confirmedTitle || ''
-  form.responsible = it.suggestedResponsible || it.confirmedResponsible || ''
-  form.formedDate = it.suggestedFormedDate || it.confirmedFormedDate || ''
-  form.categoryId = it.suggestedCategoryId || it.confirmedCategoryId || 0
-  form.tags = (it.suggestedTags || it.confirmedTags || []).join(',')
+  // 已确认字段优先（用户核查后的权威值），其次 AI 建议
+  form.title = it.confirmedTitle || it.suggestedTitle || ''
+  form.responsible = it.confirmedResponsible || it.suggestedResponsible || ''
+  form.formedDate = it.confirmedFormedDate || it.suggestedFormedDate || ''
+  form.categoryId = it.confirmedCategoryId || it.suggestedCategoryId || 0
+  form.tags = (it.confirmedTags || it.suggestedTags || []).join(',')
   form.fondsId = (it as PendingItem & { fondsId?: number }).fondsId ?? 0
-  form.spine = it.spine || ''
   form.boxId = (it as PendingItem & { boxId?: number }).boxId
-  form.locationId = (it as PendingItem & { locationId?: number }).locationId
 }
 
 // ── 数据加载 ──
@@ -318,6 +334,34 @@ async function loadBatches() {
     }
   } finally {
     batchLoading.value = false
+  }
+}
+
+// 加载已入库且含 pending_shelf 档案的批次
+async function loadShelvableBatches() {
+  shelvableLoading.value = true
+  try {
+    const res = await getPendingBatches({ status: 'archived', pageNo: 1, pageSize: 100 })
+    shelvableBatches.value = res.records.filter((b) => (b.pendingShelfCount ?? 0) > 0)
+  } catch {
+    shelvableBatches.value = []
+  } finally {
+    shelvableLoading.value = false
+  }
+}
+
+// 批次级确认上架（来自左侧「已入库待上架」分区）
+async function handleShelveBatch(b: PendingBatch) {
+  shelvingId.value = b.id
+  try {
+    await shelveBatch(b.id, { note: '纸质档案已放入预占架位' })
+    ElMessage.success(`${b.batchNo} 已确认上架，进入正常利用范围。`)
+    await Promise.all([loadShelvableBatches(), loadBatches()])
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '上架失败'
+    ElMessage.error(msg)
+  } finally {
+    shelvingId.value = null
   }
 }
 
@@ -349,7 +393,7 @@ async function handleRunAi() {
     if (task.status === 'running') {
       for (let i = 0; i < 30; i++) {
         await new Promise((r) => setTimeout(r, 1000))
-        const t = await getAiTask(task.id)
+        const t = await getAiTask(task.aiTaskId)
         if (t.status !== 'running') break
       }
     }
@@ -386,25 +430,36 @@ async function handleArchive() {
     return
   }
   if (activeItem.value.carrierStatus !== 'electronic') {
-    if (!form.boxId || !form.locationId) {
-      ElMessage.warning('纸质档案入库前必须选择档案盒和架位。')
+    if (!form.boxId) {
+      ElMessage.warning('纸质档案入库前必须选择档案盒。')
       return
     }
   }
 
   archiving.value = true
   try {
-    await confirmItem(activeItem.value.id, {
-      confirmedTitle: form.title,
-      confirmedResponsibleText: form.responsible,
-      confirmedFormedDate: form.formedDate,
-      confirmedCategoryId: form.categoryId,
-      confirmedTags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-    })
+    // 仅在「已接收」态需要先确认字段；suggested/confirmed/pending_archive 已确认过，直接入库
+    // 注意：前端 activeItem.itemStatus 可能滞后于后端（archive 失败后未刷新），
+    // 导致误判为 accepted 仍走 confirmItem，后端返回 409 BUSINESS_CONFLICT（已确认过）。
+    // 此时静默跳过 confirmation，直接走 archive 即可。
+    if (activeItem.value.itemStatus === 'accepted') {
+      try {
+        await confirmItem(activeItem.value.id, {
+          confirmedTitle: form.title,
+          confirmedResponsibleText: form.responsible,
+          confirmedFormedDate: form.formedDate,
+          confirmedCategoryId: form.categoryId,
+          confirmedTags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        })
+      } catch (e) {
+        // 已确认过（409 BUSINESS_CONFLICT）属预期，继续入库
+        const msg = e instanceof Error ? e.message : ''
+        if (!/不是已接收|BUSINESS_CONFLICT|已确认/.test(msg)) throw e
+      }
+    }
     const result = await archiveItem(activeItem.value.id, {
       fondsId: form.fondsId,
       boxId: form.boxId,
-      locationId: form.locationId,
     })
     ElMessage.success(`${activeItem.value.inputTitle} 已入库，档号 ${result.archiveNo}。`)
     if (activeBatch.value) await selectBatch(activeBatch.value)
@@ -423,14 +478,26 @@ async function handleShelve() {
     await shelveBatch(activeBatch.value.id, { note: '纸质档案已放入预占架位' })
     ElMessage.success(`${activeItem.value?.inputTitle} 已确认上架，进入正常利用范围。`)
     if (activeBatch.value) await selectBatch(activeBatch.value)
+    // 刷新左栏「已入库待上架」分区，使已上架批次从该分区移除
+    await loadShelvableBatches()
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '上架失败'
     ElMessage.error(msg)
   }
 }
 
+// 分类下拉兜底：v-model.number 已能处理大部分场景，但自动化填表
+// （如 fill_form 仅修改 select.value）可能不触发 Vue 的双向绑定，
+// 这里在 change 事件里显式同步，保证 form.categoryId 始终拿到数字值。
+function onCategoryChange(e: Event) {
+  const raw = (e.target as HTMLSelectElement).value
+  const num = Number(raw)
+  form.categoryId = Number.isNaN(num) ? 0 : num
+}
+
 onMounted(() => {
   loadBatches()
+  loadShelvableBatches()
   loadArchiveOptions()
 })
 </script>
@@ -454,6 +521,13 @@ onMounted(() => {
   align-items: start;
   height: calc(100vh - 240px);
   min-height: 560px;
+}
+
+.left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-self: start;
 }
 
 .panel-scroll {
@@ -486,6 +560,10 @@ onMounted(() => {
   font-family: monospace;
   font-size: 12px;
   color: var(--muted);
+}
+
+.shelvable-card {
+  border-left: 3px solid #8abcbf;
 }
 
 .item-card {

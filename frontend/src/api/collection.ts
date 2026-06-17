@@ -55,7 +55,34 @@ export function scheduleCollection(
       }
     })
   }
-  return request.post(`/admin/collections/${batchId}/schedule`, data)
+  return request.post(`/admin/collections/${batchId}/schedule`, {
+    ...data,
+    // datetime-local 控件产出 "YYYY-MM-DDTHH:mm"，后端 OffsetDateTime 需要带时区的 ISO 8601。
+    // 这里补齐秒与本机时区偏移（如 +08:00），避免反序列化 400。
+    scheduledReceiveAt: toOffsetDateTime(data.scheduledReceiveAt),
+  })
+}
+
+/**
+ * 把 datetime-local 的 "YYYY-MM-DDTHH:mm" 或已带时区的字符串规范成
+ * 后端 OffsetDateTime 可解析的 "YYYY-MM-DDTHH:mm:ss±HH:mm"。
+ * 入参已是合法 ISO（带 Z/offset）时直接返回原值。
+ */
+function toOffsetDateTime(value: string | undefined): string | undefined {
+  if (!value) return value
+  // 已含时区（Z 或 ±HH:MM）：交给后端，不动。
+  if (/[zZ]|[+-]\d{2}:\d{2}$/.test(value)) return value
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const offset = -d.getTimezoneOffset() // 分钟，东八区为 +480
+  const sign = offset >= 0 ? '+' : '-'
+  const abs = Math.abs(offset)
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` +
+    `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+  )
 }
 
 /** 拒绝征集 */

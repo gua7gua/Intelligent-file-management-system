@@ -48,20 +48,29 @@ public class PendingArchiveService {
     private final CategoryMapper categoryMapper;
     private final FondsMapper fondsMapper;
     private final AuditService auditService;
+    private final AiTaskMapper aiTaskMapper;
 
     // ==================== 9.1 查询待入库批次 ====================
 
     /**
      * 查询待入库批次列表。
-     * 按 received/partially_received 且存在未入库已接收条目计算。
+     * 默认按 received/partially_received 过滤（向后兼容）；
+     * status="archived" 时改为查 archived 批次，并回填 pendingShelfCount（含 pending_shelf 档案数）。
      */
     public PageResult<PendingBatchResponse> listPendingBatches(
-            String sourceType, String aiStatus, String keyword,
+            String sourceType, String aiStatus, String keyword, String status,
             int pageNo, int pageSize) {
 
-        // 查询 received / partially_received 的批次
+        boolean archivedMode = status != null && !status.isBlank()
+                && BatchStatus.archived.name().equalsIgnoreCase(status);
+
+        // 查询批次
         QueryWrapper<IntakeBatch> bw = new QueryWrapper<>();
-        bw.in("status", BatchStatus.received.name(), BatchStatus.partially_received.name());
+        if (archivedMode) {
+            bw.eq("status", BatchStatus.archived.name());
+        } else {
+            bw.in("status", BatchStatus.received.name(), BatchStatus.partially_received.name());
+        }
         if (sourceType != null && !sourceType.isBlank()) {
             bw.eq("source_type", sourceType);
         }
@@ -111,13 +120,45 @@ public class PendingArchiveService {
             resp.setItemCount((int) itemCount);
             resp.setArchivedCount((int) archivedCount);
             resp.setPendingArchiveCount((int) pendingCount);
-            // AI 任务状态暂不关联查询
-            resp.setLatestAiTaskStatus(null);
+
+            // archived 模式下回填 pendingShelfCount：该批次已生成档案中 lifecycle_status=pending_shelf 的数量
+            if (archivedMode) {
+                resp.setPendingShelfCount(countPendingShelf(items));
+            } else {
+                resp.setPendingShelfCount(0);
+            }
+
+            // 关联查询该批次最近一次 AI 补全任务状态（business_type=intake_batch）
+            AiTask latestAiTask = aiTaskMapper.selectOne(new QueryWrapper<AiTask>()
+                    .eq("business_type", "intake_batch")
+                    .eq("business_id", batch.getId())
+                    .orderByDesc("started_at")
+                    .last("limit 1"));
+            resp.setLatestAiTaskStatus(latestAiTask != null ? latestAiTask.getStatus() : null);
 
             records.add(resp);
         }
 
         return new PageResult<>(records, pageNo, pageSize, page.getTotal());
+    }
+
+    /**
+     * 统计条目对应档案中 lifecycle_status=pending_shelf 的数量。
+     * 仅对已入库条目（status=archived 且 generatedArchiveId 非空）查询。
+     */
+    private int countPendingShelf(List<IntakeItem> items) {
+        List<Long> archiveIds = items.stream()
+                .filter(i -> i.getStatus() == ItemStatus.archived)
+                .map(IntakeItem::getGeneratedArchiveId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        if (archiveIds.isEmpty()) {
+            return 0;
+        }
+        QueryWrapper<Archive> aw = new QueryWrapper<>();
+        aw.in("id", archiveIds);
+        aw.eq("lifecycle_status", LifecycleStatus.pending_shelf.name());
+        return Math.toIntExact(archiveMapper.selectCount(aw));
     }
 
     // ==================== 9.2 获取入库批次详情 ====================
@@ -214,9 +255,13 @@ public class PendingArchiveService {
         if (item == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "清单条目不存在");
         }
-        if (item.getStatus() != ItemStatus.accepted) {
+        // 允许 accepted 或 pending_archive 重新确认入库字段：
+        // 否则用户确认后发现所选档案盒分类不一致（confirmArchive 抛「同盒档案分类必须一致」），
+        // 既无法改 categoryId（已非 accepted）也无法改盒匹配，流程卡死。见 B13-5。
+        if (item.getStatus() != ItemStatus.accepted
+                && item.getStatus() != ItemStatus.pending_archive) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT,
-                    "条目状态不是已接收，无法确认入库字段");
+                    "条目状态不是已接收或待入库，无法确认入库字段");
         }
 
         item.setConfirmedTitle(req.getConfirmedTitle());
@@ -313,16 +358,23 @@ public class PendingArchiveService {
             archiveFileService.stagingToFormal(archive, stagingFiles);
         }
 
-        // 7. 纸质相关档案：装盒预占
+        // 7. 纸质相关档案：装盒预占（盒即架位，locationId 由档案盒决定，不再单独要求，B5-D1 方案 A）
         if (!isElectronic) {
-            if (req.getBoxId() == null || req.getLocationId() == null) {
+            if (req.getBoxId() == null) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "纸质相关档案必须提供盒号和架位");
+                        "纸质相关档案必须提供档案盒");
             }
 
             ArchiveBox box = archiveBoxMapper.selectById(req.getBoxId());
             if (box == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "档案盒不存在");
+            }
+
+            // 盒满校验：盒已满则拒绝入库，避免超容量装盒（B5-D1 方案 A）
+            if (box.getCapacity() != null && box.getUsedCount() != null
+                    && box.getUsedCount() >= box.getCapacity()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "档案盒已满，请选择其他档案盒");
             }
 
             // 校验同盒分类/全宗一致
@@ -341,7 +393,10 @@ public class PendingArchiveService {
             ArchiveBoxItem boxItem = new ArchiveBoxItem();
             boxItem.setBoxId(req.getBoxId());
             boxItem.setArchiveId(archive.getId());
-            boxItem.setSortNo(req.getSortNo() != null ? req.getSortNo() : 1);
+            // 默认 sortNo：未显式传入时，按盒内已有最大 sort_no + 1 自动递增，
+            // 避免同盒第二件档案因默认值 1 与已有项冲突（违反 uk_archive_box_items_box_sort）。
+            int sortNo = req.getSortNo() != null ? req.getSortNo() : nextBoxSortNo(req.getBoxId());
+            boxItem.setSortNo(sortNo);
             boxItem.setPageCount(req.getPageCount() != null ? req.getPageCount() : item.getPageCount());
             boxItem.setPhysicalStatus("normal");
             archiveBoxItemMapper.insert(boxItem);
@@ -460,6 +515,13 @@ public class PendingArchiveService {
      * - 存在 accepted/pending_archive 且无 rejected → received
      * - 存在 archived 且无 accepted/pending_archive → archived（全部可处理的已完成）
      */
+    private int nextBoxSortNo(Long boxId) {
+        QueryWrapper<ArchiveBoxItem> w = new QueryWrapper<>();
+        w.eq("box_id", boxId).orderByDesc("sort_no").last("LIMIT 1");
+        ArchiveBoxItem latest = archiveBoxItemMapper.selectOne(w);
+        return latest != null && latest.getSortNo() != null ? latest.getSortNo() + 1 : 1;
+    }
+
     private void recalculateBatchStatus(IntakeBatch batch) {
         QueryWrapper<IntakeItem> iw = new QueryWrapper<>();
         iw.eq("batch_id", batch.getId());
@@ -519,14 +581,50 @@ public class PendingArchiveService {
         r.setPageCount(item.getPageCount());
         r.setSecurityLevel(item.getSecurityLevel());
         r.setRetentionPeriod(item.getRetentionPeriod() != null ? item.getRetentionPeriod().getDbValue() : null);
+        r.setOpenStatus(item.getOpenStatus() != null ? item.getOpenStatus() : "open");
+        r.setAllowDigitization(item.getAllowDigitization() != null ? item.getAllowDigitization() : false);
         r.setFileMatchStatus(item.getFileMatchStatus() != null ? item.getFileMatchStatus().name() : null);
         r.setAiSuggestion(item.getAiSuggestion() != null ? item.getAiSuggestion().toString() : null);
+        // 拆出结构化 AI 建议字段，供前端表单回填
+        Map<String, Object> ai = item.getAiSuggestion();
+        if (ai != null) {
+            Object title = ai.get("title");
+            if (title != null) r.setSuggestedTitle(String.valueOf(title));
+            Object responsible = ai.get("responsible");
+            if (responsible != null) r.setSuggestedResponsible(String.valueOf(responsible));
+            Object formedDate = ai.get("formedDate");
+            if (formedDate instanceof String s && !s.isBlank()) {
+                try {
+                    r.setSuggestedFormedDate(LocalDate.parse(s));
+                } catch (Exception ignore) {
+                    // 日期格式不规范时忽略，不阻断响应
+                }
+            }
+            Object categoryId = ai.get("categoryId");
+            if (categoryId instanceof Number n) r.setSuggestedCategoryId(n.intValue());
+            Object tags = ai.get("tags");
+            if (tags instanceof List<?> list) {
+                List<String> tagList = new ArrayList<>();
+                for (Object t : list) {
+                    if (t != null) tagList.add(String.valueOf(t));
+                }
+                if (!tagList.isEmpty()) r.setSuggestedTags(tagList);
+            }
+        }
         r.setConfirmedTitle(item.getConfirmedTitle());
         r.setConfirmedResponsibleText(item.getConfirmedResponsibleText());
         r.setConfirmedFormedDate(item.getConfirmedFormedDate());
         r.setConfirmedCategoryId(item.getConfirmedCategoryId());
         r.setConfirmedTags(item.getConfirmedTags());
         r.setGeneratedArchiveId(item.getGeneratedArchiveId());
+
+        // 已入库档案的生命周期状态
+        if (item.getGeneratedArchiveId() != null) {
+            Archive ar = archiveMapper.selectById(item.getGeneratedArchiveId());
+            if (ar != null && ar.getLifecycleStatus() != null) {
+                r.setLifecycleStatus(ar.getLifecycleStatus().name());
+            }
+        }
 
         // 已匹配暂存文件摘要
         QueryWrapper<StagingFile> sfw = new QueryWrapper<>();

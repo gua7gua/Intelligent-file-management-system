@@ -6,18 +6,18 @@ import type {
 } from './transfer'
 
 export interface PublicArchive {
-  id: number
+  archiveId: number
   archiveNo: string
   title: string
-  responsible: string
-  category: string
+  responsibleText: string
+  categoryName: string
   formedYear: number
   carrierStatus: CarrierStatusValue
-  sourceType: 'transfer' | 'collection' | 'compilation'
-  tags: string[]
+  sourceType?: 'transfer' | 'collection' | 'compilation'
+  tags?: string[]
   hasElectronicFile: boolean
-  canPreview: boolean
-  canDownload: boolean
+  canPreview?: boolean
+  canDownload?: boolean
 }
 
 export interface PublicArchiveFile {

@@ -210,10 +210,14 @@ async function handleSubmit() {
       inputErrorMessage: '请填写说明',
       inputValue: '到期鉴定后按制度提交销毁',
     })
-    const approval = await submitDestructionApproval(listDetail.value.id, { reason: value })
-    ElMessage.success(`已生成审批单 ${approval.targetListNo ?? ''}，清册进入待审批。`)
-    if (isDirector.value) {
-      router.push({ path: '/admin/approval', query: { focus: String(approval.id) } })
+    const updated = await submitDestructionApproval(listDetail.value.id, { reason: value })
+    // 后端返回的是更新后的清册详情（含 approvalRequestId），与 api 类型签名不一致；这里取审批单号做提示
+    const approvalNo = updated?.listNo ? `#${updated.approvalRequestId ?? ''}` : ''
+    ElMessage.success(`已生成审批单 ${approvalNo}，清册进入待审批。`)
+    await loadLists()
+    if (selectedListId.value) await selectList(selectedListId.value)
+    if (isDirector.value && updated?.approvalRequestId) {
+      router.push({ path: '/admin/approval', query: { focus: String(updated.approvalRequestId) } })
     }
   } catch (e: unknown) {
     if (e !== 'cancel' && e !== 'close') {

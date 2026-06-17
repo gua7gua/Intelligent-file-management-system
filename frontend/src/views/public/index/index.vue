@@ -103,14 +103,14 @@
             <tr v-if="homeData.recentArchives.length === 0">
               <td colspan="6"><div class="empty">暂无公开档案</div></td>
             </tr>
-            <tr v-for="archive in homeData.recentArchives" :key="archive.id">
+            <tr v-for="archive in homeData.recentArchives" :key="archive.archiveId">
               <td>{{ archive.title }}</td>
               <td>{{ sourceLabel(archive.sourceType) }}</td>
-              <td>{{ archive.category }}</td>
-              <td>{{ archive.responsible }}</td>
+              <td>{{ archive.categoryName }}</td>
+              <td>{{ archive.responsibleText }}</td>
               <td>{{ archive.formedYear }}</td>
               <td>
-                <router-link :to="`/public/search?archiveId=${archive.id}`" class="button ghost">查看详情</router-link>
+                <router-link :to="`/public/search?archiveId=${archive.archiveId}`" class="button ghost">查看详情</router-link>
               </td>
             </tr>
           </tbody>
@@ -150,7 +150,8 @@ function categoryPercent(count: number): number {
   return Math.round((count / max) * 100)
 }
 
-function sourceLabel(sourceType: string): string {
+function sourceLabel(sourceType?: string): string {
+  if (!sourceType) return '-'
   const map: Record<string, string> = { transfer: '移交入库', collection: '社会征集', compilation: '编撰' }
   return map[sourceType] || sourceType
 }

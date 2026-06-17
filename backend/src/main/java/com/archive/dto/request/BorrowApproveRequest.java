@@ -6,7 +6,8 @@ import lombok.Data;
 
 /**
  * 审批借阅申请入参（12.3）。
- * 拒绝时 opinion 必填，由 Service 层校验（Bean Validation 无法表达条件必填）。
+ * 拒绝时 opinion 或 rejectReason 二选一必填，由 Service 层校验
+ * （Bean Validation 无法表达条件必填）。
  */
 @Data
 public class BorrowApproveRequest {
@@ -16,4 +17,8 @@ public class BorrowApproveRequest {
 
     @Size(max = 500)
     private String opinion;
+
+    /** 拒绝原因，与 opinion 二选一（接口文档 §12.3 约定两者皆可）。 */
+    @Size(max = 500)
+    private String rejectReason;
 }

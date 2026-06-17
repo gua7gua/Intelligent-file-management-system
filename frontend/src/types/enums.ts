@@ -525,8 +525,8 @@ export const AnalysisTaskStatusLabel: Record<string, string> = {
 }
 export const AnalysisTaskTypeLabel: Record<string, string> = {
   rule: '规则扫描',
-  ai: 'AI 建议',
-  mixed: '规则 + AI',
+  ai: 'AI研判',
+  mixed: '综合',
 }
 export const AnalysisItemStatusLabel: Record<string, string> = {
   pending: '待处理',

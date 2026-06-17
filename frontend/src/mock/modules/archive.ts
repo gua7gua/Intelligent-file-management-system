@@ -179,7 +179,7 @@ export function mockPendingBatchDetail(batchId: number): PendingBatchDetail | nu
 
 /** 模拟 AI 任务 */
 export let mockAiTask: AiTask = {
-  id: 1,
+  aiTaskId: 1,
   taskNo: 'AIT-000001',
   status: 'completed',
   batchSize: 50,
@@ -209,7 +209,7 @@ export function mockStartAiCompletion(batchId: number): Promise<AiTask> {
       if (batch) batch.aiStatus = 'completed'
       mockAiTask = {
         ...mockAiTask,
-        id: Date.now(),
+        aiTaskId: Date.now(),
         status: 'completed',
         completedCount: items.filter((i) => i.itemStatus === 'suggested').length,
       }

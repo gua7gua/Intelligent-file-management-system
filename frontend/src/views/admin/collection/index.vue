@@ -72,7 +72,7 @@
             <span>捐赠人：{{ batch.contactName }}</span>
             <span>条目：{{ batch.itemCount }}</span>
             <span v-if="batch.scheduledReceiveAt">到馆：{{ formatDateTime(batch.scheduledReceiveAt) }}</span>
-            <span v-else>提交：{{ batch.submittedAt.slice(0, 10) }}</span>
+            <span v-else>提交：{{ batch.submittedAt ? batch.submittedAt.slice(0, 10) : '—' }}</span>
           </div>
         </li>
       </ul>
@@ -92,7 +92,7 @@
           <div>
             <h2 class="section-title">{{ selectedBatch.title }}</h2>
             <p class="page-subtitle">
-              {{ selectedBatch.batchNo }} · {{ selectedBatch.contactName }} · {{ batchPhaseLabel }}
+              {{ collectionHeader(selectedBatch) }}<template v-if="batchPhaseLabel"> · {{ batchPhaseLabel }}</template>
             </p>
           </div>
           <span class="status" :class="statusClass(selectedBatch.status)">{{ selectedBatch.statusText }}</span>
@@ -216,6 +216,15 @@
             <button class="button secondary" type="button" :disabled="pendingItemsCount > 0" @click="handleExportReceipt">导出回执</button>
           </div>
         </template>
+
+        <!-- 已接收/部分接收后保留导出回执入口（B4-6） -->
+        <div
+          v-if="isFrontArchivist && (selectedBatch.status === 'received' || selectedBatch.status === 'partially_received')"
+          class="actions"
+          style="margin-top: 12px;"
+        >
+          <button class="button secondary" type="button" @click="handleExportReceipt">导出回执</button>
+        </div>
       </div>
 
       <!-- 流程位置 -->
@@ -326,6 +335,15 @@ const batchPhaseLabel = computed(() => {
   }
   return map[selectedBatch.value.status] || ''
 })
+
+// 详情头部：批次号 / 组织名 / 联系人 电话，组织名为空时跳过该项以避免孤立斜杠
+function collectionHeader(batch: { batchNo: string; organizationName?: string | null; contactName?: string | null; contactPhone?: string | null }): string {
+  const parts: string[] = [batch.batchNo]
+  if (batch.organizationName) parts.push(batch.organizationName)
+  const contact = [batch.contactName, batch.contactPhone].filter(Boolean).join(' ')
+  if (contact) parts.push(contact)
+  return parts.join(' / ')
+}
 
 // ── 工具函数 ──
 function statusClass(status: string): string {
@@ -500,6 +518,11 @@ async function handleCompleteReceive() {
     }
     await completeBatchAcceptance(selectedBatch.value.id, { acceptanceNote: '征集到馆验收完成' })
     ElMessage.success('已确认接收，条目进入后续入库流程')
+    // 刷新批次列表与详情，避免完成后卡片仍显示原状态（与 B12-1 同类问题）
+    await loadCollections()
+    if (selectedBatch.value) {
+      await selectBatch(selectedBatch.value)
+    }
   } catch {
     ElMessage.error('完成接收失败')
   }

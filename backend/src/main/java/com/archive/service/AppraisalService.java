@@ -11,6 +11,7 @@ import com.archive.entity.AppraisalBatch;
 import com.archive.entity.AppraisalItem;
 import com.archive.entity.Archive;
 import com.archive.entity.ArchiveChangeLog;
+import com.archive.entity.Category;
 import com.archive.entity.DestructionItem;
 import com.archive.entity.DestructionList;
 import com.archive.enums.AppraisalBatchStatus;
@@ -22,6 +23,7 @@ import com.archive.mapper.AppraisalBatchMapper;
 import com.archive.mapper.AppraisalItemMapper;
 import com.archive.mapper.ArchiveChangeLogMapper;
 import com.archive.mapper.ArchiveMapper;
+import com.archive.mapper.CategoryMapper;
 import com.archive.mapper.DestructionItemMapper;
 import com.archive.mapper.DestructionListMapper;
 import com.archive.util.AppraisalNoUtil;
@@ -59,6 +61,7 @@ public class AppraisalService {
     private final DestructionListMapper destructionListMapper;
     private final DestructionItemMapper destructionItemMapper;
     private final ArchiveChangeLogMapper changeLogMapper;
+    private final CategoryMapper categoryMapper;
     private final AppraisalNoUtil appraisalNoUtil;
     private final DestructionNoUtil destructionNoUtil;
     private final AuditService auditService;
@@ -149,6 +152,7 @@ public class AppraisalService {
         r.setBatchNo(b.getBatchNo());
         r.setBatchName(b.getBatchName());
         r.setCategoryId(b.getCategoryId());
+        r.setCategoryName(resolveCategoryName(b.getCategoryId()));
         r.setFormedYearStart(b.getFormedYearStart());
         r.setFormedYearEnd(b.getFormedYearEnd());
         r.setStatus(b.getStatus() != null ? b.getStatus().name() : null);
@@ -156,9 +160,37 @@ public class AppraisalService {
 
         QueryWrapper<AppraisalItem> iw = new QueryWrapper<>();
         iw.eq("batch_id", b.getId());
-        Long c = itemMapper.selectCount(iw);
-        r.setItemCount(c != null ? c.intValue() : 0);
+        List<AppraisalItem> items = itemMapper.selectList(iw);
+        int hitCount = items.size();
+        int destroyCount = 0;
+        int extendCount = 0;
+        for (AppraisalItem it : items) {
+            if (it.getAppraisalResult() == null) continue;
+            if (it.getAppraisalResult() == AppraisalResult.destroy) destroyCount++;
+            else if (it.getAppraisalResult() == AppraisalResult.extend) extendCount++;
+        }
+        r.setHitCount(hitCount);
+        r.setDestroyCount(destroyCount);
+        r.setExtendCount(extendCount);
+
+        // 已完成批次：回填生成的销毁清册号
+        if (b.getStatus() == AppraisalBatchStatus.completed) {
+            QueryWrapper<DestructionList> dw = new QueryWrapper<>();
+            dw.eq("appraisal_batch_id", b.getId()).orderByDesc("id").last("LIMIT 1");
+            DestructionList dl = destructionListMapper.selectOne(dw);
+            if (dl != null) {
+                r.setGeneratedListId(dl.getId());
+                r.setGeneratedListNo(dl.getListNo());
+            }
+        }
         return r;
+    }
+
+    /** 解析分类名，找不到返回 null。 */
+    private String resolveCategoryName(Integer categoryId) {
+        if (categoryId == null) return null;
+        Category c = categoryMapper.selectById(categoryId);
+        return c != null ? c.getCategoryName() : null;
     }
 
     // ==================== 14.3 获取鉴定批次详情 ====================
@@ -330,7 +362,7 @@ public class AppraisalService {
                 di.setArchiveId(a.getId());
                 di.setArchiveNoSnapshot(a.getArchiveNo());
                 di.setTitleSnapshot(a.getTitle());
-                di.setCategorySnapshot(a.getCategoryId() != null ? String.valueOf(a.getCategoryId()) : null);
+                di.setCategorySnapshot(resolveCategoryName(a.getCategoryId()));
                 di.setRetentionSnapshot(a.getRetentionPeriod() != null ? a.getRetentionPeriod().getDbValue() : null);
                 di.setSecurityLevelSnapshot(a.getSecurityLevel());
                 di.setAppraisalOpinionSnapshot(it.getOpinion());
@@ -360,6 +392,9 @@ public class AppraisalService {
             items.add(v);
         }
         resp.setItems(items);
+        resp.setHitCount(archives.size());
+        resp.setDestroyCount(0);
+        resp.setExtendCount(0);
         return resp;
     }
 
@@ -368,12 +403,17 @@ public class AppraisalService {
             AppraisalBatch batch, List<AppraisalItem> items, Map<Long, Archive> archiveMap) {
         AppraisalBatchDetailResponse resp = baseDetail(batch);
         List<AppraisalBatchDetailResponse.ItemView> views = new ArrayList<>();
+        int destroyCount = 0;
+        int extendCount = 0;
         for (AppraisalItem it : items) {
             AppraisalBatchDetailResponse.ItemView v = new AppraisalBatchDetailResponse.ItemView();
             v.setArchiveId(it.getArchiveId());
             v.setAppraisalResult(it.getAppraisalResult() != null ? it.getAppraisalResult().name() : null);
             v.setNewRetentionPeriod(it.getNewRetentionPeriod());
+            v.setNewRetentionUntil(it.getNewRetentionUntil());
             v.setOpinion(it.getOpinion());
+            if (it.getAppraisalResult() == AppraisalResult.destroy) destroyCount++;
+            else if (it.getAppraisalResult() == AppraisalResult.extend) extendCount++;
             Archive a = archiveMap.get(it.getArchiveId());
             if (a != null) {
                 v.setArchiveNo(a.getArchiveNo());
@@ -385,6 +425,9 @@ public class AppraisalService {
             views.add(v);
         }
         resp.setItems(views);
+        resp.setHitCount(items.size());
+        resp.setDestroyCount(destroyCount);
+        resp.setExtendCount(extendCount);
         return resp;
     }
 
@@ -394,10 +437,21 @@ public class AppraisalService {
         resp.setBatchNo(batch.getBatchNo());
         resp.setBatchName(batch.getBatchName());
         resp.setCategoryId(batch.getCategoryId());
+        resp.setCategoryName(resolveCategoryName(batch.getCategoryId()));
         resp.setFormedYearStart(batch.getFormedYearStart());
         resp.setFormedYearEnd(batch.getFormedYearEnd());
         resp.setStatus(batch.getStatus() != null ? batch.getStatus().name() : null);
         resp.setCompletedAt(batch.getCompletedAt());
+        // 已完成批次回填销毁清册号
+        if (batch.getStatus() == AppraisalBatchStatus.completed) {
+            QueryWrapper<DestructionList> dw = new QueryWrapper<>();
+            dw.eq("appraisal_batch_id", batch.getId()).orderByDesc("id").last("LIMIT 1");
+            DestructionList dl = destructionListMapper.selectOne(dw);
+            if (dl != null) {
+                resp.setGeneratedListId(dl.getId());
+                resp.setGeneratedListNo(dl.getListNo());
+            }
+        }
         return resp;
     }
 

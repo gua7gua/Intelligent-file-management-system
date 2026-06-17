@@ -70,7 +70,7 @@
                   <td>
                     <div class="actions" @click.stop>
                       <el-button size="small" @click="selectRow(f)">编辑</el-button>
-                      <el-button size="small" :type="isLinked(f) ? 'warning' : 'danger'" @click="removeOrDisable(f)">{{ isLinked(f) ? '停用' : '删除' }}</el-button>
+                      <el-button size="small" :type="f.status === 'active' ? 'warning' : 'danger'" :disabled="f.status === 'disabled'" @click="removeOrDisable(f)">{{ f.status === 'disabled' ? '已停用' : '停用' }}</el-button>
                     </div>
                   </td>
                 </tr>
@@ -128,7 +128,7 @@
         <div class="actions">
           <el-button type="primary" :loading="saving" @click="save">{{ isCreate ? '新建全宗' : '保存全宗' }}</el-button>
           <el-button @click="cancelEdit">取消</el-button>
-          <el-button v-if="!isCreate && selectedItem" :type="isLinked(selectedItem) ? 'warning' : 'danger'" @click="removeOrDisable(selectedItem)">{{ isLinked(selectedItem) ? '停用' : '删除' }}</el-button>
+          <el-button v-if="!isCreate && selectedItem && selectedItem.status === 'active'" type="warning" @click="removeOrDisable(selectedItem)">停用全宗</el-button>
         </div>
       </aside>
     </div>
@@ -138,7 +138,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { createFonds, getFonds, removeFonds, updateFonds } from '@/api/fonds'
+import { createFonds, getFonds, updateFonds } from '@/api/fonds'
 import { getOrganizations } from '@/api/organizations'
 import { validateFondsForm } from '@/utils/fondsValidation'
 import type { FondsItem } from '@/types/fonds'
@@ -266,13 +266,9 @@ async function save() {
 
 async function removeOrDisable(f: FondsItem) {
   try {
-    if (isLinked(f)) {
-      await updateFonds(f.id, { status: 'disabled' })
-      ElMessage.success('该全宗已有归档档案或档案盒，已停用。')
-    } else {
-      await removeFonds(f.id)
-      ElMessage.success('无关联数据的全宗已删除。')
-    }
+    // 接口文档 §17.4 明确全宗不做物理删除；无论是否有关联数据，统一通过 status=disabled 停用，保留历史档案归属
+    await updateFonds(f.id, { status: 'disabled' })
+    ElMessage.success(isLinked(f) ? '该全宗已有归档档案或档案盒，已停用。' : '无关联数据的全宗已停用。')
     await loadAll()
   } catch (e) {
     ElMessage.error((e as Error).message || '操作失败')

@@ -14,7 +14,8 @@ export interface AnalysisRule {
 
 /** 创建研判任务请求（§20.5） */
 export interface AnalysisTaskCreateData {
-  taskType: AnalysisTaskTypeValue
+  /** 扫描方式（rule/ai/mixed）。与 task_type（结果类型）分离后的新契约。 */
+  scanMethod: AnalysisTaskTypeValue
   rule: AnalysisRule
 }
 
@@ -61,6 +62,8 @@ export interface AnalysisTask {
   id: number
   taskNo: string
   taskType: AnalysisTaskTypeValue
+  /** 扫描方式（rule/ai/mixed）。 */
+  scanMethod?: AnalysisTaskTypeValue
   status: AnalysisTaskStatusValue
   scopeText: string
   scannedCount: number

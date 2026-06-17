@@ -19,6 +19,8 @@ public class IntakeBatchResponse {
     private String status;
     private String statusText;
     private Long organizationId;
+    /** 移交/征集单位名称（按 organizationId 解析，供详情头部展示，B4-4）。 */
+    private String organizationName;
     private String departmentName;
     private Long publicUserId;
     private String contactName;
@@ -39,4 +41,7 @@ public class IntakeBatchResponse {
 
     /** 批次详情时填充条目列表。 */
     private List<IntakeItemResponse> items;
+
+    /** 批次详情时填充该批次已上传的暂存电子文件（含 ClamAV 扫描结果与匹配状态）。 */
+    private List<StagingFileResponse> stagingFiles;
 }

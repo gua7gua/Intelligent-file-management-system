@@ -24,4 +24,13 @@ public enum RetentionPeriod {
         this.dbValue = dbValue;
         this.displayName = displayName;
     }
+
+    /** 按 dbValue（10y/30y/permanent）解析，供前端入参反序列化使用。枚举名带下划线(_10y)与前端传入值不一致，故不能用 valueOf。 */
+    public static RetentionPeriod fromValue(String value) {
+        if (value == null || value.isBlank()) return null;
+        for (RetentionPeriod r : values()) {
+            if (r.dbValue.equals(value)) return r;
+        }
+        throw new IllegalArgumentException("未知的保管期限: " + value);
+    }
 }

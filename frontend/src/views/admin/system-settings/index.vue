@@ -62,7 +62,7 @@
             <h2 class="section-title">业务默认参数</h2>
             <div class="config-row">
               <div class="config-key"><strong>库房占用告警阈值</strong></div>
-              <div class="field"><label>阈值百分比</label><input type="number" min="50" max="100" v-model.number="warehouseThreshold" /></div>
+              <div class="field"><label>阈值（0-1，如 0.85）</label><input type="number" min="0" max="1" step="0.01" v-model.number="warehouseThreshold" /></div>
             </div>
             <div class="config-row">
               <div class="config-key"><strong>默认借阅天数</strong></div>
@@ -145,8 +145,18 @@ function displayValue(c: SystemConfig): string {
 
 function hydrateFromConfigs() {
   for (const c of configs.value) {
-    if (c.configKey === 'upload.allowed_extensions') extensions.value = c.configValue.split(',').map((s) => s.trim()).filter(Boolean)
-    else if (c.configKey === 'upload.max_file_size_mb') maxSize.value = Number(c.configValue)
+    if (c.configKey === 'upload.allowed_extensions') {
+      // 后端以 JSON 数组字符串存储（如 ["pdf","doc"]），解析失败时退回按逗号切分
+      let parsed: string[] = []
+      const raw = c.configValue || ''
+      try {
+        const arr = JSON.parse(raw)
+        if (Array.isArray(arr)) parsed = arr.map((x) => String(x))
+      } catch {
+        parsed = raw.split(',').map((s) => s.trim()).filter(Boolean)
+      }
+      extensions.value = parsed
+    } else if (c.configKey === 'upload.max_file_size_mb') maxSize.value = Number(c.configValue)
     else if (c.configKey === 'ai.enabled') aiEnabled.value = c.configValue === 'true'
     else if (c.configKey === 'public_search.enabled') publicEnabled.value = c.configValue === 'true'
     else if (c.configKey === 'warehouse.usage_warning_threshold') warehouseThreshold.value = Number(c.configValue)
@@ -198,7 +208,7 @@ function resetConfig() {
 
 async function saveConfig() {
   const items: SystemConfig[] = [
-    { configKey: 'upload.allowed_extensions', configValue: extensions.value.join(','), valueType: 'json', editable: true },
+    { configKey: 'upload.allowed_extensions', configValue: JSON.stringify(extensions.value), valueType: 'json', editable: true },
     { configKey: 'upload.max_file_size_mb', configValue: String(maxSize.value), valueType: 'number', editable: true },
     { configKey: 'ai.enabled', configValue: String(aiEnabled.value), valueType: 'boolean', editable: true },
     { configKey: 'public_search.enabled', configValue: String(publicEnabled.value), valueType: 'boolean', editable: true },

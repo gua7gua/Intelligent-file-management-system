@@ -13,6 +13,8 @@ export interface PendingBatch {
   acceptedCount: number
   returnedCount: number
   aiStatus: 'not_started' | 'running' | 'partial_completed' | 'completed' | 'failed'
+  /** 已入库批次中 lifecycle_status=pending_shelf 的档案数（仅 status=archived 查询时回填）。 */
+  pendingShelfCount?: number
   createdAt: string
   updatedAt: string
 }
@@ -62,7 +64,7 @@ export interface PendingBatchDetail extends PendingBatch {
 
 /** AI 补全任务 */
 export interface AiTask {
-  id: number
+  aiTaskId: number
   taskNo: string
   status: 'running' | 'partial_completed' | 'completed' | 'failed'
   batchSize: number
@@ -100,6 +102,8 @@ export interface PendingBatchParams {
   sourceType?: 'transfer' | 'collection'
   aiStatus?: string
   keyword?: string
+  /** 不传/空 → received/partially_received；传 'archived' → archived 批次。 */
+  status?: string
   pageNo?: number
   pageSize?: number
 }

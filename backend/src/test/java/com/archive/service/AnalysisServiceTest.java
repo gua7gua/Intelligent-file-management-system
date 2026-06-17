@@ -10,7 +10,7 @@ import com.archive.entity.AnalysisTask;
 import com.archive.entity.Archive;
 import com.archive.enums.AnalysisIssueType;
 import com.archive.enums.AnalysisItemStatus;
-import com.archive.enums.AnalysisTaskType;
+import com.archive.enums.AnalysisScanMethod;
 import com.archive.enums.CarrierStatus;
 import com.archive.enums.RoleCode;
 import com.archive.exception.BusinessException;
@@ -77,7 +77,7 @@ class AnalysisServiceTest {
         when(archiveMapper.selectById(1L)).thenReturn(archiveNullTitle());
 
         AnalysisTaskCreateRequest req = new AnalysisTaskCreateRequest();
-        req.setTaskType(AnalysisTaskType.missing_fields);
+        req.setScanMethod(AnalysisScanMethod.rule);
         AnalysisRule rule = new AnalysisRule();
         rule.setCategoryIds(List.of(3));
         rule.setIncludeAiSuggestion(false);
@@ -102,7 +102,7 @@ class AnalysisServiceTest {
         when(aiTaskService.aiAvailable()).thenReturn(false);
 
         AnalysisTaskCreateRequest req = new AnalysisTaskCreateRequest();
-        req.setTaskType(AnalysisTaskType.mixed);
+        req.setScanMethod(AnalysisScanMethod.mixed);
         AnalysisRule rule = new AnalysisRule();
         rule.setCategoryIds(List.of(3));
         rule.setIncludeAiSuggestion(true);

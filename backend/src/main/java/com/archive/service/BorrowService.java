@@ -158,7 +158,11 @@ public class BorrowService {
             auditService.log("M09", "approve", "borrow_request", b.getId(),
                     Map.of("opinion", req.getOpinion() != null ? req.getOpinion() : ""));
         } else {
+            // 接口文档 §12.3：拒绝时 opinion 或 rejectReason 二选一必填
             String reason = req.getOpinion();
+            if (reason == null || reason.isBlank()) {
+                reason = req.getRejectReason();
+            }
             if (reason == null || reason.isBlank()) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED, "拒绝时必须填写意见");
             }
@@ -168,7 +172,7 @@ public class BorrowService {
             auditService.log("M09", "reject", "borrow_request", b.getId(),
                     Map.of("rejectReason", reason));
         }
-        return toResponse(b, true, false);
+        return toResponse(b, true, true, true);
     }
 
     // ==================== 11.10 导出借阅凭证 ====================
@@ -251,7 +255,7 @@ public class BorrowService {
                         "dueAt", String.valueOf(req.getDueAt()),
                         "note", req.getNote() != null ? req.getNote() : ""));
 
-        return toResponse(b, true, true);
+        return toResponse(b, true, true, true);
     }
 
     // ==================== 12.5 确认归还 ====================
@@ -292,7 +296,7 @@ public class BorrowService {
         auditService.log("M09", "return", "borrow_request", b.getId(),
                 Map.of("returnCheckResult", req.getReturnCheckResult().name(), "abnormal", abnormal));
 
-        return toResponse(b, true, true);
+        return toResponse(b, true, true, true);
     }
 
     // ==================== 12.1 管理端查询借阅申请 ====================
@@ -324,7 +328,7 @@ public class BorrowService {
 
         Page<BorrowRequest> result = borrowRequestMapper.selectPage(page, w);
         List<BorrowRequestResponse> items = result.getRecords().stream()
-                .map(b -> toResponse(b, true, false))
+                .map(b -> toResponse(b, true, false, true))
                 .collect(Collectors.toList());
         return new PageResult<>(items, query.getPageNo(), query.getPageSize(), result.getTotal());
     }
@@ -334,7 +338,7 @@ public class BorrowService {
     public BorrowRequestResponse adminGet(Long requestId) {
         requireRole(RoleCode.front_archivist, RoleCode.back_archivist);
         BorrowRequest b = mustGet(requestId);
-        return toResponse(b, true, true);
+        return toResponse(b, true, true, true);
     }
 
     // ==================== 11.1 内部工作台借阅摘要 ====================
@@ -398,12 +402,24 @@ public class BorrowService {
     }
 
     private BorrowRequestResponse toResponse(BorrowRequest b, boolean withBorrower, boolean withLocation) {
+        return toResponse(b, withBorrower, withLocation, false);
+    }
+
+    /**
+     * 构造响应。withCheckInfo=true 时计算并填充可借检查四项（载体/生命周期/借阅状态/盘点范围），
+     * 仅管理端 §12.1/§12.2 列表与详情使用。
+     */
+    private BorrowRequestResponse toResponse(BorrowRequest b, boolean withBorrower,
+                                             boolean withLocation, boolean withCheckInfo) {
         Archive archive = b.getArchiveId() == null ? null : archiveMapper.selectById(b.getArchiveId());
         BorrowRequestResponse.ArchiveSummary archiveSummary = null;
         if (archive != null) {
             archiveSummary = new BorrowRequestResponse.ArchiveSummary(
                     archive.getId(), archive.getArchiveNo(), archive.getTitle(),
-                    archive.getCarrierStatus() != null ? archive.getCarrierStatus().name() : null);
+                    archive.getCarrierStatus() != null ? archive.getCarrierStatus().name() : null,
+                    archive.getLifecycleStatus() != null ? archive.getLifecycleStatus().name() : null,
+                    archive.getLoanStatus() != null ? archive.getLoanStatus().name() : null,
+                    archive.getConditionStatus() != null ? archive.getConditionStatus().name() : null);
         }
 
         BorrowRequestResponse.BorrowerSummary borrowerSummary = null;
@@ -427,6 +443,17 @@ public class BorrowService {
         boolean overdue = b.getStatus() == BorrowStatus.checked_out
                 && b.getDueAt() != null && b.getDueAt().isBefore(OffsetDateTime.now());
 
+        String checkCarrier = null;
+        String checkLifecycle = null;
+        String checkLoan = null;
+        String checkInventory = null;
+        if (withCheckInfo && archive != null) {
+            checkCarrier = describeCarrier(archive.getCarrierStatus());
+            checkLifecycle = describeLifecycle(archive.getLifecycleStatus());
+            checkLoan = describeLoan(archive.getLoanStatus());
+            checkInventory = describeInventory(archive);
+        }
+
         return new BorrowRequestResponse(
                 b.getId(), b.getRequestNo(), b.getStatus().name(), b.getReason(),
                 b.getExpectedDays(), b.getExpectedVisitAt(), b.getContactPhone(),
@@ -435,7 +462,61 @@ public class BorrowService {
                 b.getCheckedOutAt(), b.getReturnedAt(),
                 b.getReturnCheckResult() != null ? b.getReturnCheckResult().name() : null,
                 b.getReturnNote(), b.getCreatedAt(),
+                checkCarrier, checkLifecycle, checkLoan, checkInventory,
                 archiveSummary, borrowerSummary, locationSummary);
+    }
+
+    /** 载体可借检查文案：纸质/纸质+电子 可借，纯电子不可借。 */
+    private String describeCarrier(com.archive.enums.CarrierStatus c) {
+        if (c == null) return "未知";
+        switch (c) {
+            case paper: return "纸质（可借）";
+            case paper_electronic: return "纸质+电子（可借）";
+            case electronic: return "纯电子（不可借）";
+            default: return c.name();
+        }
+    }
+
+    /** 生命周期检查文案：normal 可借，其他不可借。 */
+    private String describeLifecycle(com.archive.enums.LifecycleStatus s) {
+        if (s == null) return "未知";
+        switch (s) {
+            case normal: return "正常（可借）";
+            case pending_shelf: return "待上架（不可借）";
+            case pending_destruction: return "待销毁（不可借）";
+            case destroyed: return "已销毁（不可借）";
+            default: return s.name();
+        }
+    }
+
+    /** 借阅状态检查文案：available 可借，on_loan 已借出。 */
+    private String describeLoan(com.archive.enums.LoanStatus s) {
+        if (s == null) return "未知";
+        switch (s) {
+            case available: return "可借";
+            case on_loan: return "已借出";
+            default: return s.name();
+        }
+    }
+
+    /** 盘点范围检查文案：命中运行中盘点返回"盘点中"，否则"未盘点/正常"。 */
+    private String describeInventory(Archive archive) {
+        try {
+            Long roomId = jdbcTemplate.queryForObject(
+                    "SELECT sl.room_id FROM archive_box_items abi " +
+                    "JOIN archive_boxes ab ON ab.id = abi.box_id " +
+                    "JOIN storage_locations sl ON sl.id = ab.location_id " +
+                    "WHERE abi.archive_id = ? AND abi.deleted_at IS NULL LIMIT 1",
+                    Long.class, archive.getId());
+            if (roomId == null) return "未入盒（不适用）";
+            Integer running = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM inventory_tasks " +
+                    "WHERE status = 'running' AND room_id = ? AND category_id = ?",
+                    Integer.class, roomId, archive.getCategoryId());
+            return (running != null && running > 0) ? "盘点中（暂停借阅）" : "正常";
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            return "未入盒（不适用）";
+        }
     }
 
     private BorrowRequestResponse.LocationSummary resolveLocation(Long archiveId) {

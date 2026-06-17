@@ -31,11 +31,17 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class IntakeBatchService {
 
+    // 公众征集数量约束（接口文档 §5 约定：当前用户待处理数量不超过配置上限）
+    private static final int MAX_COLLECTION_PENDING_PER_USER = 5;
+    private static final int MAX_COLLECTION_ITEMS_PER_BATCH = 200;
+    private static final int MAX_COLLECTION_PENDING_PLUS_REJECTED = 10;
+
     private final IntakeBatchMapper batchMapper;
     private final IntakeItemMapper itemMapper;
     private final JdbcTemplate jdbcTemplate;
     private final com.archive.util.PdfGenerator pdfGenerator;
     private final com.archive.service.StagingFileService stagingFileService;
+    private final com.archive.mapper.OrganizationMapper organizationMapper;
 
     // ==================== 序列号 ====================
 
@@ -409,6 +415,28 @@ public class IntakeBatchService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "至少包含一条清单条目");
         }
 
+        // 数量约束（公众捐赠）：每公众待处理 ≤ 5、清单条目 ≤ 200、被拒+待处理 ≤ 10
+        long pendingCount = batchMapper.selectCount(new QueryWrapper<IntakeBatch>()
+                .eq("source_type", SourceType.collection.name())
+                .eq("public_user_id", userId)
+                .in("status", BatchStatus.pending_contact.name(), BatchStatus.pending_receive.name()));
+        if (pendingCount >= MAX_COLLECTION_PENDING_PER_USER) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "待处理征集清单已达上限（" + MAX_COLLECTION_PENDING_PER_USER + " 条），请等待现有清单处理完毕");
+        }
+        if (items.size() > MAX_COLLECTION_ITEMS_PER_BATCH) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "单份征集清单条目数不能超过 " + MAX_COLLECTION_ITEMS_PER_BATCH + " 条");
+        }
+        long rejectedCount = batchMapper.selectCount(new QueryWrapper<IntakeBatch>()
+                .eq("source_type", SourceType.collection.name())
+                .eq("public_user_id", userId)
+                .eq("status", BatchStatus.rejected.name()));
+        if (pendingCount + rejectedCount >= MAX_COLLECTION_PENDING_PLUS_REJECTED) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "待处理与被拒征集清单总数已达上限（" + MAX_COLLECTION_PENDING_PLUS_REJECTED + " 条）");
+        }
+
         for (IntakeItem item : items) {
             item.setStatus(ItemStatus.pending_acceptance);
             itemMapper.updateById(item);
@@ -685,6 +713,11 @@ public class IntakeBatchService {
         resp.setStatus(batch.getStatus() != null ? batch.getStatus().name() : null);
         resp.setStatusText(resolveStatusText(batch.getSourceType(), batch.getStatus()));
         resp.setOrganizationId(batch.getOrganizationId());
+        // 解析移交/征集单位名称供详情头部展示（B4-4）
+        if (batch.getOrganizationId() != null) {
+            com.archive.entity.Organization org = organizationMapper.selectById(batch.getOrganizationId());
+            resp.setOrganizationName(org != null ? org.getOrgName() : null);
+        }
         resp.setDepartmentName(batch.getDepartmentName());
         resp.setPublicUserId(batch.getPublicUserId());
         resp.setContactName(batch.getContactName());
@@ -707,6 +740,8 @@ public class IntakeBatchService {
                     new QueryWrapper<IntakeItem>().eq("batch_id", batch.getId()).orderByAsc("item_no"));
             resp.setItems(items.stream().map(this::toItemResponse).collect(Collectors.toList()));
             resp.setItemCount(items.size());
+            // 回填该批次已上传的暂存电子文件，供前台核对 ClamAV 扫描与匹配结果（§7.2）
+            resp.setStagingFiles(stagingFileService.listByBatch(batch.getId()));
         } else {
             Long count = itemMapper.selectCount(
                     new QueryWrapper<IntakeItem>().eq("batch_id", batch.getId()));
@@ -840,7 +875,7 @@ public class IntakeBatchService {
     private void fillTransferItem(IntakeItem item, TransferItemRequest req) {
         item.setInputTitle(req.getInputTitle());
         item.setPageCount(req.getPageCount());
-        item.setRetentionPeriod(RetentionPeriod.valueOf(req.getRetentionPeriod()));
+        item.setRetentionPeriod(RetentionPeriod.fromValue(req.getRetentionPeriod()));
         item.setCarrierStatus(CarrierStatus.valueOf(req.getCarrierStatus()));
         item.setSecurityLevel(req.getSecurityLevel());
         item.setOpenStatus(req.getOpenStatus());
@@ -852,7 +887,12 @@ public class IntakeBatchService {
     }
 
     private String getUserName(long userId) {
-        // 从 session 或其他方式获取用户名，这里用 ID 简化
-        return String.valueOf(userId);
+        try {
+            String name = jdbcTemplate.queryForObject(
+                    "SELECT real_name FROM users WHERE id = ? AND deleted_at IS NULL", String.class, userId);
+            return (name != null && !name.isBlank()) ? name : String.valueOf(userId);
+        } catch (Exception e) {
+            return String.valueOf(userId);
+        }
     }
 }
