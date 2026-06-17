@@ -123,7 +123,7 @@
           </div>
           <div class="detail-field">
             <label>分类</label>
-            <select v-model="form.categoryId">
+            <select v-model.number="form.categoryId" @change="onCategoryChange">
               <option :value="0">请选择</option>
               <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
             </select>
@@ -484,6 +484,15 @@ async function handleShelve() {
     const msg = e instanceof Error ? e.message : '上架失败'
     ElMessage.error(msg)
   }
+}
+
+// 分类下拉兜底：v-model.number 已能处理大部分场景，但自动化填表
+// （如 fill_form 仅修改 select.value）可能不触发 Vue 的双向绑定，
+// 这里在 change 事件里显式同步，保证 form.categoryId 始终拿到数字值。
+function onCategoryChange(e: Event) {
+  const raw = (e.target as HTMLSelectElement).value
+  const num = Number(raw)
+  form.categoryId = Number.isNaN(num) ? 0 : num
 }
 
 onMounted(() => {
