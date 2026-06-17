@@ -45,10 +45,10 @@
               <td class="mono">{{ l.operatedAt }}</td>
               <td>{{ l.actorName || `用户#${l.actorUserId}` }}</td>
               <td>{{ actorTypeLabel[l.actorType] || l.actorType }}</td>
-              <td>{{ l.moduleName }}</td>
+              <td>{{ l.moduleLabel || l.moduleName }}</td>
               <td>{{ l.operationType }}</td>
               <td>{{ l.businessType || '-' }}</td>
-              <td>{{ l.businessId ?? '-' }}</td>
+              <td>{{ l.archiveNo || (l.businessId != null ? `#${l.businessId}` : '-') }}</td>
               <td class="mono">{{ l.ipAddress || '-' }}</td>
               <td>
                 <details v-if="l.detail">
@@ -177,10 +177,10 @@ function exportLogs() {
     operatedAt: l.operatedAt,
     actor: l.actorName || `用户#${l.actorUserId}`,
     actorType: actorTypeLabel[l.actorType] || l.actorType,
-    moduleName: l.moduleName,
+    moduleName: l.moduleLabel || l.moduleName,
     operationType: l.operationType,
     businessType: l.businessType ?? '',
-    businessId: l.businessId ?? '',
+    businessRef: l.archiveNo || (l.businessId != null ? `#${l.businessId}` : ''),
     ipAddress: l.ipAddress ?? '',
     detail: detailSummary(l.detail),
   }))

@@ -37,14 +37,15 @@
       <div v-else class="table-wrap">
         <table>
           <thead>
-            <tr><th>访问时间</th><th>用户</th><th>类型</th><th>档案</th><th>访问类型</th><th>IP</th></tr>
+            <tr><th>访问时间</th><th>用户</th><th>类型</th><th>档案</th><th>题名</th><th>访问类型</th><th>IP</th></tr>
           </thead>
           <tbody>
             <tr v-for="l in records" :key="l.id">
               <td class="mono">{{ l.accessedAt }}</td>
-              <td>{{ l.userName || (l.userId ? `用户#${l.userId}` : '匿名') }}</td>
+              <td>{{ l.userName || l.actorName || (l.userId ? `用户#${l.userId}` : '匿名') }}</td>
               <td>{{ l.userType }}</td>
               <td>{{ l.archiveNo || `档案#${l.archiveId}` }}</td>
+              <td>{{ l.title || '-' }}</td>
               <td>{{ accessTypeLabel[l.accessType] || l.accessType }}</td>
               <td class="mono">{{ l.ipAddress || '-' }}</td>
             </tr>
@@ -146,9 +147,10 @@ function reset() {
 function exportLogs() {
   const rows = records.value.map((l) => ({
     accessedAt: l.accessedAt,
-    user: l.userName || (l.userId ? `用户#${l.userId}` : '匿名'),
+    user: l.userName || l.actorName || (l.userId ? `用户#${l.userId}` : '匿名'),
     userType: l.userType,
     archive: l.archiveNo || `档案#${l.archiveId}`,
+    title: l.title ?? '',
     accessType: accessTypeLabel[l.accessType] || l.accessType,
     ipAddress: l.ipAddress ?? '',
   }))
