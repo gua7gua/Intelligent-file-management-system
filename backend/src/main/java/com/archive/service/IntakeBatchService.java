@@ -177,6 +177,17 @@ public class IntakeBatchService {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "至少包含一条清单条目");
         }
 
+        // 涉密档案不可设置为公开：securityLevel > 0 视为涉密（内部/秘密/机密/绝密）
+        for (IntakeItem item : items) {
+            Integer level = item.getSecurityLevel();
+            String openStatus = item.getOpenStatus();
+            if (level != null && level > 0 && "open".equalsIgnoreCase(openStatus)) {
+                throw new BusinessException(
+                        ErrorCode.VALIDATION_FAILED,
+                        "第 " + item.getItemNo() + " 条档案涉密，不可设置为公开");
+            }
+        }
+
         // 更新条目状态
         for (IntakeItem item : items) {
             item.setStatus(ItemStatus.pending_acceptance);
