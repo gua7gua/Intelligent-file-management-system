@@ -115,7 +115,7 @@
               <div class="check-grid">
                 <div class="check-card" v-for="r in g.results" :key="r.id">
                   <strong>{{ CheckTypeLabel[r.checkType] }}</strong>
-                  <span class="status" :class="checkClass(r.checkResult)">{{ r.checkResult }}</span>
+                  <span class="status" :class="checkClass(r.checkResult)">{{ CheckResultLabel[r.checkResult] || r.checkResult }}</span>
                 </div>
               </div>
             </div>
@@ -145,7 +145,7 @@ import { getArchives, getArchiveDetail } from '@/api/archive'
 import type { BackupTask, FileCheckRecord } from '@/types/preservation'
 import type { ArchiveDetail } from '@/types/archive'
 import type { BackupScopeValue, BackupTaskStatusValue, CheckResultValue, CheckTypeValue } from '@/types/enums'
-import { BackupScopeLabel, BackupTaskStatusLabel, CheckTypeLabel } from '@/types/enums'
+import { BackupScopeLabel, BackupTaskStatusLabel, CheckResultLabel, CheckTypeLabel } from '@/types/enums'
 
 const backupTasks = ref<BackupTask[]>([])
 const checkRecords = ref<FileCheckRecord[]>([])

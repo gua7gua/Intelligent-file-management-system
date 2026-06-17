@@ -127,6 +127,7 @@ export interface ArchiveRecord {
   lifecycleStatus: string
   responsibleText: string
   formedDate: string
+  formedYear?: number
   tags: string[]
   fondsId: number
   fondsName?: string
