@@ -89,7 +89,7 @@
                 <td>{{ col.title }}</td>
                 <td>{{ col.itemCount }} 件</td>
                 <td><span :class="['status', collectionStatusClass(col.status)]">{{ col.statusText }}</span></td>
-                <td>{{ col.submittedAt || '未提交' }}</td>
+                <td>{{ col.submittedAt ? formatDateTime(col.submittedAt) : '未提交' }}</td>
               </tr>
             </tbody>
           </table>

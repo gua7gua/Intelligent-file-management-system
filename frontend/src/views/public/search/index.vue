@@ -57,7 +57,7 @@
             <label for="searchCategory">档案门类</label>
             <select id="searchCategory" v-model="searchParams.categoryId">
               <option :value="undefined">全部</option>
-              <option v-for="c in categoryOptions" :key="c.value" :value="c.value">{{ c.label }}</option>
+              <option v-for="c in categoryOptions" :key="c.categoryId" :value="c.categoryId">{{ c.categoryName }}</option>
             </select>
           </div>
           <div class="field">
@@ -215,7 +215,6 @@ import {
   downloadPublicArchiveFile,
 } from '@/api/public'
 import { getDictionariesApi } from '@/api/dictionary'
-import type { DictItem } from '@/types/components'
 import type { PublicSearchParams, PublicAiQueryResult, PublicArchive, PublicArchiveDetail } from '@/types/public'
 
 const route = useRoute()
@@ -224,8 +223,13 @@ const aiQueryText = ref('')
 const aiLoading = ref(false)
 const aiResult = ref<PublicAiQueryResult | null>(null)
 
-// 档案门类字典（categoryId 为整数），来源于全量字典
-const categoryOptions = ref<DictItem[]>([])
+// 档案门类字典（含 categoryId/categoryCode/categoryName），来源于全量字典
+interface CategoryOption {
+  categoryId: number
+  categoryCode: string
+  categoryName: string
+}
+const categoryOptions = ref<CategoryOption[]>([])
 const sourceOptions = [
   { value: 'transfer', label: '移交' },
   { value: 'collection', label: '征集' },
@@ -235,20 +239,32 @@ const sourceOptions = [
 const searchParams = reactive<PublicSearchParams>({})
 
 // 将 AI 生成的检索条件渲染为人类可读摘要
+// AI 返回字段（与后端 /public/archives/ai-query 契约一致）：
+//   keywords: string[]  关键词数组
+//   category: string    档案门类 code（如 audio_video）
+//   formedDateRange: [string|null, string|null]  起止日期（ISO）
+//   responsible: string|null  责任者
+//   securityLevelMax: number  最高密级（公众端恒为 0）
+//   openStatus: 'open'|...    公开状态（公众端恒为 open）
+//   carrierStatus: string|null  载体状态
 const aiSummary = computed(() => {
   const c = aiResult.value?.conditions as Record<string, unknown> | undefined
   if (!c) return '已生成检索条件，点击下方按钮执行检索。'
   const parts: string[] = []
-  if (c.keyword) parts.push(`关键词：${c.keyword}`)
-  if (c.title) parts.push(`题名：${c.title}`)
-  if (c.responsibleText) parts.push(`责任者：${c.responsibleText}`)
-  if (c.archiveNo) parts.push(`档号：${c.archiveNo}`)
-  if (c.formedYearStart || c.formedYearEnd) {
-    const start = c.formedYearStart ?? '不限'
-    const end = c.formedYearEnd ?? '至今'
-    parts.push(`年度：${start}-${end}`)
+  const kws = Array.isArray(c.keywords) ? (c.keywords as unknown[]).filter(Boolean) : []
+  if (kws.length > 0) parts.push(`关键词：${kws.join(' / ')}`)
+  if (c.category) {
+    const matched = categoryOptions.value.find((o) => o.categoryCode === c.category)
+    parts.push(`门类：${matched?.categoryName ?? String(c.category)}`)
   }
-  if (c.sourceType) parts.push(`来源：${sourceLabel(String(c.sourceType))}`)
+  if (Array.isArray(c.formedDateRange)) {
+    const [s, e] = c.formedDateRange as [unknown, unknown]
+    const sy = s ? String(s).slice(0, 4) : ''
+    const ey = e ? String(e).slice(0, 4) : ''
+    if (sy || ey) parts.push(`年度：${sy || '不限'}-${ey || '至今'}`)
+  }
+  if (c.responsible) parts.push(`责任者：${c.responsible}`)
+  if (c.carrierStatus) parts.push(`载体：${carrierLabel(String(c.carrierStatus))}`)
   if (parts.length === 0) return '已生成检索条件，点击下方按钮执行检索。'
   return parts.join('　')
 })
@@ -295,10 +311,52 @@ async function handleAiQuery() {
   }
 }
 
+// 将 AI 返回的检索条件映射为后端 /public/archives/search 接受的查询参数。
+// 后端 ArchiveSearchQuery 期望：keyword(单数 String)、categoryId(Integer)、
+// formedYearStart/End(Integer)、responsibleText、carrierStatus 等。
+// AI 输出 schema 与之不同（keywords 数组 / category code / formedDateRange 日期数组），
+// 在此层做适配，避免后端 DTO 与 AI 契约耦合。
 function applyAiConditions() {
   if (!aiResult.value) return
-  Object.assign(searchParams, aiResult.value.conditions)
-  handleSearch()
+  const c = aiResult.value.conditions as Record<string, unknown> | undefined
+  if (!c) return
+  // 先清空旧条件，避免上一次的手动筛选混入
+  Object.keys(searchParams).forEach((key) => delete (searchParams as Record<string, unknown>)[key])
+
+  // keywords 数组 → 取首个填入关键词框（满足"应用条件后表单填充"的视觉反馈）。
+  // 但 AI 应用条件的首次检索暂不下发 keyword：后端 keyword 是单字段 SQL like 连续子串匹配，
+  // AI 抽取的"老城改造"在数据中可能写作"老城区改造"，强制过滤会漏掉本应命中的档案。
+  // 结构化条件（门类/年度/责任者）更可靠，由它们兜底命中；关键词保留在表单框供用户
+  // 看见 AI 的抽词结果，用户若想用关键词缩小范围可自行点"检索"重新过滤。
+  const kws = Array.isArray(c.keywords) ? (c.keywords as unknown[]).filter((x): x is string => typeof x === 'string' && x.trim() !== '') : []
+  if (kws.length > 0) {
+    searchParams.keyword = kws[0]
+  }
+  // category code → categoryId（通过门类字典反查；查不到则忽略，避免下发后端无法识别的字符串）
+  if (typeof c.category === 'string' && c.category) {
+    const matched = categoryOptions.value.find((o) => o.categoryCode === c.category)
+    if (matched) searchParams.categoryId = matched.categoryId
+  }
+  // formedDateRange [start, end] → formedYearStart/End（取年份整数）
+  if (Array.isArray(c.formedDateRange)) {
+    const [s, e] = c.formedDateRange as [unknown, unknown]
+    const sy = s ? parseInt(String(s).slice(0, 4), 10) : NaN
+    const ey = e ? parseInt(String(e).slice(0, 4), 10) : NaN
+    if (!Number.isNaN(sy)) searchParams.formedYearStart = sy
+    if (!Number.isNaN(ey)) searchParams.formedYearEnd = ey
+  }
+  if (typeof c.responsible === 'string' && c.responsible.trim()) {
+    searchParams.responsibleText = c.responsible
+  }
+  if (typeof c.carrierStatus === 'string' && c.carrierStatus) {
+    searchParams.carrierStatus = c.carrierStatus
+  }
+  // 首次检索暂不下发 keyword（见上方注释），临时摘出后调 handleSearch，完成后再放回表单框显示。
+  const keywordToShow = searchParams.keyword
+  delete searchParams.keyword
+  handleSearch().finally(() => {
+    if (keywordToShow) searchParams.keyword = keywordToShow
+  })
 }
 
 async function handleSearch() {
@@ -357,9 +415,17 @@ async function handleDownload(fileId: number, filename: string) {
 
 onMounted(async () => {
   // 加载门类字典，供档案门类下拉使用
+  // 后端返回 categories: [{categoryId, categoryCode, categoryName, enabled}]
   try {
     const dict = await getDictionariesApi()
-    categoryOptions.value = dict.categories ?? []
+    const raw = (dict.categories ?? []) as Array<Record<string, unknown>>
+    categoryOptions.value = raw
+      .filter((c) => c.enabled !== false && c.categoryId != null)
+      .map((c) => ({
+        categoryId: Number(c.categoryId),
+        categoryCode: String(c.categoryCode ?? ''),
+        categoryName: String(c.categoryName ?? ''),
+      }))
   } catch {
     categoryOptions.value = []
   }
