@@ -150,10 +150,6 @@
               </select>
               <div class="hint">盒即架位，选择档案盒即确定其所在架位（括号内为架位号）。</div>
             </div>
-            <div class="detail-field">
-              <label>盒脊信息</label>
-              <input v-model="form.spine" placeholder="如 2025 会计凭证 01" />
-            </div>
           </template>
           <div v-else class="notice" style="margin-top:8px">纯电子档案无需盒号和架位。</div>
 
@@ -234,7 +230,6 @@ const form = reactive({
   categoryId: 0,
   tags: '',
   fondsId: 0,
-  spine: '',
   boxId: undefined as number | undefined,
 })
 
@@ -325,7 +320,6 @@ function syncFormFromItem(it: PendingItem) {
   form.categoryId = it.confirmedCategoryId || it.suggestedCategoryId || 0
   form.tags = (it.confirmedTags || it.suggestedTags || []).join(',')
   form.fondsId = (it as PendingItem & { fondsId?: number }).fondsId ?? 0
-  form.spine = it.spine || ''
   form.boxId = (it as PendingItem & { boxId?: number }).boxId
 }
 
