@@ -1,11 +1,15 @@
 package com.archive.controller;
 
+import com.archive.common.AuthContext;
+import com.archive.common.ErrorCode;
 import com.archive.common.PageResult;
 import com.archive.common.R;
 import com.archive.dto.request.BatchPageQuery;
 import com.archive.dto.request.CollectionRejectRequest;
 import com.archive.dto.request.CollectionScheduleRequest;
 import com.archive.dto.response.IntakeBatchResponse;
+import com.archive.enums.RoleCode;
+import com.archive.exception.BusinessException;
 import com.archive.service.IntakeBatchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +38,10 @@ public class CollectionManageController {
     @Operation(summary = "约定到馆时间")
     public R<IntakeBatchResponse> scheduleReceive(@PathVariable Long batchId,
                                                     @Valid @RequestBody CollectionScheduleRequest req) {
+        // 约定到馆时间为后台档案员职责，前台档案员不得直接调度
+        if (!(AuthContext.hasRole(RoleCode.back_archivist) || AuthContext.hasRole(RoleCode.sys_admin))) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "仅后台档案员可约定到馆时间");
+        }
         return R.ok(intakeBatchService.scheduleReceive(batchId, req));
     }
 

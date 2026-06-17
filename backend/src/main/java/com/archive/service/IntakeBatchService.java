@@ -804,7 +804,7 @@ public class IntakeBatchService {
         boolean isTransfer = sourceType == SourceType.transfer;
         return switch (status) {
             case draft -> "草稿";
-            case pending_transfer -> isTransfer ? "待移交" : "待移交";
+            case pending_transfer -> isTransfer ? "待移交" : "待接收";
             case pending_contact -> "待联系";
             case pending_receive -> "待接收";
             case received -> "已接收";

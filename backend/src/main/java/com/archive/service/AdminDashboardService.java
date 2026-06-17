@@ -83,8 +83,10 @@ public class AdminDashboardService {
 
     private DashboardTodos buildTodos() {
         DashboardTodos t = new DashboardTodos();
+        // 概览「待验收移交清单」统计已提交、尚未接收的移交/征集批次
+        // （submit 后状态由 draft 变为 pending_transfer，进入等待接收阶段）
         t.setPendingTransferReception(intakeBatchMapper.selectCount(
-                new QueryWrapper<IntakeBatch>().eq("status", BatchStatus.pending_receive.name())
+                new QueryWrapper<IntakeBatch>().eq("status", BatchStatus.pending_transfer.name())
                         .isNull("deleted_at")));
         t.setPendingArchive(intakeBatchMapper.selectCount(
                 new QueryWrapper<IntakeBatch>().in("status",
