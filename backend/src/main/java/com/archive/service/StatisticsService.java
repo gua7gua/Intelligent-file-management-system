@@ -104,11 +104,11 @@ public class StatisticsService {
                 Map.of("archived_at", "this_month")));
         long pendingShelf = count("SELECT COUNT(*) FROM archives WHERE deleted_at IS NULL AND lifecycle_status='pending_shelf'");
         list.add(metric("pendingShelf", "待入库/待上架", pendingShelf,
-                "已接收条目和 pending_shelf", "/admin/pending-archive",
+                "已接收条目和已入库未上架档案", "/admin/pending-archive",
                 Map.of("status", "pending_archive")));
         long pendingDestroy = count("SELECT COUNT(*) FROM destruction_lists WHERE deleted_at IS NULL AND status='pending_destroy'");
         list.add(metric("pendingDestroy", "待审批销毁清册", pendingDestroy,
-                "来自 destruction_lists", "/admin/destruction",
+                "来自销毁清册表", "/admin/destruction",
                 Map.of("status", "pending_approval")));
         return list;
     }
