@@ -41,6 +41,7 @@ public class IntakeBatchService {
     private final JdbcTemplate jdbcTemplate;
     private final com.archive.util.PdfGenerator pdfGenerator;
     private final com.archive.service.StagingFileService stagingFileService;
+    private final com.archive.mapper.OrganizationMapper organizationMapper;
 
     // ==================== 序列号 ====================
 
@@ -712,6 +713,11 @@ public class IntakeBatchService {
         resp.setStatus(batch.getStatus() != null ? batch.getStatus().name() : null);
         resp.setStatusText(resolveStatusText(batch.getSourceType(), batch.getStatus()));
         resp.setOrganizationId(batch.getOrganizationId());
+        // 解析移交/征集单位名称供详情头部展示（B4-4）
+        if (batch.getOrganizationId() != null) {
+            com.archive.entity.Organization org = organizationMapper.selectById(batch.getOrganizationId());
+            resp.setOrganizationName(org != null ? org.getOrgName() : null);
+        }
         resp.setDepartmentName(batch.getDepartmentName());
         resp.setPublicUserId(batch.getPublicUserId());
         resp.setContactName(batch.getContactName());

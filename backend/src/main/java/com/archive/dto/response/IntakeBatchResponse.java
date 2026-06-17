@@ -19,6 +19,8 @@ public class IntakeBatchResponse {
     private String status;
     private String statusText;
     private Long organizationId;
+    /** 移交/征集单位名称（按 organizationId 解析，供详情头部展示，B4-4）。 */
+    private String organizationName;
     private String departmentName;
     private Long publicUserId;
     private String contactName;
