@@ -43,7 +43,31 @@ export function searchPublicArchives(params?: PublicSearchParams): Promise<Publi
 
 export function getPublicArchiveDetail(archiveId: number): Promise<PublicArchiveDetail> {
   if (USE_MOCK) return import('@/mock/modules/public').then((m) => m.mockGetPublicArchiveDetail(archiveId))
-  return request.get(`/public/archives/${archiveId}`)
+  // 后端公开详情的电子文件字段为 fileId/originalFilename/fileExt/fileSize/mimeType/fileRole，
+  // 前端类型为 id/filename/fileFormat/fileSize，这里做一次字段映射，避免详情面板电子文件名缺失。
+  return request.get<unknown, PublicArchiveDetail>(`/public/archives/${archiveId}`).then((raw) => {
+    const r = raw as PublicArchiveDetail & {
+      files?: Array<{
+        fileId?: number
+        originalFilename?: string
+        fileExt?: string
+        fileSize?: number
+        mimeType?: string
+        fileRole?: string
+      }>
+    }
+    if (Array.isArray(r.files)) {
+      r.files = r.files.map((f) => ({
+        id: f.id ?? f.fileId ?? 0,
+        filename: f.filename ?? f.originalFilename ?? '',
+        fileFormat: f.fileFormat ?? f.fileExt ?? '',
+        fileSize: f.fileSize ?? 0,
+        canPreview: f.canPreview ?? false,
+        canDownload: f.canDownload ?? true,
+      }))
+    }
+    return r
+  })
 }
 
 export function generatePublicSearchQuery(data: PublicAiQueryRequest): Promise<PublicAiQueryResult> {

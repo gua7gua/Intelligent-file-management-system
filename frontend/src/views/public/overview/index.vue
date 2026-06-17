@@ -125,7 +125,7 @@
         </div>
       </section>
 
-      <p class="muted" style="margin-top: 14px">数据更新于 {{ overview.summarizedAt || '-' }}</p>
+      <p class="muted" style="margin-top: 14px">数据更新于 {{ formatDateTime(overview.summarizedAt) }}</p>
     </template>
   </div>
 </template>
@@ -182,6 +182,16 @@ function userStatusLabel(status: string): string {
 function accessTypeLabel(t: string): string {
   const map: Record<string, string> = { download: '下载', preview: '预览' }
   return map[t] || t
+}
+
+// 后端 summarizedAt 是带纳秒精度的 OffsetDateTime ISO 串（如 2026-06-16T22:49:08.99102Z），
+// 直接展示会让用户看到原始时间戳，统一格式化为本地可读时间。
+function formatDateTime(iso?: string | null): string {
+  if (!iso) return '-'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 onMounted(async () => {

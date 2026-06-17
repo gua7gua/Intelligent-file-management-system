@@ -179,7 +179,7 @@
         <div class="meta-item"><span>责任者</span><strong>{{ detailData.responsibleText }}</strong></div>
         <div class="meta-item"><span>分类</span><strong>{{ detailData.categoryName }}</strong></div>
         <div class="meta-item"><span>形成日期</span><strong>{{ detailData.formedDate }}</strong></div>
-        <div class="meta-item"><span>保管期限</span><strong>{{ detailData.retentionPeriod }}</strong></div>
+        <div class="meta-item"><span>保管期限</span><strong>{{ retentionPeriodLabel }}</strong></div>
       </div>
       <p style="margin-top: 12px">{{ detailData.summary }}</p>
 
@@ -264,6 +264,13 @@ const searchLoading = ref(false)
 const searchError = ref('')
 const searchResults = ref<{ records: (PublicArchive & { openStatus: 'open' })[]; total: number }>({ records: [], total: 0 })
 const detailData = ref<PublicArchiveDetail | null>(null)
+// 后端 retentionPeriod 当前可能为 null（未填），为空时显示「—」避免详情面板出现空白
+const retentionPeriodLabel = computed(() => {
+  const v = detailData.value?.retentionPeriod
+  if (!v) return '—'
+  const map: Record<string, string> = { '10y': '10 年', '30y': '30 年', permanent: '永久' }
+  return map[v] || v
+})
 
 function carrierLabel(status: string): string {
   const map: Record<string, string> = { electronic: '纯电子', paper_electronic: '纸质+电子', paper: '纯纸质' }
