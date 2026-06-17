@@ -358,16 +358,23 @@ public class PendingArchiveService {
             archiveFileService.stagingToFormal(archive, stagingFiles);
         }
 
-        // 7. 纸质相关档案：装盒预占
+        // 7. 纸质相关档案：装盒预占（盒即架位，locationId 由档案盒决定，不再单独要求，B5-D1 方案 A）
         if (!isElectronic) {
-            if (req.getBoxId() == null || req.getLocationId() == null) {
+            if (req.getBoxId() == null) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "纸质相关档案必须提供盒号和架位");
+                        "纸质相关档案必须提供档案盒");
             }
 
             ArchiveBox box = archiveBoxMapper.selectById(req.getBoxId());
             if (box == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "档案盒不存在");
+            }
+
+            // 盒满校验：盒已满则拒绝入库，避免超容量装盒（B5-D1 方案 A）
+            if (box.getCapacity() != null && box.getUsedCount() != null
+                    && box.getUsedCount() >= box.getCapacity()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                        "档案盒已满，请选择其他档案盒");
             }
 
             // 校验同盒分类/全宗一致
