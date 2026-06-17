@@ -24,9 +24,14 @@ public class DictionaryService {
                         "enabled", r.getEnabled()))
                 .collect(Collectors.toList()));
         dict.put("categories", categoryMapper.selectList(null).stream()
-                .map(c -> Map.of("categoryCode", (Object) c.getCategoryCode(),
-                        "categoryName", c.getCategoryName(),
-                        "enabled", c.getEnabled()))
+                .map(c -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("categoryId", c.getId());
+                    m.put("categoryCode", c.getCategoryCode());
+                    m.put("categoryName", c.getCategoryName());
+                    m.put("enabled", c.getEnabled());
+                    return m;
+                })
                 .collect(Collectors.toList()));
         return dict;
     }
