@@ -10,6 +10,7 @@ const numberRanges: Record<string, [number, number]> = {
   'upload.max_file_size_mb': [1, 2048],
   'warehouse.usage_warning_threshold': [0, 1],
   'borrow.default_days': [1, 90],
+  'sms.code_cooldown_seconds': [5, 600],
 }
 
 /** 校验待保存的配置项集合（仅 editable 项） */

@@ -144,17 +144,18 @@ export function mockCreateAppraisalBatch(data: AppraisalBatchCreateData): Apprai
     batchName: data.batchName,
     categoryId: data.categoryId,
     categoryName: data.categoryId === 3 ? '会计档案' : '未分类',
-    formedYearStart: data.formedYearStart,
-    formedYearEnd: data.formedYearEnd,
+    formedYearStart: undefined,
+    formedYearEnd: undefined,
+    dueDays: data.dueDays,
     status: 'draft',
     hitCount: 3,
     destroyCount: 0,
     extendCount: 0,
     createdAt: '2026-06-15T15:00:00+08:00',
     items: [
-      baseItem(501, 'ARC-000501', `${data.formedYearStart ?? ''} 年待鉴定档案一`, ''),
-      baseItem(502, 'ARC-000502', `${data.formedYearStart ?? ''} 年待鉴定档案二`, ''),
-      baseItem(503, 'ARC-000503', `${data.formedYearStart ?? ''} 年待鉴定档案三`, ''),
+      baseItem(501, 'ARC-000501', `到期窗口 ${data.dueDays ?? 0} 天待鉴定档案一`, ''),
+      baseItem(502, 'ARC-000502', `到期窗口 ${data.dueDays ?? 0} 天待鉴定档案二`, ''),
+      baseItem(503, 'ARC-000503', `到期窗口 ${data.dueDays ?? 0} 天待鉴定档案三`, ''),
     ],
   }
   return detail

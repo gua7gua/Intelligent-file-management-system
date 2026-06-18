@@ -75,6 +75,15 @@
           </div>
 
           <div class="card panel">
+            <h2 class="section-title">短信验证</h2>
+            <div class="config-row">
+              <div class="config-key"><strong>验证码发送冷却</strong></div>
+              <div class="field"><label>同一手机号两次发码最小间隔（秒，5-600）</label><input type="number" min="5" max="600" v-model.number="smsCooldownSeconds" /></div>
+            </div>
+            <div class="notice" style="margin-top:12px">间隔过短会增加短信刷量风险；联调测试可临时调小（如 5 秒）便于反复发码验证。</div>
+          </div>
+
+          <div class="card panel">
             <h2 class="section-title">配置项明细</h2>
             <div class="table-wrap">
               <table>
@@ -129,6 +138,7 @@ const publicEnabled = ref(true)
 const warehouseThreshold = ref(85)
 const borrowDays = ref(14)
 const agreementText = ref('')
+const smsCooldownSeconds = ref(60)
 
 const editableCount = computed(() => configs.value.filter((c) => c.editable).length)
 
@@ -140,6 +150,7 @@ function displayValue(c: SystemConfig): string {
   if (c.configKey === 'warehouse.usage_warning_threshold') return String(warehouseThreshold.value)
   if (c.configKey === 'borrow.default_days') return String(borrowDays.value)
   if (c.configKey === 'collection.agreement_text') return agreementText.value ? '捐赠协议文案' : '-'
+  if (c.configKey === 'sms.code_cooldown_seconds') return String(smsCooldownSeconds.value) + ' 秒'
   return c.configValue
 }
 
@@ -162,6 +173,7 @@ function hydrateFromConfigs() {
     else if (c.configKey === 'warehouse.usage_warning_threshold') warehouseThreshold.value = Number(c.configValue)
     else if (c.configKey === 'borrow.default_days') borrowDays.value = Number(c.configValue)
     else if (c.configKey === 'collection.agreement_text') agreementText.value = c.configValue
+    else if (c.configKey === 'sms.code_cooldown_seconds') smsCooldownSeconds.value = Number(c.configValue)
   }
 }
 
@@ -215,6 +227,7 @@ async function saveConfig() {
     { configKey: 'warehouse.usage_warning_threshold', configValue: String(warehouseThreshold.value), valueType: 'number', editable: true },
     { configKey: 'borrow.default_days', configValue: String(borrowDays.value), valueType: 'number', editable: true },
     { configKey: 'collection.agreement_text', configValue: agreementText.value, valueType: 'string', editable: true },
+    { configKey: 'sms.code_cooldown_seconds', configValue: String(smsCooldownSeconds.value), valueType: 'number', editable: true },
   ]
   const result = validateConfigs(items)
   if (!result.valid) {

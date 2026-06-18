@@ -213,7 +213,13 @@ export function getArchives(
       }
     })
   }
-  return request.get('/admin/archives', { params })
+  return request.get('/admin/archives', { params }).then((res: PageData<ArchiveRecord & { tagNames?: string[] }>) => {
+    // 后端 ArchiveResponse 返回 tagNames，前端列表模板绑定 tags —— 对齐字段，与详情映射一致
+    if (res?.records) {
+      res.records = res.records.map((r) => ({ ...r, tags: r.tagNames ?? r.tags ?? [] }))
+    }
+    return res
+  })
 }
 
 /** 获取档案详情 */

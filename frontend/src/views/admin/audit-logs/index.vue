@@ -42,11 +42,11 @@
           </thead>
           <tbody>
             <tr v-for="l in records" :key="l.id">
-              <td class="mono">{{ l.operatedAt }}</td>
+              <td class="mono">{{ l.operatedAt ? new Date(l.operatedAt).toLocaleString('zh-CN') : '-' }}</td>
               <td>{{ l.actorName || `用户#${l.actorUserId}` }}</td>
               <td>{{ actorTypeLabel[l.actorType] || l.actorType }}</td>
               <td>{{ l.moduleLabel || l.moduleName }}</td>
-              <td>{{ operationTypeLabel[l.operationType] || l.operationType }}</td>
+              <td>{{ l.operationLabel || operationTypeLabel[l.operationType] || l.operationType }}</td>
               <td>{{ businessTypeLabel[l.businessType || ''] || l.businessType || '-' }}</td>
               <td>{{ l.archiveNo || (l.businessId != null ? `#${l.businessId}` : '-') }}</td>
               <td class="mono">{{ l.ipAddress || '-' }}</td>
@@ -193,7 +193,7 @@ function exportLogs() {
     actor: l.actorName || `用户#${l.actorUserId}`,
     actorType: actorTypeLabel[l.actorType] || l.actorType,
     moduleName: l.moduleLabel || l.moduleName,
-    operationType: l.operationType,
+    operationType: l.operationLabel || operationTypeLabel[l.operationType] || l.operationType,
     businessType: l.businessType ?? '',
     businessRef: l.archiveNo || (l.businessId != null ? `#${l.businessId}` : ''),
     ipAddress: l.ipAddress ?? '',

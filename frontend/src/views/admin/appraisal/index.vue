@@ -46,7 +46,7 @@
           <div class="batch-meta">
             <span>{{ b.batchNo }}</span>
             <span>{{ b.categoryName || '全部分类' }}</span>
-            <span>{{ b.formedYearStart }}{{ b.formedYearEnd && b.formedYearEnd !== b.formedYearStart ? '-' + b.formedYearEnd : '' }} 年度</span>
+            <span>{{ b.dueDays != null ? `到期窗口 ${b.dueDays} 天` : (b.formedYearStart ? `${b.formedYearStart}${b.formedYearEnd && b.formedYearEnd !== b.formedYearStart ? '-' + b.formedYearEnd : ''} 年度` : '—') }}</span>
           </div>
           <div class="batch-meta">
             <span>命中 {{ b.hitCount }} 件</span>
@@ -80,7 +80,7 @@
         <template v-else>
           <h2 class="section-title">{{ batchDetail.batchName }}（{{ batchDetail.batchNo }}）</h2>
           <div class="detail-kv"><span>分类范围</span><strong>{{ batchDetail.categoryName || '全部分类' }}</strong></div>
-          <div class="detail-kv"><span>年度范围</span><strong>{{ batchDetail.formedYearStart }}–{{ batchDetail.formedYearEnd }}</strong></div>
+          <div class="detail-kv"><span>鉴定范围</span><strong>{{ batchDetail.dueDays != null ? `保管期限到期 ≤ 今天 + ${batchDetail.dueDays} 天（含已过期）` : (batchDetail.formedYearStart ? `${batchDetail.formedYearStart}–${batchDetail.formedYearEnd ?? batchDetail.formedYearStart} 年度` : '—') }}</strong></div>
           <div class="detail-kv"><span>命中</span><strong>{{ batchDetail.hitCount }} 件（待销毁 {{ batchDetail.destroyCount ?? 0 }} / 延长 {{ batchDetail.extendCount ?? 0 }}）</strong></div>
 
           <h3 class="section-title" style="margin-top:12px">鉴定明细</h3>
@@ -163,15 +163,10 @@
           <option v-for="cat in categoryTree.filter(c => c.id > 0)" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
         </select>
       </div>
-      <div class="split">
-        <div class="field">
-          <label>形成年度起</label>
-          <input v-model.number="createForm.formedYearStart" type="number" placeholder="2014" />
-        </div>
-        <div class="field">
-          <label>形成年度止</label>
-          <input v-model.number="createForm.formedYearEnd" type="number" placeholder="2014" />
-        </div>
+      <div class="field">
+        <label>到期窗口（天）</label>
+        <input v-model.number="createForm.dueDays" type="number" min="0" max="3650" placeholder="如 365 表示未来一年内到期" />
+        <small class="hint">命中保管期限到期日 ≤ 今天 + 该天数的档案（含已过期未处理）；填 0 表示只圈已过期。</small>
       </div>
       <template #footer>
         <el-button @click="createVisible = false">取消</el-button>
@@ -223,7 +218,7 @@ const detailLoading = ref(false)
 const draftCount = computed(() => batches.value.filter((b) => b.status === 'draft').length)
 
 const createVisible = ref(false)
-const createForm = reactive({ batchName: '', categoryId: 0, formedYearStart: undefined as number | undefined, formedYearEnd: undefined as number | undefined })
+const createForm = reactive({ batchName: '', categoryId: 0, dueDays: 365 as number })
 
 async function loadBatches() {
   listLoading.value = true
@@ -265,8 +260,7 @@ async function selectBatch(id: number) {
 function openCreate() {
   createForm.batchName = ''
   createForm.categoryId = 0
-  createForm.formedYearStart = undefined
-  createForm.formedYearEnd = undefined
+  createForm.dueDays = 365
   createVisible.value = true
 }
 
@@ -275,12 +269,15 @@ async function handleCreate() {
     ElMessage.warning('请填写批次名称。')
     return
   }
+  if (createForm.dueDays == null || createForm.dueDays < 0) {
+    ElMessage.warning('请填写有效的到期窗口天数（0 或正整数）。')
+    return
+  }
   try {
     const detail = await createAppraisalBatch({
       batchName: createForm.batchName.trim(),
       categoryId: createForm.categoryId || undefined,
-      formedYearStart: createForm.formedYearStart,
-      formedYearEnd: createForm.formedYearEnd,
+      dueDays: createForm.dueDays,
     })
     createVisible.value = false
     ElMessage.success('鉴定批次已创建，已拉入命中档案。')

@@ -185,34 +185,24 @@ async function saveDraft() {
   }
 }
 
-async function generateBody() {
+// D3：合并「生成正文」+「确认纯电子入库」为一键操作：尚未生成正文则先生成，再入库。
+async function generateAndArchive() {
   if (!currentDetail.value) { ElMessage.warning('请先保存草稿'); return }
-  generating.value = true
-  try {
-    const d = await generateCompilationBody(currentDetail.value.id)
-    fillForm(d)
-    await load()
-    ElMessage.success('正文文件已生成')
-  } catch (e) {
-    ElMessage.warning((e as Error).message)
-  } finally {
-    generating.value = false
-  }
-}
-
-async function archive() {
-  if (!currentDetail.value) return
-  if (status.value !== 'generated') { ElMessage.warning('请先生成正文文件'); return }
-  if (!summary.value.trim()) { ElMessage.warning('请填写摘要'); return }
-  if (selectedMaterials.value.length === 0) { ElMessage.warning('请添加至少一个素材'); return }
+  if (selectedMaterials.value.length === 0) { ElMessage.warning('请添加至少一个素材后再入库'); return }
   if (archiveForm.fondsId === 0) { ElMessage.warning('请选择所属全宗后再入库'); return }
   if (!archiveForm.formedDate) { ElMessage.warning('请填写形成日期后再入库'); return }
   try {
-    await ElMessageBox.confirm('确认纯电子入库？入库后生成正式档号且不可再编辑。', '确认入库', { type: 'warning' })
+    await ElMessageBox.confirm('将生成正文文件并确认纯电子入库，入库后生成正式档号且不可再编辑。', '生成正文并入库', { type: 'warning' })
   } catch {
     return
   }
+  generating.value = true
   try {
+    // 尚未生成正文时先生成（status=draft），生成后 status 变为 generated
+    if (status.value !== 'generated') {
+      const g = await generateCompilationBody(currentDetail.value.id)
+      fillForm(g)
+    }
     const d = await archiveCompilation(currentDetail.value.id, {
       fondsId: archiveForm.fondsId,
       categoryId: archiveForm.categoryId,
@@ -223,14 +213,23 @@ async function archive() {
     })
     fillForm(d)
     await load()
-    ElMessage.success(`已入库，正式档号 ${d.archiveNo}`)
+    ElMessage.success(`已生成正文并入库，正式档号 ${d.archiveNo}`)
   } catch (e) {
     ElMessage.warning((e as Error).message)
+  } finally {
+    generating.value = false
   }
 }
 
 async function search() {
-  const page = await searchMaterials({ keyword: searchKeyword.value, pageSize: 50 })
+  // 6.14：检索框为空时不返回全部档号，提示并清空候选
+  const kw = searchKeyword.value.trim()
+  if (!kw) {
+    candidates.value = []
+    ElMessage.warning('请输入题名或档号后再查询。')
+    return
+  }
+  const page = await searchMaterials({ keyword: kw, pageSize: 50 })
   candidates.value = page.records
 }
 
@@ -351,14 +350,6 @@ onMounted(() => {
               <label>时间范围</label>
               <input v-model="dateRangeText" :disabled="isReadonly" placeholder="如 2014-2025" />
             </div>
-            <div class="field">
-              <label>关键词</label>
-              <input v-model="keywords" :disabled="isReadonly" />
-            </div>
-          </div>
-          <div class="field" style="margin-top:12px">
-            <label>摘要</label>
-            <textarea v-model="summary" :disabled="isReadonly" rows="2"></textarea>
           </div>
           <div ref="editorRef" class="editor-surface" :contenteditable="isReadonly ? 'false' : 'true'" style="margin-top:12px"></div>
         </div>
@@ -385,19 +376,25 @@ onMounted(() => {
               <span class="hint">系统按档号校验档案存在、未销毁且当前管理员有权查看，校验通过后加入素材列表。</span>
             </div>
           </div>
-          <ul class="candidate-list" v-if="candidates.length">
-            <li v-for="c in candidates" :key="c.id">
-              <span class="mono">{{ c.archiveNo }}</span> {{ c.title }}
-              <button class="button ghost" @click="addMaterial(c)">添加</button>
-            </li>
-          </ul>
-          <ul class="material-list" style="margin-top:12px">
-            <li v-for="m in selectedMaterials" :key="m.id">
-              <strong>档号 {{ m.archiveNo }} · {{ m.title }}</strong>
-              <button class="button ghost" :disabled="isReadonly" @click="removeMaterial(m.id)">移除</button>
-            </li>
-            <li v-if="!selectedMaterials.length" class="muted">暂无素材引用。</li>
-          </ul>
+          <div v-if="candidates.length" class="material-group">
+            <h3 class="group-title">检索结果（可添加）</h3>
+            <ul class="candidate-list">
+              <li v-for="c in candidates" :key="c.id">
+                <span class="mono">{{ c.archiveNo }}</span> {{ c.title }}
+                <button class="button ghost" @click="addMaterial(c)">添加</button>
+              </li>
+            </ul>
+          </div>
+          <div class="material-group" style="margin-top:14px">
+            <h3 class="group-title">已引用素材</h3>
+            <ul class="material-list">
+              <li v-for="m in selectedMaterials" :key="m.id">
+                <strong>档号 {{ m.archiveNo }} · {{ m.title }}</strong>
+                <button class="button ghost" :disabled="isReadonly" @click="removeMaterial(m.id)">移除</button>
+              </li>
+              <li v-if="!selectedMaterials.length" class="muted">暂无素材引用。</li>
+            </ul>
+          </div>
         </div>
 
         <div class="card panel">
@@ -442,8 +439,7 @@ onMounted(() => {
             </div>
           </div>
           <div class="actions" style="margin-top:14px">
-            <button class="button secondary" :disabled="isReadonly || generating || !currentDetail" @click="generateBody"><span class="icon">G</span>生成正文文件</button>
-            <button class="button" :disabled="status !== 'generated'" @click="archive"><span class="icon">A</span>确认纯电子入库</button>
+            <button class="button" :disabled="isReadonly || generating || !currentDetail" @click="generateAndArchive"><span class="icon">A</span>生成正文并入库</button>
           </div>
         </div>
       </aside>
@@ -465,6 +461,10 @@ onMounted(() => {
 .row { display: flex; gap: 8px; }
 .candidate-list, .material-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 .candidate-list li, .material-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+/* 6.10：可添加与已引用素材物理分区，避免误点对方分区的按钮 */
+.material-group { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fafbfc; }
+.material-group + .material-group { margin-top: 14px; }
+.group-title { font-size: 13px; font-weight: 700; margin: 0 0 4px; color: #303133; }
 .check-row { display: grid; gap: 8px; }
 .check-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
 .actions { display: flex; align-items: center; gap: 8px; }

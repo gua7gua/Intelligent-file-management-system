@@ -179,7 +179,8 @@
                 <td>{{ carrierStatusLabel(item.carrierStatus) }}</td>
                 <td class="mono">{{ item.expectedFilename || '无电子文件' }}</td>
                 <td>
-                  <select v-model="item.paperCheckStatus">
+                  <span v-if="item.carrierStatus === 'electronic'" class="status success">无需（纯电子）</span>
+                  <select v-else v-model="item.paperCheckStatus">
                     <option value="pending">待核对</option>
                     <option value="passed">通过</option>
                     <option value="failed">异常</option>
@@ -400,6 +401,12 @@ async function loadBatches() {
 async function selectBatch(batchId: number) {
   try {
     activeBatch.value = await getReceptionBatchDetail(batchId)
+    // 5.1：纯电子条目无纸质件，纸质核对固定为「通过」，避免误导并解除核对阻塞
+    activeBatch.value.items.forEach((item) => {
+      if (item.carrierStatus === 'electronic') {
+        item.paperCheckStatus = 'passed'
+      }
+    })
   } catch {
     ElMessage.error('加载批次详情失败')
   }

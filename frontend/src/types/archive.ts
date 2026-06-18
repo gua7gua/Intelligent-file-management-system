@@ -89,7 +89,7 @@ export interface ConfirmItemData {
 
 /** 入库请求 */
 export interface ArchiveItemData {
-  fondsId: number
+  fondsId?: number
   boxId?: number
   locationId?: number
   sortNo?: number

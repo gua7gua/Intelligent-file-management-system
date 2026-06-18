@@ -62,6 +62,7 @@
           <div class="actions" style="margin-top:12px">
             <el-button type="primary" @click="handleSearch">查询</el-button>
             <el-button @click="handleReset">重置</el-button>
+            <label class="inline-toggle"><input type="checkbox" v-model="showDestroyed" @change="handleSearch" /><span>显示已销毁</span></label>
           </div>
         </div>
 
@@ -258,6 +259,8 @@ const query = reactive({
   openStatus: '',
   carrierStatus: '',
 })
+// D2：已销毁档案默认隐藏，勾选后携带 includeDestroyed=true 拉取
+const showDestroyed = ref(false)
 const archives = ref<ArchiveRecord[]>([])
 const selectedArchive = ref<ArchiveRecord | null>(null)
 const detail = ref<ArchiveDetail | null>(null)
@@ -326,6 +329,7 @@ async function loadArchives() {
     if (query.openStatus) params.openStatus = query.openStatus
     if (query.carrierStatus) params.carrierStatus = query.carrierStatus
     if (selectedCategoryId.value > 0) params.categoryId = selectedCategoryId.value
+    if (showDestroyed.value) params.includeDestroyed = true
     const res = await getArchives(params)
     archives.value = res.records
     total.value = res.total
@@ -363,6 +367,7 @@ function handleReset() {
   query.securityLevel = ''
   query.openStatus = ''
   query.carrierStatus = ''
+  showDestroyed.value = false
   pageNo.value = 1
   loadArchives()
 }
@@ -567,7 +572,10 @@ tr.row-active {
   gap: 8px;
   margin-top: 8px;
   flex-wrap: wrap;
+  align-items: center;
 }
+.inline-toggle { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: 13px; color: #606266; cursor: pointer; }
+.inline-toggle input { width: 16px; height: 16px; }
 
 .notice.warning {
   padding: 8px 10px;

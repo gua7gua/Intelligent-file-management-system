@@ -135,7 +135,7 @@
           <div class="detail-field">
             <label>所属全宗</label>
             <select v-model="form.fondsId">
-              <option :value="0">请选择</option>
+              <option :value="0">无（暂不归属全宗）</option>
               <option v-for="f in fondsOptions" :key="f.id" :value="f.id">{{ f.fondsNo }} · {{ f.fondsName }}</option>
             </select>
           </div>
@@ -146,9 +146,9 @@
               <label>档案盒</label>
               <select v-model="form.boxId">
                 <option :value="undefined">请选择</option>
-                <option v-for="b in boxOptions" :key="b.id" :value="b.id">{{ b.boxNo }}（{{ b.locationCode }}）</option>
+                <option v-for="b in filteredBoxOptions" :key="b.id" :value="b.id">{{ b.boxNo }}（{{ b.locationCode }}）</option>
               </select>
-              <div class="hint">盒即架位，选择档案盒即确定其所在架位（括号内为架位号）。</div>
+              <div class="hint">仅展示与当前分类一致的档案盒；盒即架位，括号内为架位号。</div>
             </div>
           </template>
           <div v-else class="notice" style="margin-top:8px">纯电子档案无需盒号和架位。</div>
@@ -236,6 +236,12 @@ const form = reactive({
 // 入库选项：全宗 / 档案盒（盒即架位，来自库房主数据，提供真实 ID）
 const fondsOptions = ref<FondsItem[]>([])
 const boxOptions = ref<ArchiveBox[]>([])
+
+// 6.4：档案盒按当前条目分类过滤，只展示同分类的盒（盒与档案分类必须一致）
+const filteredBoxOptions = computed(() => {
+  if (form.categoryId === 0) return boxOptions.value
+  return boxOptions.value.filter((b) => b.categoryId === form.categoryId)
+})
 
 async function loadArchiveOptions() {
   try {
@@ -425,10 +431,7 @@ async function handleArchive() {
     ElMessage.warning('请选择分类后再入库。')
     return
   }
-  if (form.fondsId === 0) {
-    ElMessage.warning('请选择所属全宗后再入库。')
-    return
-  }
+  // 6.3：所属全宗非必填，无全宗档案可跳过（fonds_id 列可空）
   if (activeItem.value.carrierStatus !== 'electronic') {
     if (!form.boxId) {
       ElMessage.warning('纸质档案入库前必须选择档案盒。')
@@ -458,7 +461,7 @@ async function handleArchive() {
       }
     }
     const result = await archiveItem(activeItem.value.id, {
-      fondsId: form.fondsId,
+      fondsId: form.fondsId || undefined,
       boxId: form.boxId,
     })
     ElMessage.success(`${activeItem.value.inputTitle} 已入库，档号 ${result.archiveNo}。`)
@@ -493,6 +496,10 @@ function onCategoryChange(e: Event) {
   const raw = (e.target as HTMLSelectElement).value
   const num = Number(raw)
   form.categoryId = Number.isNaN(num) ? 0 : num
+  // 6.4：分类变更后，已选档案盒可能不属于新分类，重置以避免「分类不一致」冲突
+  if (form.boxId && !filteredBoxOptions.value.some((b) => b.id === form.boxId)) {
+    form.boxId = undefined
+  }
 }
 
 onMounted(() => {

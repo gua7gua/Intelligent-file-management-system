@@ -76,11 +76,12 @@
                 <div><span>借阅状态</span><strong>{{ detail.checkLoan ?? '—' }}</strong></div>
                 <div><span>盘点范围</span><strong>{{ detail.checkInventory ?? '—' }}</strong></div>
               </div>
-              <div class="field" style="margin-top:12px"><label>拒绝/退回原因</label><textarea v-model="rejectReason" placeholder="不可借时填写原因"></textarea></div>
-              <div class="actions">
+              <div v-if="canApprove" class="field" style="margin-top:12px"><label>拒绝/退回原因</label><textarea v-model="rejectReason" placeholder="不可借时填写原因"></textarea></div>
+              <div v-if="canApprove" class="actions">
                 <button class="button" :disabled="detail.status !== 'applied'" @click="onApprove(true)">审批通过</button>
                 <button class="button danger" :disabled="detail.status !== 'applied'" @click="onApprove(false)">审批拒绝</button>
               </div>
+              <div v-else class="notice" style="margin-top:12px">审批由档案管理岗操作；本账号负责到馆核验、凭证出库与归还。</div>
             </div>
 
             <div class="card panel">
@@ -116,6 +117,12 @@ import {
   getBorrowApprovalDetail, getBorrowApprovals, returnBorrowRequest,
 } from '@/api/borrow-approval'
 import { validateBorrowApprove, validateBorrowCheckout, validateBorrowReturn } from '@/utils/borrowApprovalValidation'
+import { useAuthStore } from '@/stores/auth'
+
+// 借阅审批（通过/拒绝）仅档案管理岗 back_archivist 有权；前台 front_archivist 仅做凭证出库与归还。
+// 按角色隐藏审批按钮，避免前台点击后命中后端「无权限操作」。
+const authStore = useAuthStore()
+const canApprove = computed(() => authStore.hasRole('back_archivist'))
 
 type FilterStatus = 'applied' | 'approved' | 'checked_out' | 'returned'
 

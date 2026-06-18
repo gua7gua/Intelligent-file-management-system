@@ -39,8 +39,7 @@ describe('appraisal api mock mode', () => {
     const created = await createAppraisalBatch({
       batchName: '测试批次',
       categoryId: 3,
-      formedYearStart: 2016,
-      formedYearEnd: 2016,
+      dueDays: 365,
     })
     expect(created.status).toBe('draft')
     expect(created.items.length).toBeGreaterThan(0)
