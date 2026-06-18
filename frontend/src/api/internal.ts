@@ -45,10 +45,10 @@ export function generateInternalAiQuery(data: InternalAiQueryRequest): Promise<I
   return request.post('/internal/archives/ai-query', data)
 }
 
-/** 11.5 内部预览电子文件 */
-export function previewInternalFile(fileId: number): Promise<string> {
+/** 11.5 内部预览电子文件（返回 Blob，供 FilePreview 组件渲染） */
+export function previewInternalFile(fileId: number): Promise<Blob> {
   if (USE_MOCK) return import('@/mock/modules/internal').then((m) => m.mockPreviewInternalFile(fileId))
-  return request.get(`/internal/archive-files/${fileId}/preview`)
+  return request.get(`/internal/archive-files/${fileId}/preview`, { responseType: 'blob' }) as Promise<Blob>
 }
 
 /** 11.6 内部下载电子文件 */

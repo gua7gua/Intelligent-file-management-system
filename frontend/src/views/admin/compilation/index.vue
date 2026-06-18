@@ -16,6 +16,11 @@ const errorMsg = ref('')
 const filterStatus = ref<'' | 'draft' | 'generated' | 'archived'>('')
 const filterKeyword = ref('')
 
+// ── 分页（编研成果列表） ──
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
 const currentDetail = ref<CompilationDetail | null>(null)
 const title = ref('')
 const compilationType = ref('专题汇编')
@@ -115,8 +120,9 @@ async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const page = await getCompilations({ pageSize: 50 })
+    const page = await getCompilations({ pageNo: pageNo.value, pageSize: pageSize.value })
     list.value = page.records
+    total.value = page.total
     if (list.value.length && !currentDetail.value) await openEdit(list.value[0])
   } catch (e) {
     errorMsg.value = (e as Error).message || '编研成果加载失败'
@@ -288,6 +294,17 @@ onMounted(() => {
                 <tr v-if="!filtered.length"><td colspan="8" class="muted" style="text-align:center;padding:16px;">暂无编研成果。</td></tr>
               </tbody>
             </table>
+            <div v-if="total > 0" style="display:flex;justify-content:flex-end;margin-top:12px">
+              <el-pagination
+                v-model:current-page="pageNo"
+                v-model:page-size="pageSize"
+                :total="total"
+                :page-sizes="[10, 20, 50, 100]"
+                layout="total, sizes, prev, pager, next, jumper"
+                @size-change="load"
+                @current-change="load"
+              />
+            </div>
           </div>
         </div>
 

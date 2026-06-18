@@ -19,6 +19,11 @@ const newTaskType = ref<AnalysisTaskTypeValue>('mixed')
 const newIncludeAi = ref(true)
 const filterStatus = ref<'' | 'running' | 'completed' | 'failed'>('')
 
+// ── 分页（任务列表） ──
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
 // 扫描范围：档案门类多选 + 形成年度范围。
 // 门类 id 与档案管理页 categoryTree 一致（1=文书 2=科技 3=会计 4=音像 5=人事）。
 const scanCategories = [
@@ -39,8 +44,9 @@ async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const page = await getAnalysisTasks({ pageSize: 50 })
+    const page = await getAnalysisTasks({ pageNo: pageNo.value, pageSize: pageSize.value })
     tasks.value = page.records
+    total.value = page.total
     if (tasks.value.length) await selectTask(tasks.value[0].id)
   } catch (e) {
     errorMsg.value = (e as Error).message || '研判任务加载失败'
@@ -210,6 +216,17 @@ onMounted(load)
               <span class="muted">{{ t.abnormalCount }} 项</span>
             </li>
           </ul>
+          <div v-if="total > 0" style="display:flex;justify-content:flex-end;margin-top:12px">
+            <el-pagination
+              v-model:current-page="pageNo"
+              v-model:page-size="pageSize"
+              :total="total"
+              :page-sizes="[10, 20, 50, 100]"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="load"
+              @current-change="load"
+            />
+          </div>
         </div>
 
         <div class="card panel">

@@ -40,6 +40,17 @@
             <span class="task-meta"><span>已核对 {{ t.checked }} 件</span><span class="status" :class="taskStatusClass(t.status)">{{ InventoryTaskStatusLabel[t.status] }}</span></span>
           </button>
         </div>
+        <div v-if="total > 0" style="display:flex;justify-content:flex-end;margin-top:12px">
+          <el-pagination
+            v-model:current-page="pageNo"
+            v-model:page-size="pageSize"
+            :total="total"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="loadTasks"
+            @current-change="loadTasks"
+          />
+        </div>
       </aside>
 
       <section class="card panel">
@@ -146,6 +157,11 @@ const listLoading = ref(false)
 const loadError = ref(false)
 const taskFilter = ref<InventoryTaskStatusValue>('running')
 
+// ── 分页（任务列表） ──
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
 const selectedId = ref<number | null>(null)
 const detail = ref<InventoryTaskDetail | null>(null)
 const detailLoading = ref(false)
@@ -224,8 +240,9 @@ async function loadTasks() {
   listLoading.value = true
   loadError.value = false
   try {
-    const page = await getInventoryTasks({ pageSize: 100 })
+    const page = await getInventoryTasks({ pageNo: pageNo.value, pageSize: pageSize.value })
     allTasks.value = page.records
+    total.value = page.total
   } catch {
     loadError.value = true
   } finally {

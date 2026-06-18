@@ -76,6 +76,17 @@
                 </tr>
               </tbody>
             </table>
+            <div v-if="total > 0" style="display:flex;justify-content:flex-end;margin-top:12px">
+              <el-pagination
+                v-model:current-page="pageNo"
+                v-model:page-size="pageSize"
+                :total="total"
+                :page-sizes="[10, 20, 50, 100]"
+                layout="total, sizes, prev, pager, next, jumper"
+                @size-change="loadAll"
+                @current-change="loadAll"
+              />
+            </div>
           </div>
         </div>
 
@@ -150,6 +161,11 @@ const loading = ref(false)
 const loadError = ref(false)
 const saving = ref(false)
 
+// ── 分页 ──
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
 const filters = reactive({ keyword: '', orgFilter: '' as number | '', relation: '' as '' | 'linked' | 'empty' | 'disabled' })
 const applied = reactive({ keyword: '', orgFilter: '' as number | '', relation: '' as '' | 'linked' | 'empty' | 'disabled' })
 
@@ -158,7 +174,7 @@ const selectedId = ref<number | null>(null)
 const form = reactive({ fondsNo: '', fondsName: '', organizationId: undefined as number | undefined, description: '' })
 
 const metrics = computed(() => ({
-  total: list.value.length,
+  total: total.value,
   active: list.value.filter((f) => f.status === 'active').length,
   archiveSum: list.value.reduce((s, f) => s + f.archiveCount, 0),
   boxSum: list.value.reduce((s, f) => s + f.boxCount, 0),
@@ -183,10 +199,11 @@ async function loadAll() {
   loadError.value = false
   try {
     const [f, o] = await Promise.all([
-      getFonds({ keyword: applied.keyword || undefined, organizationId: applied.orgFilter || undefined, relation: applied.relation || undefined }),
+      getFonds({ pageNo: pageNo.value, pageSize: pageSize.value, keyword: applied.keyword || undefined, organizationId: applied.orgFilter || undefined, relation: applied.relation || undefined }),
       getOrganizations(),
     ])
     list.value = f.records
+    total.value = f.total
     orgs.value = o.records
     if (!selectedId.value && list.value.length) selectRow(list.value[0])
   } catch {
@@ -201,6 +218,7 @@ function applyFilter() {
   applied.keyword = filters.keyword
   applied.orgFilter = filters.orgFilter
   applied.relation = filters.relation
+  pageNo.value = 1
   loadAll()
 }
 function resetFilter() {
@@ -210,6 +228,7 @@ function resetFilter() {
   applied.keyword = ''
   applied.orgFilter = ''
   applied.relation = ''
+  pageNo.value = 1
   loadAll()
 }
 

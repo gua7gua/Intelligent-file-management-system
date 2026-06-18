@@ -275,8 +275,8 @@ export function mockGenerateInternalAiQuery(data: InternalAiQueryRequest): Promi
   })
 }
 
-export function mockPreviewInternalFile(fileId: number): Promise<string> {
-  return Promise.resolve(`# 文件 ${fileId} 预览\n\n这是模拟的电子文件预览内容。实际接入后返回预签名 URL 或文件流。`)
+export function mockPreviewInternalFile(fileId: number): Promise<Blob> {
+  return Promise.resolve(new Blob([`# 文件 ${fileId} 预览\n\n这是模拟的电子文件预览内容。`], { type: 'application/pdf' }))
 }
 
 export function mockDownloadInternalFile(_fileId: number): Promise<Blob> {

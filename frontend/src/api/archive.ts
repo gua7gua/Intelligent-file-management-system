@@ -265,12 +265,12 @@ export function submitOpenAdjust(
   return request.post(`/admin/archives/${archiveId}/open-adjustments`, data)
 }
 
-/** 档案文件预览 */
-export function previewArchiveFile(fileId: number): Promise<string> {
+/** 档案文件预览（返回 Blob，供 FilePreview 组件渲染） */
+export function previewArchiveFile(fileId: number): Promise<Blob> {
   if (USE_MOCK) {
-    return Promise.resolve('# 预览内容\n\n这是模拟的文件预览。')
+    return Promise.resolve(new Blob(['# 预览内容\n\n这是模拟的文件预览。'], { type: 'application/pdf' }))
   }
-  return request.get(`/admin/archive-files/${fileId}/preview`)
+  return request.get(`/admin/archive-files/${fileId}/preview`, { responseType: 'blob' }) as Promise<Blob>
 }
 
 /** 档案文件下载 */

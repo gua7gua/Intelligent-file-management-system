@@ -106,6 +106,17 @@
                 </tr>
               </tbody>
             </table>
+            <div style="display:flex;justify-content:flex-end;margin-top:12px">
+              <el-pagination
+                v-model:current-page="pageNo"
+                v-model:page-size="pageSize"
+                :total="total"
+                :page-sizes="[10, 20, 50, 100]"
+                layout="total, sizes, prev, pager, next, jumper"
+                @size-change="loadArchives"
+                @current-change="loadArchives"
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -201,6 +212,13 @@
           </div>
         </div>
       </el-drawer>
+      <FilePreview
+        v-model:visible="previewVisible"
+        :file-id="previewFile?.id ?? null"
+        :file-name="previewFile?.name"
+        :mime="previewFile?.mime"
+        :fetcher="previewArchiveFile"
+      />
     </section>
   </div>
 </template>
@@ -210,7 +228,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { ArchiveRecord, ArchiveDetail } from '@/types/archive'
 import { ArchiveStatusLabel, CarrierStatusLabel, SecurityLevelLabel } from '@/types/enums'
-import { getArchives, getArchiveDetail, updateArchive, submitSecurityAdjust, submitOpenAdjust } from '@/api/archive'
+import FilePreview from '@/components/FilePreview/index.vue'
+import { getArchives, getArchiveDetail, updateArchive, submitSecurityAdjust, submitOpenAdjust, previewArchiveFile } from '@/api/archive'
 
 // ── 分类树 ──
 const categoryTree = [
@@ -236,6 +255,15 @@ const selectedArchive = ref<ArchiveRecord | null>(null)
 const detail = ref<ArchiveDetail | null>(null)
 const listLoading = ref(false)
 const detailLoading = ref(false)
+
+// ── 预览 ──
+const previewVisible = ref(false)
+const previewFile = ref<{ id: number; name?: string; mime?: string } | null>(null)
+
+// ── 分页 ──
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
 /** 详情抽屉可见性：选中档案即展开，关闭即清空选中，避免查看详情时整页跟随滑动 */
 const detailDrawerVisible = computed<boolean>({
@@ -283,7 +311,7 @@ function syncEditForm(d: ArchiveDetail) {
 async function loadArchives() {
   listLoading.value = true
   try {
-    const params: Record<string, unknown> = { pageNo: 1, pageSize: 50 }
+    const params: Record<string, unknown> = { pageNo: pageNo.value, pageSize: pageSize.value }
     if (query.keyword) params.keyword = query.keyword
     if (query.year) { params.formedYearStart = query.year; params.formedYearEnd = query.year }
     if (query.securityLevel !== '') params.securityLevel = Number(query.securityLevel)
@@ -292,6 +320,7 @@ async function loadArchives() {
     if (selectedCategoryId.value > 0) params.categoryId = selectedCategoryId.value
     const res = await getArchives(params)
     archives.value = res.records
+    total.value = res.total
   } finally {
     listLoading.value = false
   }
@@ -311,10 +340,12 @@ async function selectArchive(a: ArchiveRecord) {
 
 function selectCategory(id: number) {
   selectedCategoryId.value = id
+  pageNo.value = 1
   loadArchives()
 }
 
 function handleSearch() {
+  pageNo.value = 1
   loadArchives()
 }
 
@@ -324,6 +355,7 @@ function handleReset() {
   query.securityLevel = ''
   query.openStatus = ''
   query.carrierStatus = ''
+  pageNo.value = 1
   loadArchives()
 }
 
@@ -348,7 +380,14 @@ async function handleSaveMeta() {
 }
 
 function handlePreview() {
-  ElMessage.info('正在生成预览…')
+  const files = detail.value?.files ?? []
+  if (!files.length) {
+    ElMessage.info('该档案暂无可预览的电子文件')
+    return
+  }
+  const f = files[0]
+  previewFile.value = { id: f.id, name: f.originalFilename, mime: f.mimeType }
+  previewVisible.value = true
 }
 
 // ── 审批 ──
