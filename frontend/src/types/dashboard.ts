@@ -31,7 +31,9 @@ export interface RecentAuditLog {
   id: number
   operator: string
   module: string
+  moduleLabel?: string
   action: string
+  actionLabel?: string
   operatedAt: string
 }
 

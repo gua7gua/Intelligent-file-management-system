@@ -62,3 +62,11 @@ export function searchMaterials(params?: MaterialSearchParams): Promise<PageData
   }
   return request.get('/admin/archives', { params })
 }
+
+/** 删除编研草稿（仅 status=draft 可删，已生成/已入库不可删） */
+export function deleteCompilation(id: number): Promise<void> {
+  if (USE_MOCK) {
+    return Promise.resolve()
+  }
+  return request.delete(`/admin/compilations/${id}`)
+}

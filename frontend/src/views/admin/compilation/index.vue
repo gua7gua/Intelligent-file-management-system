@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  archiveCompilation, createCompilation, generateCompilationBody, getCompilationDetail,
+  archiveCompilation, createCompilation, deleteCompilation, generateCompilationBody, getCompilationDetail,
   getCompilations, searchMaterials, updateCompilation,
 } from '@/api/compilation'
 import { getFonds } from '@/api/fonds'
@@ -137,6 +137,27 @@ async function openEdit(c: Compilation) {
     fillForm(d)
   } catch (e) {
     ElMessage.warning((e as Error).message)
+  }
+}
+
+// 删除编研草稿（仅 status=draft 可删，已生成/已入库不显示删除按钮）
+async function deleteItem(c: Compilation) {
+  try {
+    await ElMessageBox.confirm(
+      '删除该草稿编研，不可恢复？',
+      '提示',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteCompilation(c.id)
+    ElMessage.success('草稿编研已删除。')
+    if (currentDetail.value?.id === c.id) fillForm(null)
+    await load()
+  } catch (e) {
+    ElMessage.error((e as Error).message || '删除编研失败')
   }
 }
 
@@ -289,7 +310,12 @@ onMounted(() => {
                   <td>{{ c.materialCount }} 条引用</td>
                   <td><span class="status" :class="c.attachment ? 'success' : ''">{{ c.attachment ? c.attachment.fileName : '未生成' }}</span></td>
                   <td class="mono">{{ c.archiveNo || '—' }}</td>
-                  <td><button class="button ghost" @click="openEdit(c)">编辑/查看</button></td>
+                  <td>
+                    <div class="actions">
+                      <button class="button ghost" @click="openEdit(c)">编辑/查看</button>
+                      <button v-if="c.status === 'draft'" class="button danger" @click="deleteItem(c)">删除</button>
+                    </div>
+                  </td>
                 </tr>
                 <tr v-if="!filtered.length"><td colspan="8" class="muted" style="text-align:center;padding:16px;">暂无编研成果。</td></tr>
               </tbody>

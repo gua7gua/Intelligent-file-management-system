@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  createAnalysisTask, getAnalysisTaskDetail, getAnalysisTasks, handleAnalysisItem,
+  createAnalysisTask, deleteAnalysisTask, getAnalysisTaskDetail, getAnalysisTasks, handleAnalysisItem,
 } from '@/api/data-analysis'
 import type { AnalysisItem, AnalysisTask, AnalysisTaskDetail } from '@/types/data-analysis'
 import type { AnalysisTaskTypeValue } from '@/types/enums'
@@ -61,6 +61,27 @@ async function selectTask(id: number) {
     selectedItem.value = current.value.items[0] ?? null
   } catch (e) {
     ElMessage.warning((e as Error).message)
+  }
+}
+
+// 删除研判任务（仅 completed/failed 可删，running 不可删）
+async function deleteTask(t: AnalysisTask) {
+  try {
+    await ElMessageBox.confirm(
+      '删除该研判任务及全部异常项，不可恢复？',
+      '提示',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteAnalysisTask(t.id)
+    ElMessage.success('研判任务已删除。')
+    if (current.value?.id === t.id) current.value = null
+    await load()
+  } catch (e) {
+    ElMessage.error((e as Error).message || '删除研判任务失败')
   }
 }
 
@@ -214,6 +235,14 @@ onMounted(load)
               <span class="muted">{{ AnalysisTaskTypeLabel[t.scanMethod ?? 'mixed'] }}</span>
               <span class="status">{{ AnalysisTaskStatusLabel[t.status] }}</span>
               <span class="muted">{{ t.abnormalCount }} 项</span>
+              <span class="task-action">
+                <el-button
+                  v-if="t.status === 'completed' || t.status === 'failed'"
+                  size="small"
+                  type="danger"
+                  @click.stop="deleteTask(t)"
+                >删除</el-button>
+              </span>
             </li>
           </ul>
           <div v-if="total > 0" style="display:flex;justify-content:flex-end;margin-top:12px">
@@ -319,7 +348,9 @@ onMounted(load)
 .progress { height: 8px; background: #f0f2f5; border-radius: 4px; overflow: hidden; }
 .progress span { display: block; height: 100%; background: var(--primary, #1f6f78); transition: width .3s; }
 .task-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; max-height: 180px; overflow: auto; }
-.task-item { display: grid; grid-template-columns: 120px minmax(0,1fr) 70px 70px 60px; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; }
+.task-item { display: grid; grid-template-columns: 120px minmax(0,1fr) 70px 70px 60px 64px; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; }
+.task-action { display: flex; justify-content: flex-end; }
+.task-action :deep(.el-button) { margin-left: 0; }
 .task-item:hover { border-color: var(--primary, #1f6f78); }
 .task-item.active { border-color: var(--primary, #1f6f78); background: rgba(31,111,120,0.06); }
 .detail-line { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }

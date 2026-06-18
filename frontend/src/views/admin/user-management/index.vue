@@ -56,6 +56,7 @@
                       <el-button size="small" @click="editUser(u)">编辑</el-button>
                       <el-button size="small" type="warning" @click="resetPwd(u)">重置</el-button>
                       <el-button size="small" :type="u.status === 'active' ? 'danger' : 'success'" @click="toggleStatus(u)">{{ u.status === 'active' ? '禁用' : '启用' }}</el-button>
+                      <el-button size="small" type="danger" :disabled="u.status !== 'disabled'" :title="u.status !== 'disabled' ? '仅已禁用且无业务关联的账号可删除' : ''" @click="deleteUsr(u)">删除</el-button>
                     </div>
                   </td>
                 </tr>
@@ -189,7 +190,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { createUser, getRoles, getUserDetail, getUsers, resetUserPassword, updateUser, updateUserStatus } from '@/api/user-management'
+import { createUser, deleteUser, getRoles, getUserDetail, getUsers, resetUserPassword, updateUser, updateUserStatus } from '@/api/user-management'
 import { createOrganization, deleteOrganization, getOrganizations, updateOrganization } from '@/api/organizations'
 import { getFonds } from '@/api/fonds'
 import type { Role, User } from '@/types/user-management'
@@ -397,6 +398,26 @@ async function toggleStatus(u: User) {
     ElMessage.success('账号已启用。')
   }
   await loadAll()
+}
+
+// 删除账号（仅已禁用账号可删，后端校验无 borrow/approval/transfer 等业务关联）
+async function deleteUsr(u: User) {
+  try {
+    await ElMessageBox.confirm(
+      '删除后不可恢复。仅已禁用且无 borrow/approval/transfer 等业务关联的账号可删除，是否继续？',
+      '提示',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteUser(u.id)
+    ElMessage.success('账号已删除。')
+    await loadAll()
+  } catch (e) {
+    ElMessage.error((e as Error).message || '删除账号失败')
+  }
 }
 
 function openOrgDialog() {

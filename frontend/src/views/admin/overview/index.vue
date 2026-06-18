@@ -108,9 +108,9 @@ onMounted(load)
           class="log-row"
         >
           <strong>{{ log.operator }}</strong>
-          <span>{{ log.module }}</span>
-          <span>{{ log.action }}</span>
-          <span class="muted">{{ log.operatedAt }}</span>
+          <span>{{ log.moduleLabel || log.module }}</span>
+          <span>{{ log.actionLabel || log.action }}</span>
+          <span class="muted">{{ new Date(log.operatedAt).toLocaleString('zh-CN') }}</span>
         </div>
       </div>
     </section>

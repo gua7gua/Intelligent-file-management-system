@@ -38,3 +38,11 @@ export function handleAnalysisItem(itemId: number, data: AnalysisItemHandleData)
   }
   return request.post(`/admin/analysis-items/${itemId}/handle`, data)
 }
+
+/** 删除研判任务（仅 completed/failed 可删，running 不可删） */
+export function deleteAnalysisTask(taskId: number): Promise<void> {
+  if (USE_MOCK) {
+    return Promise.resolve()
+  }
+  return request.delete(`/admin/analysis-tasks/${taskId}`)
+}

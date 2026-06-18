@@ -88,3 +88,11 @@ export function getRoles(): Promise<Role[]> {
   }
   return request.get('/admin/roles')
 }
+
+/** 软删除用户（仅已禁用且无业务关联的账号可删除，否则后端返回 409） */
+export function deleteUser(userId: number): Promise<void> {
+  if (USE_MOCK) {
+    return Promise.resolve()
+  }
+  return request.delete(`/admin/users/${userId}`)
+}
