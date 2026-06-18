@@ -12,7 +12,7 @@
       <div class="form-grid">
         <div class="field">
           <label>状态</label>
-          <select v-model="filter.status" @change="loadList">
+          <select v-model="filter.status" @change="searchFromFirstPage">
             <option value="">全部</option>
             <option value="applied">待审批</option>
             <option value="approved">已批准</option>
@@ -25,11 +25,11 @@
         </div>
         <div class="field">
           <label>关键词</label>
-          <input v-model="filter.keyword" placeholder="申请号、档号、题名" @keyup.enter="loadList">
+          <input v-model="filter.keyword" placeholder="申请号、档号、题名" @keyup.enter="searchFromFirstPage">
         </div>
         <div class="field">
           <label>&nbsp;</label>
-          <button class="button" type="button" @click="loadList">查询</button>
+          <button class="button" type="button" @click="searchFromFirstPage">查询</button>
         </div>
       </div>
     </div>
@@ -59,6 +59,17 @@
             </tr>
           </tbody>
         </table>
+      </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 12px">
+        <el-pagination
+          v-model:current-page="pageNo"
+          v-model:page-size="pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="loadList"
+          @current-change="loadList"
+        />
       </div>
     </div>
 
@@ -106,6 +117,9 @@ const filter = reactive<{ status: string; keyword: string }>({ status: '', keywo
 const loading = ref(false)
 const error = ref('')
 const records = ref<BorrowRequest[]>([])
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
 const drawerVisible = ref(false)
 const detailLoading = ref(false)
@@ -141,13 +155,22 @@ async function loadList() {
     const page = await getMyBorrowRequests({
       status: (filter.status || undefined) as BorrowRequest['status'] | undefined,
       keyword: filter.keyword || undefined,
+      pageNo: pageNo.value,
+      pageSize: pageSize.value,
     })
     records.value = page.records
+    total.value = page.total
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : '加载借阅申请失败'
   } finally {
     loading.value = false
   }
+}
+
+// 用户主动触发查询（状态切换/关键词/查询按钮）回到第一页；分页器翻页直接走 loadList 保留当前页
+function searchFromFirstPage() {
+  pageNo.value = 1
+  return loadList()
 }
 
 async function openDetail(id: number) {

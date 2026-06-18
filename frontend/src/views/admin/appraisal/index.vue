@@ -53,6 +53,17 @@
             <span v-if="b.status === 'completed' && b.generatedListNo" class="link" @click.stop="goDestruction(b.generatedListId!)">→ {{ b.generatedListNo }}</span>
           </div>
         </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 12px">
+          <el-pagination
+            v-model:current-page="pageNo"
+            v-model:page-size="pageSize"
+            :total="total"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="loadBatches"
+            @current-change="loadBatches"
+          />
+        </div>
       </aside>
 
       <!-- 右栏：明细 -->
@@ -201,6 +212,9 @@ const batches = ref<AppraisalBatch[]>([])
 const filterStatus = ref<'' | 'draft' | 'completed'>('')
 const listLoading = ref(false)
 const loadError = ref(false)
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
 const selectedBatchId = ref<number | null>(null)
 const batchDetail = ref<AppraisalBatchDetail | null>(null)
@@ -215,8 +229,13 @@ async function loadBatches() {
   listLoading.value = true
   loadError.value = false
   try {
-    const res = await getAppraisalBatches(filterStatus.value ? { status: filterStatus.value } : undefined)
+    const res = await getAppraisalBatches({
+      ...(filterStatus.value ? { status: filterStatus.value } : {}),
+      pageNo: pageNo.value,
+      pageSize: pageSize.value,
+    })
     batches.value = res.records
+    total.value = res.total
   } catch {
     loadError.value = true
   } finally {
@@ -226,6 +245,7 @@ async function loadBatches() {
 
 function setFilter(s: '' | 'draft' | 'completed') {
   filterStatus.value = s
+  pageNo.value = 1
   loadBatches()
 }
 

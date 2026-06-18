@@ -62,6 +62,17 @@
               </tbody>
             </table>
           </div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 12px">
+            <el-pagination
+              v-model:current-page="pageNo"
+              v-model:page-size="pageSize"
+              :total="total"
+              :page-sizes="[10, 20, 50, 100]"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="loadUsersPage"
+              @current-change="loadUsersPage"
+            />
+          </div>
         </div>
 
         <div class="grid two">
@@ -194,6 +205,9 @@ const organizations = ref<Organization[]>([])
 const fonds = ref<FondsReference[]>([])
 const loading = ref(false)
 const loadError = ref(false)
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 const saving = ref(false)
 const orgDialogVisible = ref(false)
 const orgSaving = ref(false)
@@ -245,8 +259,14 @@ async function loadAll() {
   loading.value = true
   loadError.value = false
   try {
-    const [u, r, o, f] = await Promise.all([getUsers({ roleCode: appliedRoleFilter.value || undefined }), getRoles(), getOrganizations(), getFonds()])
+    const [u, r, o, f] = await Promise.all([
+      getUsers({ roleCode: appliedRoleFilter.value || undefined, pageNo: pageNo.value, pageSize: pageSize.value }),
+      getRoles(),
+      getOrganizations(),
+      getFonds(),
+    ])
     users.value = u.records
+    total.value = u.total
     roles.value = r
     organizations.value = o.records
     fonds.value = f.records
@@ -258,8 +278,25 @@ async function loadAll() {
   }
 }
 
+// 仅刷新用户分页列表（翻页/改每页条数时调用，避免重复拉取角色/组织/全宗）
+async function loadUsersPage() {
+  loading.value = true
+  loadError.value = false
+  try {
+    const u = await getUsers({ roleCode: appliedRoleFilter.value || undefined, pageNo: pageNo.value, pageSize: pageSize.value })
+    users.value = u.records
+    total.value = u.total
+  } catch {
+    loadError.value = true
+    ElMessage.error('用户数据加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 function applyFilter() {
   appliedRoleFilter.value = roleFilter.value
+  pageNo.value = 1
   loadAll()
 }
 

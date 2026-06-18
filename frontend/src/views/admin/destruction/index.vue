@@ -46,6 +46,17 @@
             <span>{{ l.itemCount }} 件</span>
           </div>
         </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 12px">
+          <el-pagination
+            v-model:current-page="pageNo"
+            v-model:page-size="pageSize"
+            :total="total"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="onPageChange"
+            @current-change="onPageChange"
+          />
+        </div>
       </aside>
 
       <section class="card panel detail">
@@ -157,6 +168,9 @@ const allLists = ref<DestructionList[]>([])
 const filterStatus = ref<'' | DestructionListStatusValue>('')
 const listLoading = ref(false)
 const loadError = ref(false)
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
 const selectedListId = ref<number | null>(null)
 const listDetail = ref<DestructionListDetail | null>(null)
@@ -170,13 +184,18 @@ function statusClass(s: string): string {
   return map[s] || ''
 }
 
+// 状态筛选后的结果集（用于分页切片与总数）
+const filteredLists = computed(() =>
+  filterStatus.value ? allLists.value.filter((l) => l.status === filterStatus.value) : allLists.value,
+)
+
 async function loadLists() {
   listLoading.value = true
   loadError.value = false
   try {
     const all = await getDestructionLists()
     allLists.value = all.records
-    lists.value = filterStatus.value ? all.records.filter((l) => l.status === filterStatus.value) : all.records
+    refreshPagedLists()
   } catch {
     loadError.value = true
   } finally {
@@ -184,9 +203,22 @@ async function loadLists() {
   }
 }
 
+// 依据当前筛选 + 分页，刷新展示列表与 total（保留顶部指标对 allLists 的全量统计）
+function refreshPagedLists() {
+  const filtered = filteredLists.value
+  total.value = filtered.length
+  const start = (pageNo.value - 1) * pageSize.value
+  lists.value = filtered.slice(start, start + pageSize.value)
+}
+
 function setFilter(s: '' | DestructionListStatusValue) {
   filterStatus.value = s
-  lists.value = s ? allLists.value.filter((l) => l.status === s) : allLists.value
+  pageNo.value = 1
+  refreshPagedLists()
+}
+
+function onPageChange() {
+  refreshPagedLists()
 }
 
 async function selectList(id: number) {

@@ -119,7 +119,7 @@
       </div>
 
       <div class="actions" style="margin-top: 12px">
-        <button class="button" type="button" @click="handleSearch">检索</button>
+        <button class="button" type="button" @click="searchFromFirstPage">检索</button>
         <button class="button ghost" type="button" @click="resetSearch">重置</button>
       </div>
     </section>
@@ -164,6 +164,17 @@
           </tbody>
         </table>
       </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 12px">
+        <el-pagination
+          v-model:current-page="pageNo"
+          v-model:page-size="pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSearch"
+          @current-change="handleSearch"
+        />
+      </div>
     </template>
 
     <!-- 详情面板 -->
@@ -190,13 +201,19 @@
             <strong>{{ file.filename }}</strong>
             <div class="hint">{{ file.fileFormat }}，{{ (file.fileSize / 1024 / 1024).toFixed(1) }} MB</div>
           </div>
-          <template v-if="file.canDownload">
-            <button class="button secondary" type="button" @click="handleDownload(file.id, file.filename)">下载</button>
-          </template>
-          <template v-else>
-            <span class="notice">下载需登录公众账号</span>
-          </template>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="button secondary" type="button" @click="handlePreview(file)">预览</button>
+            <button v-if="file.canDownload" class="button ghost" type="button" @click="handleDownload(file.id, file.filename)">下载</button>
+            <span v-else class="notice">下载需登录公众账号</span>
+          </div>
         </div>
+        <FilePreview
+          v-model:visible="previewVisible"
+          :file-id="previewFile?.id ?? null"
+          :file-name="previewFile?.name"
+          :mime="previewFile?.mime"
+          :fetcher="previewPublicArchiveFile"
+        />
       </div>
       <div v-else class="notice" style="margin-top: 12px">
         {{ detailData.carrierStatus === 'paper' ? '纯纸质档案，暂无电子文件可供下载。' : '暂无可下载的电子文件。' }}
@@ -213,7 +230,9 @@ import {
   getPublicArchiveDetail,
   generatePublicSearchQuery,
   downloadPublicArchiveFile,
+  previewPublicArchiveFile,
 } from '@/api/public'
+import FilePreview from '@/components/FilePreview/index.vue'
 import { getDictionariesApi } from '@/api/dictionary'
 import type { PublicSearchParams, PublicAiQueryResult, PublicArchive, PublicArchiveDetail } from '@/types/public'
 
@@ -278,8 +297,13 @@ const fileState = computed<string>({
 })
 const searchLoading = ref(false)
 const searchError = ref('')
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 const searchResults = ref<{ records: (PublicArchive & { openStatus: 'open' })[]; total: number }>({ records: [], total: 0 })
 const detailData = ref<PublicArchiveDetail | null>(null)
+const previewVisible = ref(false)
+const previewFile = ref<{ id: number; name?: string; mime?: string } | null>(null)
 // 后端 retentionPeriod 当前可能为 null（未填），为空时显示「—」避免详情面板出现空白
 const retentionPeriodLabel = computed(() => {
   const v = detailData.value?.retentionPeriod
@@ -354,9 +378,16 @@ function applyAiConditions() {
   // 首次检索暂不下发 keyword（见上方注释），临时摘出后调 handleSearch，完成后再放回表单框显示。
   const keywordToShow = searchParams.keyword
   delete searchParams.keyword
+  pageNo.value = 1
   handleSearch().finally(() => {
     if (keywordToShow) searchParams.keyword = keywordToShow
   })
+}
+
+// 用户主动点「检索」/应用 AI 条件时回到第一页；分页器切换页码时直接走 handleSearch 保留当前页
+function searchFromFirstPage() {
+  pageNo.value = 1
+  return handleSearch()
 }
 
 async function handleSearch() {
@@ -365,8 +396,9 @@ async function handleSearch() {
   detailData.value = null
   try {
     const params = cleanParams(searchParams)
-    const result = await searchPublicArchives(params)
+    const result = await searchPublicArchives({ ...params, pageNo: pageNo.value, pageSize: pageSize.value })
     searchResults.value = { records: result.records, total: result.total }
+    total.value = result.total
   } catch (e: any) {
     searchError.value = e.message || '检索失败'
   } finally {
@@ -389,6 +421,8 @@ function resetSearch() {
   searchResults.value = { records: [], total: 0 }
   detailData.value = null
   aiResult.value = null
+  pageNo.value = 1
+  total.value = 0
 }
 
 async function showDetail(archiveId: number) {
@@ -397,6 +431,11 @@ async function showDetail(archiveId: number) {
   } catch {
     detailData.value = null
   }
+}
+
+function handlePreview(file: { id: number; filename?: string; fileFormat?: string }) {
+  previewFile.value = { id: file.id, name: file.filename, mime: file.fileFormat }
+  previewVisible.value = true
 }
 
 async function handleDownload(fileId: number, filename: string) {

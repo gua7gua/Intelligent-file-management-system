@@ -75,6 +75,12 @@ export function generatePublicSearchQuery(data: PublicAiQueryRequest): Promise<P
   return request.post('/public/archives/ai-query', data)
 }
 
+/** 公众端电子文件预览（返回 Blob，供 FilePreview 组件渲染） */
+export function previewPublicArchiveFile(fileId: number): Promise<Blob> {
+  if (USE_MOCK) return Promise.resolve(new Blob(['公众预览内容'], { type: 'application/pdf' }))
+  return request.get(`/public/archive-files/${fileId}/preview`, { responseType: 'blob' }) as Promise<Blob>
+}
+
 export function downloadPublicArchiveFile(fileId: number): Promise<Blob> {
   if (USE_MOCK) return import('@/mock/modules/public').then((m) => m.mockDownloadPublicArchiveFile(fileId))
   return request.get(`/public/archive-files/${fileId}/download`, { responseType: 'blob' })

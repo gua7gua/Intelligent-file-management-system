@@ -141,7 +141,7 @@
           </section>
         </div>
         <div class="actions" style="margin-top: 12px">
-          <button class="button" type="button" :disabled="searching" @click="handleSearch">
+          <button class="button" type="button" :disabled="searching" @click="searchFromFirstPage">
             {{ searching ? '检索中…' : '确认检索' }}
           </button>
           <button class="button ghost" type="button" @click="resetSearch">重置</button>
@@ -182,6 +182,17 @@
             </tbody>
           </table>
         </div>
+        <div v-if="!searching && !searchError && searched" style="display: flex; justify-content: flex-end; margin-top: 12px">
+          <el-pagination
+            v-model:current-page="pageNo"
+            v-model:page-size="pageSize"
+            :total="total"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handleSearch"
+            @current-change="handleSearch"
+          />
+        </div>
       </div>
     </div>
 
@@ -221,6 +232,9 @@ const hasFileSelect = ref<'' | 'yes' | 'no'>('')
 const searching = ref(false)
 const searchError = ref('')
 const searched = ref(false)
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 const results = ref<{ records: InternalArchive[]; total: number }>({ records: [], total: 0 })
 const selectedArchiveId = ref<number | null>(null)
 
@@ -305,6 +319,7 @@ function applyAiConditions() {
   // 首次检索暂不下发 keyword（见上方注释），临时摘出后调 handleSearch，完成后再放回表单框显示。
   const keywordToShow = params.keyword
   delete params.keyword
+  pageNo.value = 1
   handleSearch().finally(() => {
     if (keywordToShow) params.keyword = keywordToShow
   })
@@ -326,16 +341,23 @@ async function copyJson() {
   }
 }
 
+// 用户主动点「确认检索」/应用 AI 条件时回到第一页；分页器切换页码时直接走 handleSearch 保留当前页
+function searchFromFirstPage() {
+  pageNo.value = 1
+  return handleSearch()
+}
+
 async function handleSearch() {
   searching.value = true
   searchError.value = ''
   selectedArchiveId.value = null
   try {
-    const query: InternalSearchParams = { ...params }
+    const query: InternalSearchParams = { ...params, pageNo: pageNo.value, pageSize: pageSize.value }
     if (hasFileSelect.value === 'yes') query.hasElectronicFile = true
     else if (hasFileSelect.value === 'no') query.hasElectronicFile = false
     const page = await searchInternalArchives(query)
     results.value = { records: page.records, total: page.total }
+    total.value = page.total
     searched.value = true
   } catch (e: unknown) {
     searchError.value = e instanceof Error ? e.message : '检索失败'
@@ -358,6 +380,8 @@ function resetSearch() {
   selectedArchiveId.value = null
   aiResult.value = null
   aiText.value = ''
+  pageNo.value = 1
+  total.value = 0
 }
 
 onMounted(async () => {
