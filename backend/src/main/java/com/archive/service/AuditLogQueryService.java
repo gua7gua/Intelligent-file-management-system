@@ -43,7 +43,14 @@ public class AuditLogQueryService {
             Map.entry("M11", "销毁管理"),
             Map.entry("M12", "盘点管理"),
             Map.entry("M13", "档案编研"),
-            Map.entry("M14", "系统配置")
+            Map.entry("M14", "系统配置"),
+            // V16 种子审计日志用裸英文模块名（运行时改用 M01-M14 代号），保留映射保证种子数据也能显示中文
+            Map.entry("transfer", "移交管理"),
+            Map.entry("transfer_reception", "移交接收"),
+            Map.entry("pending_archive", "待入库"),
+            Map.entry("borrow", "借阅管理"),
+            Map.entry("approval", "审批管理"),
+            Map.entry("system_config", "系统配置")
     );
 
     /** 审计日志 operation_type -> 中文标签（覆盖各 Service auditService.log 第二参的全部取值）。 */
@@ -98,7 +105,14 @@ public class AuditLogQueryService {
             Map.entry("create_organization", "创建组织"),
             Map.entry("update_organization", "更新组织"),
             Map.entry("delete_organization", "删除组织"),
-            Map.entry("update_config", "更新配置")
+            Map.entry("update_config", "更新配置"),
+            Map.entry("delete_user", "删除用户"),
+            // V16 种子审计日志用裸英文操作名（与运行时 M-code 短词不同），单独补中文
+            Map.entry("submit_batch", "提交清单"),
+            Map.entry("accept_batch", "接收清单"),
+            Map.entry("archive_items", "条目入库"),
+            Map.entry("apply_borrow", "申请借阅"),
+            Map.entry("approve_destruction", "审批销毁")
     );
 
     /** 取模块中文标签，未知代号原样返回。 */
@@ -199,6 +213,7 @@ public class AuditLogQueryService {
         vo.setModuleName(l.getModuleName());
         vo.setModuleLabel(moduleLabel(l.getModuleName()));
         vo.setOperationType(l.getOperationType());
+        vo.setOperationLabel(operationLabel(l.getOperationType()));
         vo.setBusinessType(l.getBusinessType());
         vo.setBusinessId(l.getBusinessId());
         vo.setDetail(l.getDetail());

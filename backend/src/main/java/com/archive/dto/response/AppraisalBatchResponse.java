@@ -14,6 +14,8 @@ public class AppraisalBatchResponse {
     private String categoryName;
     private Integer formedYearStart;
     private Integer formedYearEnd;
+    /** 到期窗口天数（D4）。 */
+    private Integer dueDays;
     private String status;
     private Integer hitCount;
     private Integer destroyCount;

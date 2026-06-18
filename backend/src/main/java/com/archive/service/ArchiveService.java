@@ -57,9 +57,16 @@ public class ArchiveService {
             Long organizationId, Long fondsId, Integer securityLevel,
             String openStatus, String carrierStatus, String lifecycleStatus,
             String loanStatus, String conditionStatus,
+            boolean includeDestroyed,
             int pageNo, int pageSize) {
 
         QueryWrapper<Archive> w = new QueryWrapper<>();
+        // D2：已销毁档案保留元数据与销毁记录，列表默认隐藏；仅当显式筛选 lifecycleStatus=destroyed
+        // 或勾选「显示已销毁」时才展示。
+        boolean filteringLifecycle = lifecycleStatus != null && !lifecycleStatus.isBlank();
+        if (!filteringLifecycle && !includeDestroyed) {
+            w.ne("lifecycle_status", "destroyed");
+        }
         if (keyword != null && !keyword.isBlank()) {
             w.and(q -> q.like("title", keyword)
                     .or().like("archive_no", keyword)

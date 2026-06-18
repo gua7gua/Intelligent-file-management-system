@@ -41,12 +41,13 @@ public class ArchiveController {
             @RequestParam(required = false) String lifecycleStatus,
             @RequestParam(required = false) String loanStatus,
             @RequestParam(required = false) String conditionStatus,
+            @RequestParam(defaultValue = "false") boolean includeDestroyed,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
         return R.ok(archiveService.listArchives(keyword, archiveNo, categoryId,
                 formedYearStart, formedYearEnd, organizationId, fondsId, securityLevel,
                 openStatus, carrierStatus, lifecycleStatus, loanStatus, conditionStatus,
-                pageNo, pageSize));
+                includeDestroyed, pageNo, pageSize));
     }
 
     @GetMapping("/{archiveId}")

@@ -441,7 +441,7 @@ public class AnalysisService {
         }
     }
 
-    /** 按 issueType 派生建议动作。 */
+    /** 按 issueType 派生建议动作；tag_suggestion 附带具体建议标签值，便于直接采纳。 */
     private String buildSuggestedAction(AnalysisItem it) {
         if (it.getIssueType() == null) {
             return "—";
@@ -449,8 +449,41 @@ public class AnalysisService {
         return switch (it.getIssueType()) {
             case missing_field -> "在档案详情页补全缺失字段后人工确认";
             case category_conflict -> "复核公开状态与密级，调整其中一项";
-            case tag_suggestion -> "采纳建议标签，后续在档案管理页人工维护";
+            case tag_suggestion -> buildTagSuggestionAction(it);
         };
+    }
+
+    /** 标签建议：从 suggestion.candidates[].suggestedValue（兼容旧 suggestedTags）抽取具体标签值。 */
+    private String buildTagSuggestionAction(AnalysisItem it) {
+        Map<String, Object> s = it.getSuggestion();
+        if (s == null) {
+            return "采纳建议标签，后续在档案管理页人工维护";
+        }
+        List<String> values = new ArrayList<>();
+        Object cands = s.get("candidates");
+        if (cands instanceof List<?> list) {
+            for (Object c : list) {
+                if (c instanceof Map<?, ?> m && m.get("suggestedValue") instanceof List<?> sv) {
+                    for (Object v : sv) {
+                        values.add(String.valueOf(v));
+                    }
+                }
+            }
+        }
+        if (values.isEmpty() && s.get("suggestedTags") instanceof List<?> tags) {
+            for (Object t : tags) {
+                values.add(String.valueOf(t));
+            }
+        }
+        if (values.isEmpty() && s.get("addTags") instanceof List<?> addTags) {
+            for (Object t : addTags) {
+                values.add(String.valueOf(t));
+            }
+        }
+        if (values.isEmpty()) {
+            return "采纳建议标签，后续在档案管理页人工维护";
+        }
+        return "建议补充标签：" + String.join("、", values) + "（可在档案管理页采纳）";
     }
 
     private boolean isBlank(String s) {

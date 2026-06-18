@@ -19,6 +19,8 @@ public class AppraisalBatch extends BaseEntity {
     private Integer categoryId;
     private Integer formedYearStart;
     private Integer formedYearEnd;
+    /** 到期窗口天数（D4）：命中 retention_until <= 今天 + due_days，含已过期未处理档案。 */
+    private Integer dueDays;
 
     @EnumValue
     private AppraisalBatchStatus status;
