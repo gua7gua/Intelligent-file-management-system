@@ -199,7 +199,7 @@
         <div v-for="file in detailData.files" :key="file.id" class="local-file">
           <div>
             <strong>{{ file.filename }}</strong>
-            <div class="hint">{{ file.fileFormat }}，{{ (file.fileSize / 1024 / 1024).toFixed(1) }} MB</div>
+            <div class="hint">{{ file.fileFormat }}，{{ file.fileSize < 1024 ? file.fileSize + ' B' : file.fileSize < 1048576 ? (file.fileSize / 1024).toFixed(1) + ' KB' : (file.fileSize / 1048576).toFixed(1) + ' MB' }}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <button class="button secondary" type="button" @click="handlePreview(file)">预览</button>

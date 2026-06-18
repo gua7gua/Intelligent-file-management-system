@@ -340,6 +340,7 @@ function itemStatusLabel(status: string): string {
     accepted: '已接收',
     rejected: '已回退',
     archived: '已入库',
+    pending_archive: '待入库',
   }
   return map[status] || status
 }
