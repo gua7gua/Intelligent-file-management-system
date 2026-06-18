@@ -77,10 +77,12 @@
                   <th>题名</th>
                   <th>年度</th>
                   <th>分类</th>
+                  <th>所属全宗</th>
                   <th>密级</th>
                   <th>开放</th>
                   <th>载体</th>
                   <th>状态</th>
+                  <th>标签</th>
                 </tr>
               </thead>
               <tbody>
@@ -95,6 +97,7 @@
                   <td>{{ a.title }}</td>
                   <td>{{ a.formedYear ?? '—' }}</td>
                   <td>{{ a.categoryName }}</td>
+                  <td>{{ a.fondsName || a.organizationName || '—' }}</td>
                   <td>{{ SecurityLevelLabel[a.securityLevel] || '未知' }}</td>
                   <td>{{ a.openStatus === 'open' ? '公开' : '不公开' }}</td>
                   <td>{{ CarrierStatusLabel[a.carrierStatus] || a.carrierStatus }}</td>
@@ -103,6 +106,7 @@
                       {{ ArchiveStatusLabel[a.lifecycleStatus] || a.lifecycleStatus }}
                     </span>
                   </td>
+                  <td>{{ a.tags?.join('、') || '—' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -121,13 +125,14 @@
         </div>
       </section>
 
-      <!-- 详情抽屉：独立滑出、内部滚动，避免查看详情时整页跟随滑动 -->
-      <el-drawer
+      <!-- 详情弹窗：居中展示，便于查看与复制档号（原右侧抽屉易遮挡、点档号误触） -->
+      <el-dialog
         v-model="detailDrawerVisible"
         title="档案详情"
-        direction="rtl"
-        size="420px"
-        :append-to-body="false"
+        width="720px"
+        :append-to-body="true"
+        align-center
+        destroy-on-close
       >
         <div v-if="detailLoading" class="detail-empty">加载中...</div>
         <div v-else-if="selectedArchive" class="drawer-body">
@@ -135,6 +140,8 @@
           <div class="detail-kv"><span>档号</span><strong>{{ detail?.archiveNo || selectedArchive.archiveNo }}</strong></div>
           <div class="detail-kv"><span>生命周期</span><strong>{{ ArchiveStatusLabel[detail?.lifecycleStatus || 'normal'] }}</strong></div>
           <div class="detail-kv"><span>架位</span><strong>{{ detail?.locationCode || '纯电子无架位' }}</strong></div>
+          <div class="detail-kv"><span>所属组织</span><strong>{{ detail?.organizationName || selectedArchive?.organizationName || '—' }}</strong></div>
+          <div class="detail-kv"><span>所属全宗</span><strong>{{ detail?.fondsName || selectedArchive?.fondsName || '—' }}</strong></div>
 
           <!-- 可编辑元数据 -->
           <h3 class="section-title" style="margin-top:12px">可编辑元数据</h3>
@@ -185,6 +192,7 @@
           <div class="field">
             <label>凭证档号</label>
             <input v-model="approvalForm.evidenceArchiveNo" placeholder="如 ARC-000007" />
+            <p style="margin:4px 0 0;font-size:12px;color:var(--muted)">凭证须为与该档案<strong>同组织/同全宗</strong>的凭证类档案（如档案处置授权书），否则将被「组织/全宗不匹配」拒绝。</p>
           </div>
           <div class="split">
             <div class="field">
@@ -211,7 +219,7 @@
             <router-link to="/admin/approval" class="button ghost">审批工作台</router-link>
           </div>
         </div>
-      </el-drawer>
+      </el-dialog>
       <FilePreview
         v-model:visible="previewVisible"
         :file-id="previewFile?.id ?? null"

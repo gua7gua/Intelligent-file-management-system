@@ -2,7 +2,7 @@
   <section>
     <h1 class="page-title">移交验收与电子文件上传</h1>
     <p class="page-subtitle">
-      调取待移交清单，核对纸质原件、页数、数量和签章；上传 U 盘电子文件后按文件名匹配清单条目，异常必须人工确认或回退。
+      调取到馆的移交与征集清单，核对纸质原件、页数、数量和签章；上传 U 盘电子文件后按文件名匹配清单条目，异常必须人工确认或回退。
     </p>
   </section>
 
@@ -70,7 +70,10 @@
         >
           <strong>{{ batch.title }}</strong>
           <span class="mono">{{ batch.batchNo }}</span>
-          <span class="muted">{{ batch.organizationName }} / {{ batch.departmentName }}</span>
+          <span class="muted">
+            <span class="source-tag" :class="`src-${batch.sourceType}`">{{ sourceTypeLabel(batch.sourceType) }}</span>
+            {{ batch.organizationName || batch.contactName || '—' }}<template v-if="batch.departmentName"> / {{ batch.departmentName }}</template>
+          </span>
           <span>
             <span class="status info">{{ batch.statusText }}</span>
             <span class="muted">{{ batch.itemCount }} 条</span>
@@ -368,6 +371,12 @@ function carrierStatusLabel(status: string): string {
   }
   return map[status] || status
 }
+function sourceTypeLabel(sourceType: string): string {
+  const map: Record<string, string> = {
+    transfer: '移交', collection: '征集', compilation: '编研',
+  }
+  return map[sourceType] || sourceType
+}
 function fileScanHint(file: StagingFile): string {
   if (file.matchStatus === 'matched') return '格式检查通过、安全检查通过'
   if (file.matchStatus === 'unmatched') return '文件名与清单不一致，需人工确认或回退'
@@ -379,7 +388,7 @@ function fileScanHint(file: StagingFile): string {
 async function loadBatches() {
   loading.value = true
   try {
-    const res = await getReceptionBatches({ sourceType: 'transfer' })
+    const res = await getReceptionBatches()
     batchList.value = res.records
   } catch {
     ElMessage.error('加载待验收清单失败')
@@ -553,6 +562,33 @@ onMounted(() => {
   display: grid;
   gap: 10px;
   padding-right: 4px;
+}
+
+.source-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  margin-right: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #f0f4f5;
+  color: #23494f;
+}
+.source-tag.src-collection {
+  background: #fff7e6;
+  border-color: #ffd591;
+  color: #874d00;
+}
+.source-tag.src-transfer {
+  background: #e6f7f6;
+  border-color: #87e8de;
+  color: #006d75;
+}
+.source-tag.src-compilation {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #389e0d;
 }
 
 .split-panel {

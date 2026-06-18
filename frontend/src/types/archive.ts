@@ -131,6 +131,8 @@ export interface ArchiveRecord {
   tags: string[]
   fondsId: number
   fondsName?: string
+  organizationId?: number
+  organizationName?: string
   locationCode?: string
   boxNo?: string
   createdAt: string
