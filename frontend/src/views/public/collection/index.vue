@@ -5,6 +5,36 @@
       <p class="page-subtitle">填写捐赠信息并登记相关电子文件。</p>
     </section>
 
+    <!-- 我的征集清单：回查已提交批次号与进度 -->
+    <section v-if="myCollections.length > 0" class="card panel" style="margin-top: 18px">
+      <div class="toolbar" style="margin-top: 0">
+        <h2 class="section-title" style="margin: 0">我的征集清单</h2>
+        <span class="muted" style="font-size: 13px">共 {{ myCollections.length }} 条</span>
+      </div>
+      <div class="table-wrap" style="margin-top: 12px">
+        <table>
+          <thead>
+            <tr>
+              <th>清单号</th>
+              <th>标题</th>
+              <th>条目</th>
+              <th>状态</th>
+              <th>提交时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="c in myCollections" :key="c.id">
+              <td class="mono">{{ c.batchNo }}</td>
+              <td>{{ c.title }}</td>
+              <td>{{ c.itemCount }} 件</td>
+              <td><span :class="['status', myColStatusClass(c.status)]">{{ c.statusText || c.status }}</span></td>
+              <td>{{ formatMyDateTime(c.submittedAt) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <div class="edit-layout" style="margin-top: 18px">
       <div class="grid">
         <!-- 捐赠信息 -->
@@ -128,6 +158,10 @@
             <button class="button" type="button" :disabled="submitted || !agreed" @click="submitCollection">提交捐赠意向</button>
           </div>
           <p class="hint">提交后清单变为只读，后台管理员将联系您约定到馆时间。</p>
+          <div v-if="submitted && submittedBatchNo" class="notice success" style="margin-top: 12px">
+            <strong>✓ 已提交，批次号 {{ submittedBatchNo }}</strong>
+            <p style="margin: 4px 0 0; font-size: 13px">请记下批次号以便后续查询；进度可在上方「我的征集清单」或「公众概览」查看。</p>
+          </div>
         </section>
 
         <section class="notice warning">
@@ -139,12 +173,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { parseLocalFiles } from '@/utils/fileParser'
 import type { ParsedLocalFile } from '@/utils/fileParser'
 import { validateCollectionDraft } from '@/utils/publicValidation'
-import { createCollectionDraft, updateCollectionDraft, submitCollectionBatch } from '@/api/public'
+import { createCollectionDraft, updateCollectionDraft, submitCollectionBatch, getMyCollections } from '@/api/public'
 import type { PublicCollectionItem, PublicCollectionBatch } from '@/types/public'
 
 interface DraftItem extends PublicCollectionItem {
@@ -167,6 +201,9 @@ const agreed = ref(false)
 const batchId = ref<number | null>(null)
 const validationErrors = ref<string[]>([])
 const validationType = ref('')
+// 我的征集清单（回查）+ 提交后回显批次号
+const myCollections = ref<PublicCollectionBatch[]>([])
+const submittedBatchNo = ref('')
 
 function addBlankItem() {
   if (submitted.value) return
@@ -275,15 +312,53 @@ async function submitCollection() {
       const created = await createCollectionDraft(buildBatchPayload())
       batchId.value = created.id
     }
-    await submitCollectionBatch(batchId.value!)
+    const result = await submitCollectionBatch(batchId.value!)
     submitted.value = true
+    submittedBatchNo.value = result?.batchNo || ''
     validationErrors.value = []
     validationType.value = ''
-    ElMessage.success('征集清单已提交')
+    await loadMyCollections()
+    ElMessage.success(submittedBatchNo.value ? `征集清单已提交，批次号 ${submittedBatchNo.value}` : '征集清单已提交')
   } catch (e) {
     ElMessage.error((e as Error).message || '提交失败，请稍后重试')
   }
 }
+
+// 我的征集清单：进入页面加载 + 提交后刷新，让公众在征集页即可回查批次号与状态
+async function loadMyCollections() {
+  try {
+    const page = await getMyCollections({ pageNo: 1, pageSize: 20 })
+    myCollections.value = page.records
+  } catch {
+    // 静默失败：回查列表不应阻断提交主流程
+  }
+}
+
+function myColStatusClass(status: string): string {
+  const map: Record<string, string> = {
+    draft: '',
+    pending_contact: 'info',
+    pending_receive: 'info',
+    received: 'success',
+    partially_received: 'warning',
+    shelved: 'success',
+    rejected: 'danger',
+  }
+  return map[status] || ''
+}
+
+function formatMyDateTime(iso?: string): string {
+  if (!iso) return '未提交'
+  try {
+    return new Date(iso).toLocaleString('zh-CN')
+  } catch {
+    return iso
+  }
+}
+
+onMounted(() => {
+  loadMyCollections()
+})
 </script>
 
 <style scoped>

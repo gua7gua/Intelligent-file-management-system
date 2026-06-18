@@ -142,12 +142,13 @@
               <th>年度</th>
               <th>载体</th>
               <th>来源</th>
+              <th>标签</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="searchResults.records.length === 0">
-              <td colspan="8"><div class="empty">没有符合条件的公开档案</div></td>
+              <td colspan="9"><div class="empty">没有符合条件的公开档案</div></td>
             </tr>
             <tr v-for="record in searchResults.records" :key="record.archiveId">
               <td class="mono">{{ record.archiveNo }}</td>
@@ -157,6 +158,7 @@
               <td>{{ record.formedYear }}</td>
               <td>{{ carrierLabel(record.carrierStatus) }}</td>
               <td>{{ sourceLabel(record.sourceType) }}</td>
+              <td>{{ record.tags?.join('、') || '—' }}</td>
               <td>
                 <button class="button ghost" type="button" @click="showDetail(record.archiveId)">详情</button>
               </td>
@@ -177,8 +179,9 @@
       </div>
     </template>
 
-    <!-- 详情面板 -->
-    <section v-if="detailData" class="card panel" style="margin-top: 16px">
+    <!-- 详情弹窗：居中展示，便于查看 -->
+    <el-dialog v-model="detailDialogVisible" title="档案详情" width="720px" align-center destroy-on-close>
+      <div v-if="detailData">
       <div class="detail-head">
         <div>
           <h2 class="section-title">{{ detailData.title }}</h2>
@@ -218,7 +221,8 @@
       <div v-else class="notice" style="margin-top: 12px">
         {{ detailData.carrierStatus === 'paper' ? '纯纸质档案，暂无电子文件可供下载。' : '暂无可下载的电子文件。' }}
       </div>
-    </section>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -285,6 +289,12 @@ const pageSize = ref(20)
 const total = ref(0)
 const searchResults = ref<{ records: (PublicArchive & { openStatus: 'open' })[]; total: number }>({ records: [], total: 0 })
 const detailData = ref<PublicArchiveDetail | null>(null)
+const detailDialogVisible = computed({
+  get: () => !!detailData.value,
+  set: (v: boolean) => {
+    if (!v) detailData.value = null
+  },
+})
 const previewVisible = ref(false)
 const previewFile = ref<{ id: number; name?: string; mime?: string } | null>(null)
 // 后端 retentionPeriod 当前可能为 null（未填），为空时显示「—」避免详情面板出现空白

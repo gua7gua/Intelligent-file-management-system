@@ -15,14 +15,14 @@
           </div>
           <div class="actions">
             <button class="button" type="button" :disabled="aiLoading" @click="handleAiQuery">
-              {{ aiLoading ? '生成中…' : '生成 JSON' }}
+              {{ aiLoading ? '生成中…' : '生成查询条件' }}
             </button>
             <button class="button ghost" type="button" @click="clearAi">清空</button>
           </div>
           <div v-if="aiError" class="notice danger">{{ aiError }}</div>
           <pre v-if="aiResult" class="ai-box">{{ JSON.stringify(aiResult.conditions, null, 2) }}</pre>
           <div v-if="aiResult" class="json-actions">
-            <button class="button secondary" type="button" @click="applyAiConditions">填充表单</button>
+            <button class="button secondary" type="button" @click="applyAiConditions">应用条件并检索</button>
             <button class="button ghost" type="button" @click="copyJson">复制 JSON</button>
           </div>
         </div>
@@ -163,12 +163,12 @@
           <table>
             <thead>
               <tr>
-                <th>档号</th><th>题名</th><th>分类</th><th>密级</th><th>载体</th><th>利用状态</th><th>操作</th>
+                <th>档号</th><th>题名</th><th>分类</th><th>密级</th><th>载体</th><th>利用状态</th><th>标签</th><th>操作</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="searched && results.records.length === 0">
-                <td colspan="7"><div class="empty">没有符合条件的档案</div></td>
+                <td colspan="8"><div class="empty">没有符合条件的档案</div></td>
               </tr>
               <tr v-for="record in results.records" :key="record.archiveId" class="result-row" @click="selectArchive(record.archiveId)">
                 <td class="mono">{{ record.archiveNo }}</td>
@@ -177,6 +177,7 @@
                 <td><span :class="['status', record.securityLevel > 0 ? 'warning' : 'success']">{{ securityLabel(record.securityLevel) }}</span></td>
                 <td>{{ carrierLabel(record.carrierStatus) }}</td>
                 <td><span class="status success">{{ usageHint(record) }}</span></td>
+                <td>{{ record.tags?.join('、') || '—' }}</td>
                 <td><button class="button ghost" type="button" @click.stop="selectArchive(record.archiveId)">详情</button></td>
               </tr>
             </tbody>
@@ -198,13 +199,15 @@
 
     <!-- 右栏详情面板 -->
     <aside class="detail-panel-wrapper">
-      <ArchiveDetailPanel :archive-id="selectedArchiveId" />
+      <el-dialog v-model="detailDialogVisible" title="档案详情" width="720px" align-center destroy-on-close>
+        <ArchiveDetailPanel :archive-id="selectedArchiveId" />
+      </el-dialog>
     </aside>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import ArchiveDetailPanel from '@/views/internal/components/ArchiveDetailPanel.vue'
 import { generateInternalAiQuery, searchInternalArchives } from '@/api/internal'
@@ -237,6 +240,12 @@ const pageSize = ref(20)
 const total = ref(0)
 const results = ref<{ records: InternalArchive[]; total: number }>({ records: [], total: 0 })
 const selectedArchiveId = ref<number | null>(null)
+const detailDialogVisible = computed({
+  get: () => selectedArchiveId.value !== null,
+  set: (v: boolean) => {
+    if (!v) selectedArchiveId.value = null
+  },
+})
 
 function securityLabel(level: number): string {
   return SecurityLevelLabel[level] ?? '未知'

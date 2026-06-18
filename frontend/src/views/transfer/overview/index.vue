@@ -111,6 +111,8 @@
                   v-for="batch in filteredBatches"
                   :key="batch.id"
                   :class="['batch-row', { active: selectedBatchId === batch.id }]"
+                  style="cursor: pointer"
+                  @click="selectedBatchId = batch.id"
                 >
                   <td>
                     <button type="button" @click="selectedBatchId = batch.id">
@@ -388,9 +390,15 @@ async function loadData() {
   }
 }
 
-watch(selectedBatch, () => {
-  loadDetail()
-})
+// 直接监听原始 id 而非 computed 对象，确保切换清单立即重载详情，
+// 避免对象引用比较导致的偶发不触发；immediate 保证初始化也加载首个批次
+watch(
+  selectedBatchId,
+  () => {
+    loadDetail()
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   loadData()
