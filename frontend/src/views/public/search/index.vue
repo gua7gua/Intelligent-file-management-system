@@ -21,7 +21,7 @@
       </div>
       <div v-if="aiResult" class="notice" style="margin-top: 12px">
         <strong>AI 生成条件</strong>
-        <p style="margin: 8px 0 0">{{ aiSummary }}</p>
+        <pre style="margin: 8px 0 0; white-space: pre-wrap; font-size: 13px; background: #f5f7fa; padding: 8px; border-radius: 4px; max-height: 240px; overflow: auto">{{ aiSummary }}</pre>
         <button class="button" type="button" style="margin-top: 8px" @click="applyAiConditions">应用条件并检索</button>
       </div>
     </section>
@@ -267,25 +267,8 @@ const searchParams = reactive<PublicSearchParams>({})
 //   openStatus: 'open'|...    公开状态（公众端恒为 open）
 //   carrierStatus: string|null  载体状态
 const aiSummary = computed(() => {
-  const c = aiResult.value?.conditions as Record<string, unknown> | undefined
-  if (!c) return '已生成检索条件，点击下方按钮执行检索。'
-  const parts: string[] = []
-  const kws = Array.isArray(c.keywords) ? (c.keywords as unknown[]).filter(Boolean) : []
-  if (kws.length > 0) parts.push(`关键词：${kws.join(' / ')}`)
-  if (c.category) {
-    const matched = categoryOptions.value.find((o) => o.categoryCode === c.category)
-    parts.push(`门类：${matched?.categoryName ?? String(c.category)}`)
-  }
-  if (Array.isArray(c.formedDateRange)) {
-    const [s, e] = c.formedDateRange as [unknown, unknown]
-    const sy = s ? String(s).slice(0, 4) : ''
-    const ey = e ? String(e).slice(0, 4) : ''
-    if (sy || ey) parts.push(`年度：${sy || '不限'}-${ey || '至今'}`)
-  }
-  if (c.responsible) parts.push(`责任者：${c.responsible}`)
-  if (c.carrierStatus) parts.push(`载体：${carrierLabel(String(c.carrierStatus))}`)
-  if (parts.length === 0) return '已生成检索条件，点击下方按钮执行检索。'
-  return parts.join('　')
+  const c = aiResult.value?.conditions
+  return c ? JSON.stringify(c, null, 2) : ''
 })
 // hasElectronicFile 为布尔值，原生 select 以字符串代理写入
 const fileState = computed<string>({

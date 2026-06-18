@@ -156,14 +156,14 @@
               <span>经办人</span><strong>{{ selectedBatch.contactName }} {{ selectedBatch.contactPhone }}</strong>
             </div>
             <div class="meta-item">
-              <span>提交时间</span><strong>{{ selectedBatch.submittedAt || '未提交' }}</strong>
+              <span>提交时间</span><strong>{{ selectedBatch.submittedAt ? new Date(selectedBatch.submittedAt).toLocaleString('zh-CN') : '未提交' }}</strong>
             </div>
             <div class="meta-item">
-              <span>接收时间</span><strong>{{ selectedBatch.receivedAt || '未接收' }}</strong>
+              <span>接收时间</span><strong>{{ selectedBatch.receivedAt ? new Date(selectedBatch.receivedAt).toLocaleString('zh-CN') : '未接收' }}</strong>
             </div>
             <div class="meta-item">
               <span>入库 / 上架</span
-              ><strong>{{ selectedBatch.archivedAt || '未入库' }} / {{ selectedBatch.shelvedAt || '未上架' }}</strong>
+              ><strong>{{ selectedBatch.archivedAt ? new Date(selectedBatch.archivedAt).toLocaleString('zh-CN') : '未入库' }} / {{ selectedBatch.shelvedAt ? new Date(selectedBatch.shelvedAt).toLocaleString('zh-CN') : '未上架' }}</strong>
             </div>
           </div>
 

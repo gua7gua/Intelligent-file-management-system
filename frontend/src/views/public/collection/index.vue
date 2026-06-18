@@ -119,9 +119,13 @@
             </template>
             <template v-else>已准备校验。提交前请确认载体状态等信息。</template>
           </div>
+          <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:14px;cursor:pointer">
+            <input type="checkbox" v-model="agreed" :disabled="submitted" style="margin-top:3px" />
+            <span>我已阅读并同意在线捐赠协议，知悉提交后清单转为只读、由档案馆联系约定到馆时间</span>
+          </label>
           <div class="actions" style="margin-top: 12px">
             <button class="button ghost" type="button" :disabled="submitted" @click="saveDraft">保存草稿</button>
-            <button class="button" type="button" :disabled="submitted" @click="submitCollection">提交捐赠意向</button>
+            <button class="button" type="button" :disabled="submitted || !agreed" @click="submitCollection">提交捐赠意向</button>
           </div>
           <p class="hint">提交后清单变为只读，后台管理员将联系您约定到馆时间。</p>
         </section>
@@ -159,6 +163,7 @@ const items = ref<DraftItem[]>([])
 const localFiles = ref<ParsedLocalFile[]>([])
 const isDragOver = ref(false)
 const submitted = ref(false)
+const agreed = ref(false)
 const batchId = ref<number | null>(null)
 const validationErrors = ref<string[]>([])
 const validationType = ref('')
@@ -259,7 +264,10 @@ async function saveDraft() {
 }
 
 async function submitCollection() {
-  // 提交即表明同意在线捐赠协议（本页无独立勾选控件，由提交动作本身确认同意）
+  if (!agreed.value) {
+    ElMessage.warning('请先勾选同意在线捐赠协议')
+    return
+  }
   draft.agreementAccepted = true
   if (!validateDraft()) return
   try {
