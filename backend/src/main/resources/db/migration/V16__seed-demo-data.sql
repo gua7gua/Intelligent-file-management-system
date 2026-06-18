@@ -668,7 +668,9 @@ SELECT setval('seq_analysis_task_no', 1, true);
 SELECT setval('seq_ai_task_no', 3, true);
 SELECT setval('seq_compilation_no', 1, true);
 -- 业务编号序列同步：种子插入了 APP-000001 / INV-000001，必须把对应序列推到种子最大值，
--- 否则首次 nextval 会生成已存在的编号，触发 uk_inventory_tasks_task_no 唯一约束冲突（500）。
+-- 否则首次 nextval 会生成已存在的编号，触发 uk 唯一约束冲突（500）。
+-- seq_appraisal_batch_no 在 V14 漏建、V17 才补；本迁移 setval 引用在前，先建避免干净库重跑 V16 失败。
+CREATE SEQUENCE IF NOT EXISTS seq_appraisal_batch_no START WITH 1;
 SELECT setval('seq_appraisal_batch_no', 1, true);
 SELECT setval('seq_inventory_task_no', 1, true);
 
