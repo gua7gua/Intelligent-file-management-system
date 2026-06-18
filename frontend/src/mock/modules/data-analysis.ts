@@ -16,8 +16,8 @@ function suggestion(archiveId: number, archiveNo: string) {
     archiveId,
     archiveNo,
     candidates: [
-      { field: 'tags', suggestedValue: '["财政改革","预算"]', confidence: 0.82 },
-      { field: 'summary', suggestedValue: '围绕财政改革主题的编研素材', confidence: 0.7 },
+      { field: 'tags', suggestedValue: ['财政改革', '预算'], confidence: 0.82 },
+      { field: 'summary', suggestedValue: ['围绕财政改革主题的编研素材'], confidence: 0.7 },
     ],
   }
 }
@@ -49,9 +49,9 @@ function buildTask(over: Partial<AnalysisTaskDetail> & Pick<AnalysisTaskDetail, 
 }
 
 const tasks: AnalysisTaskDetail[] = [
-  buildTask({ id: 1, taskNo: 'FX-202606-001', taskType: 'mixed', scanMethod: 'mixed', status: 'completed', scopeText: '科技档案 / 2020-2026 / 含 AI 建议', items: task1Items, rule: { categoryIds: [1], formedYearStart: 2020, formedYearEnd: 2026, includeAiSuggestion: true } }),
-  buildTask({ id: 2, taskNo: 'FX-202606-002', taskType: 'mixed', scanMethod: 'rule', status: 'running', scopeText: '文书档案 / 2018-2026 / 仅规则扫描', items: task2Items, rule: { categoryIds: [2], formedYearStart: 2018, formedYearEnd: 2026, includeAiSuggestion: false } }),
-  buildTask({ id: 3, taskNo: 'FX-202605-003', taskType: 'mixed', scanMethod: 'rule', status: 'failed', scopeText: '会计档案 / 2015-2026', items: [], rule: { categoryIds: [3], formedYearStart: 2015, formedYearEnd: 2026 } }),
+  buildTask({ id: 1, taskNo: 'ANA-202606-0001', taskType: 'mixed', scanMethod: 'mixed', status: 'completed', scopeText: '科技档案 / 2020-2026 / 含 AI 建议', items: task1Items, rule: { categoryIds: [1], formedYearStart: 2020, formedYearEnd: 2026, includeAiSuggestion: true } }),
+  buildTask({ id: 2, taskNo: 'ANA-202606-0002', taskType: 'mixed', scanMethod: 'rule', status: 'running', scopeText: '文书档案 / 2018-2026 / 仅规则扫描', items: task2Items, rule: { categoryIds: [2], formedYearStart: 2018, formedYearEnd: 2026, includeAiSuggestion: false } }),
+  buildTask({ id: 3, taskNo: 'ANA-202605-0003', taskType: 'mixed', scanMethod: 'rule', status: 'failed', scopeText: '会计档案 / 2015-2026', items: [], rule: { categoryIds: [3], formedYearStart: 2015, formedYearEnd: 2026 } }),
 ]
 
 export function mockAnalysisTasks(params?: AnalysisTaskParams): PageData<AnalysisTask> {
@@ -85,7 +85,7 @@ export function mockCreateAnalysisTask(data: AnalysisTaskCreateData): AnalysisTa
     suggestion: includeAi ? suggestion(900 + i, no) : undefined,
   }))
   const detail = buildTask({
-    id, taskNo: `FX-202606-${String(id).padStart(3, '0')}`, taskType: data.scanMethod, scanMethod: data.scanMethod, status: 'running',
+    id, taskNo: `ANA-202606-${String(id).padStart(4, '0')}`, taskType: data.scanMethod, scanMethod: data.scanMethod, status: 'running',
     scopeText: `分类 ${rule.categoryIds?.join('/') ?? '全部'} / ${rule.formedYearStart ?? '?'}-${rule.formedYearEnd ?? '?'} / ${includeAi ? '含 AI 建议' : '仅规则扫描'}`,
     items, rule, createdAt: '2026-06-17T09:00:00+08:00', startedAt: '2026-06-17T09:00:00+08:00',
   })

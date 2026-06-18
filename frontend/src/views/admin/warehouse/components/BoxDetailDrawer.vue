@@ -23,7 +23,7 @@
           </select>
         </div>
         <div class="field"><label>年度</label><input v-model="form.yearLabel"></div>
-        <div class="field"><label>盒脊信息</label><input v-model="form.spineText"></div>
+        <div class="field"><label>盒脊信息 <small style="color:var(--text-muted);font-weight:normal">档案盒侧面标签文字，用于库房实物识别</small></label><input v-model="form.spineText" placeholder="如：2025 会计凭证 01"></div>
         <div class="field"><label>容量</label><input v-model.number="form.capacity" type="number"></div>
         <div class="actions">
           <button class="button" @click="onCreateBox">新增档案盒</button>

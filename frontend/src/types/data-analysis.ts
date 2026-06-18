@@ -29,7 +29,8 @@ export interface AnalysisTaskParams extends PageParams {
 export interface AnalysisSuggestionCandidate {
   field: string
   currentValue?: string
-  suggestedValue: string
+  /** 建议值；field 为 tags 时为标签字符串数组。 */
+  suggestedValue: string[]
   confidence: number
 }
 
