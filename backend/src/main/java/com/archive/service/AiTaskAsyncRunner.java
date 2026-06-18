@@ -161,14 +161,30 @@ public class AiTaskAsyncRunner {
         aiTaskBatchMapper.updateById(batch);
         try {
             List<Archive> archives = archiveMapper.selectBatchIds(batch.getTargetIds());
-            String system = "你是档案数据研判助手。只能输出标签类建议，"
-                    + "禁止输出密级/保管期限/开放状态/档号等受保护字段。"
-                    + "输出 <JSON>{\"items\":[{\"archiveId\":1,\"suggestedTags\":[\"标签\"]}]}</JSON>。";
+            String system = """
+                    你是档案数据研判助手，只输出标签类建议，禁止输出密级/保管期限/开放状态/档号等受保护字段。
+                    对每个档案，基于其题名、门类、责任者、形成年度等元数据推测应补充的标签。
+
+                    输出 JSON（用 <JSON></JSON> 包裹）：
+                    {"ruleType":"dataAnalysis","items":[
+                      {"archiveId":1,"candidates":[
+                        {"field":"tags","currentValue":"<当前已有标签，无则为空字符串>","suggestedValue":["标签1","标签2"],"confidence":0.8}
+                      ]}
+                    ]}
+
+                    要求：
+                    - field 固定为 "tags"。
+                    - suggestedValue 是字符串数组，2~5 个标签，避免臆造，优先依据题名/门类/责任者/年度。
+                    - currentValue 为该档案现有标签的逗号串或空字符串；若无法判断则空字符串。
+                    - confidence 取值 0~1，反映对该建议的把握程度。
+                    - 只输出本批提供的 archiveId，不得编造。
+                    """;
             StringBuilder user = new StringBuilder("为下列档案建议补充标签：\n");
             for (Archive a : archives) {
                 user.append("- archiveId: ").append(a.getId());
                 if (a.getTitle() != null) user.append(" 题名:").append(a.getTitle());
                 if (a.getCategoryId() != null) user.append(" 门类:").append(a.getCategoryId());
+                if (a.getResponsibleText() != null) user.append(" 责任者:").append(a.getResponsibleText());
                 user.append('\n');
             }
             JsonNode res = aiClient.callAndExtractJson(system, user.toString());
@@ -184,7 +200,8 @@ public class AiTaskAsyncRunner {
         aiTaskBatchMapper.updateById(batch);
     }
 
-    /** AI 只写 suggestion（tag_suggestion 项），不修改正式档案字段。analysisTaskId 取自 ai_tasks.business_id。 */
+    /** AI 只写 suggestion（tag_suggestion 项），不修改正式档案字段。analysisTaskId 取自 ai_tasks.business_id。
+     *  suggestion 顶层按 candidates 结构写入，供前端 AI 建议区渲染；同时保留 suggestedTags 兼容旧读取方。 */
     private void persistAnalysisSuggestions(Long aiTaskId, JsonNode res) {
         if (res == null) return;
         JsonNode items = res.get("items");
@@ -195,17 +212,87 @@ public class AiTaskAsyncRunner {
             JsonNode idNode = it.get("archiveId");
             if (idNode == null || !idNode.canConvertToLong()) continue;
             long aid = idNode.asLong();
-            JsonNode tags = it.get("suggestedTags");
-            if (tags == null || !tags.isArray() || tags.isEmpty()) continue;
+            // 兼容 AI 同时返回 suggestedTags 或 candidates 两种形态
             List<String> tagList = new ArrayList<>();
-            tags.forEach(x -> { if (x.isTextual()) tagList.add(x.asText()); });
+            JsonNode tags = it.get("suggestedTags");
+            if (tags != null && tags.isArray()) {
+                tags.forEach(x -> { if (x.isTextual()) tagList.add(x.asText()); });
+            }
+            JsonNode candidates = it.get("candidates");
+            if (candidates == null || !candidates.isArray() || candidates.isEmpty()) {
+                // 没有 candidates 但有 suggestedTags，降级构造一个 tags 候选
+                if (tagList.isEmpty()) continue;
+                candidates = null;
+            } else {
+                // 从 candidates 反向补全 tagList（保证 suggestedTags 兼容）
+                for (JsonNode c : candidates) {
+                    JsonNode f = c.get("field");
+                    if (f != null && "tags".equals(f.asText())) {
+                        JsonNode sv = c.get("suggestedValue");
+                        if (sv != null && sv.isArray() && tagList.isEmpty()) {
+                            sv.forEach(x -> { if (x.isTextual()) tagList.add(x.asText()); });
+                        }
+                    }
+                }
+            }
             if (tagList.isEmpty()) continue;
+
+            String archiveNo = null;
+            try {
+                Archive a = archiveMapper.selectById(aid);
+                if (a != null) archiveNo = a.getArchiveNo();
+            } catch (Exception ignored) {
+                // 单条异常不影响整体持久化
+            }
+
+            // candidates 数组：若 AI 已提供则透传，否则按 tagList 构造
+            List<Map<String, Object>> candidateList = new ArrayList<>();
+            if (candidates != null) {
+                for (JsonNode c : candidates) {
+                    JsonNode f = c.get("field");
+                    if (f == null || !"tags".equals(f.asText())) continue;
+                    Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("field", "tags");
+                    JsonNode cv = c.get("currentValue");
+                    m.put("currentValue", cv != null && cv.isTextual() ? cv.asText() : "");
+                    // suggestedValue 统一输出字符串数组
+                    List<String> svList = new ArrayList<>();
+                    JsonNode sv = c.get("suggestedValue");
+                    if (sv != null && sv.isArray()) {
+                        sv.forEach(x -> { if (x.isTextual()) svList.add(x.asText()); });
+                    } else if (sv != null && sv.isTextual()) {
+                        // 容错：AI 偶发以字符串形式返回
+                        svList.add(sv.asText());
+                    }
+                    if (svList.isEmpty()) svList.addAll(tagList);
+                    m.put("suggestedValue", svList);
+                    JsonNode conf = c.get("confidence");
+                    m.put("confidence", conf != null && conf.isNumber() ? conf.asDouble() : 0.8);
+                    candidateList.add(m);
+                }
+            }
+            if (candidateList.isEmpty()) {
+                Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("field", "tags");
+                m.put("currentValue", "");
+                m.put("suggestedValue", tagList);
+                m.put("confidence", 0.8);
+                candidateList.add(m);
+            }
+
+            Map<String, Object> suggestion = new java.util.LinkedHashMap<>();
+            suggestion.put("ruleType", "dataAnalysis");
+            suggestion.put("archiveId", aid);
+            if (archiveNo != null) suggestion.put("archiveNo", archiveNo);
+            suggestion.put("candidates", candidateList);
+            suggestion.put("suggestedTags", tagList); // 兼容旧读取方
+
             AnalysisItem item = new AnalysisItem();
             item.setTaskId(analysisTaskId);
             item.setArchiveId(aid);
             item.setIssueType(AnalysisIssueType.tag_suggestion);
             item.setIssueDetail(Map.of("source", "ai", "aiTaskId", aiTaskId));
-            item.setSuggestion(Map.of("suggestedTags", tagList));
+            item.setSuggestion(suggestion);
             item.setStatus(AnalysisItemStatus.pending);
             analysisItemMapper.insert(item);
         }

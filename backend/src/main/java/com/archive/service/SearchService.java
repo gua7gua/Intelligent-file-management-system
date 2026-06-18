@@ -456,7 +456,7 @@ public class SearchService {
                     toLong(row.get("archiveId")),
                     (String) row.get("archiveNo"),
                     (String) row.get("title"),
-                    row.get("accessedAt") instanceof OffsetDateTime odt ? odt : null));
+                    row.get("accessedAt") instanceof java.sql.Timestamp t ? t.toInstant().atOffset(java.time.ZoneOffset.ofHours(8)) : (row.get("accessedAt") instanceof OffsetDateTime odt ? odt : null)));
         }
         return new InternalDashboardResponse(
                 recentViews,
