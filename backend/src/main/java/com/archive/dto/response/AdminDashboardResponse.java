@@ -60,8 +60,14 @@ public class AdminDashboardResponse {
         private Long id;
         /** 操作人姓名（system 类型显示"系统"）。 */
         private String operator;
+        /** 模块代号（如 M09），保留以兼容前端。 */
         private String module;
+        /** 模块中文标签（如「借阅管理」）。 */
+        private String moduleLabel;
+        /** 操作类型英文枚举（如 issue_voucher），保留以兼容前端。 */
         private String action;
+        /** 操作类型中文标签（如「发放凭证」）。 */
+        private String actionLabel;
         private OffsetDateTime operatedAt;
     }
 

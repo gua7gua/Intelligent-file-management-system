@@ -49,4 +49,11 @@ public class AnalysisController {
                                           @RequestBody @Valid AnalysisItemHandleRequest req) {
         return R.ok(analysisService.handleItem(itemId, req));
     }
+
+    @DeleteMapping("/api/admin/analysis-tasks/{taskId}")
+    @Operation(summary = "20.8 删除研判任务")
+    public R<Void> delete(@PathVariable Long taskId) {
+        analysisService.delete(taskId);
+        return R.ok();
+    }
 }

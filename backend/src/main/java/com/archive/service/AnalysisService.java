@@ -260,6 +260,36 @@ public class AnalysisService {
         return toItemResponse(it);
     }
 
+    /** 20.8 删除研判任务（仅 completed/failed 可删；级联软删 analysis_items）。 */
+    @Transactional
+    public void delete(Long taskId) {
+        requireRole();
+        AnalysisTask t = taskMapper.selectById(taskId);
+        if (t == null || t.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "研判任务不存在");
+        }
+        if (t.getStatus() == AnalysisTaskStatus.running) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "运行中的研判任务不可删除");
+        }
+        // 允许删除的终态：completed / partial_completed / failed（running 之外的都视为可清理）
+        if (t.getStatus() != AnalysisTaskStatus.completed
+                && t.getStatus() != AnalysisTaskStatus.partial_completed
+                && t.getStatus() != AnalysisTaskStatus.failed) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "当前状态不允许删除");
+        }
+        // 级联软删 analysis_items（保留数据，置 deleted_at）
+        List<AnalysisItem> items = itemMapper.selectList(new QueryWrapper<AnalysisItem>()
+                .eq("task_id", taskId).isNull("deleted_at"));
+        OffsetDateTime now = OffsetDateTime.now();
+        for (AnalysisItem it : items) {
+            it.setDeletedAt(now);
+            itemMapper.updateById(it);
+        }
+        t.setDeletedAt(now);
+        taskMapper.updateById(t);
+        auditService.log("M14", "delete", "analysis_task", taskId, Map.of());
+    }
+
     private void copy(AnalysisTask t, AnalysisTaskResponse r) {
         r.setId(t.getId());
         r.setTaskNo(t.getTaskNo());

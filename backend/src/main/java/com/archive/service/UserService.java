@@ -49,6 +49,15 @@ public class UserService {
             "SELECT module_name, operation_type, operated_at FROM audit_logs " +
             "WHERE actor_user_id = ? ORDER BY operated_at DESC LIMIT 10";
 
+    // 软删除业务关联检查：借阅申请 / 审批申请 / 移交征集批次（含 transfer 与 collection 两种来源）
+    private static final String BORROW_LINK_SQL =
+            "SELECT COUNT(*) FROM borrow_requests WHERE borrower_id = ? AND deleted_at IS NULL";
+    private static final String APPROVAL_LINK_SQL =
+            "SELECT COUNT(*) FROM approval_requests WHERE (submitted_by = ? OR approved_by = ?) AND deleted_at IS NULL";
+    private static final String INTAKE_LINK_SQL =
+            "SELECT COUNT(*) FROM intake_batches WHERE (public_user_id = ? OR accepted_by = ? OR created_by = ?) " +
+            "AND deleted_at IS NULL";
+
     // ==================== 22.1 查询用户 ====================
 
     public PageResult<UserInfoResponse> listUsers(int pageNo, int pageSize, String keyword, String status,
@@ -187,6 +196,35 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(newPassword != null ? newPassword : "123456"));
         userMapper.updateById(user);
         auditService.log("M14", "reset_password", "user", id, Map.of());
+    }
+
+    // ==================== 22.7 软删除用户 ====================
+
+    @Transactional
+    public void softDelete(Long id) {
+        User user = userMapper.selectById(id);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        if (user.getStatus() != UserStatus.disabled) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "仅已禁用账号可删除");
+        }
+        if (hasBusinessLinks(id)) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "账号存在业务关联，无法删除");
+        }
+        user.setDeletedAt(java.time.OffsetDateTime.now());
+        userMapper.updateById(user);
+        auditService.log("M14", "delete_user", "user", id, Map.of());
+    }
+
+    /** 校验该用户是否仍存在未软删的业务关联（借阅 / 审批 / 移交征集）。 */
+    private boolean hasBusinessLinks(Long userId) {
+        Long borrow = jdbcTemplate.queryForObject(BORROW_LINK_SQL, Long.class, userId);
+        if (borrow != null && borrow > 0) return true;
+        Long approval = jdbcTemplate.queryForObject(APPROVAL_LINK_SQL, Long.class, userId, userId);
+        if (approval != null && approval > 0) return true;
+        Long intake = jdbcTemplate.queryForObject(INTAKE_LINK_SQL, Long.class, userId, userId, userId);
+        return intake != null && intake > 0;
     }
 
     // ==================== 角色绑定辅助（user_roles 无 @TableId，用 JdbcTemplate 操作） ====================
