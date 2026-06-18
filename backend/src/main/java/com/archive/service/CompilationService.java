@@ -340,6 +340,28 @@ public class CompilationService {
         return c;
     }
 
+    /** 19.7 删除编研草稿（仅 draft 可删；仅创建人或后台管理员可删）。 */
+    @Transactional
+    public void delete(Long id) {
+        requireRole();
+        Compilation c = mustGet(id);
+        if (c.getStatus() != CompilationStatus.draft) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "仅草稿状态的编研成果可删除");
+        }
+        // 创建人本人或后台管理员（requireRole 已保证 back_archivist）均可删除
+        Long currentUserId = AuthContext.getCurrentUserId();
+        boolean isCreator = c.getCreatedBy() != null && c.getCreatedBy().equals(currentUserId);
+        boolean isBackAdmin = AuthContext.hasRole(RoleCode.back_archivist);
+        if (!isCreator && !isBackAdmin) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "仅创建人或后台管理员可删除编研草稿");
+        }
+        c.setDeletedAt(OffsetDateTime.now());
+        compilationMapper.updateById(c);
+        // 级联软删素材行（compilation_materials 有 deleted_at），避免脏数据
+        materialMapper.delete(new QueryWrapper<CompilationMaterial>().eq("compilation_id", id));
+        auditService.log("M13", "delete", "compilation", id, Map.of());
+    }
+
     private CompilationResponse toListResponse(Compilation c) {
         CompilationResponse r = new CompilationResponse();
         r.setId(c.getId());

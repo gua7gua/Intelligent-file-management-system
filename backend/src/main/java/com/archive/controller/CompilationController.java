@@ -59,4 +59,11 @@ public class CompilationController {
     public R<CompilationDetailResponse> archive(@PathVariable Long id, @RequestBody @Valid CompilationArchiveRequest req) {
         return R.ok(compilationService.archive(id, req));
     }
+
+    @DeleteMapping("/api/admin/compilations/{id}")
+    @Operation(summary = "19.7 删除编研草稿")
+    public R<Void> delete(@PathVariable Long id) {
+        compilationService.delete(id);
+        return R.ok();
+    }
 }
