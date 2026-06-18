@@ -25,7 +25,7 @@
 
       <div v-if="detail.files.length > 0" style="margin-top: 12px">
         <h3 class="section-title">电子文件</h3>
-        <div v-for="file in detail.files" :key="file.id" class="local-file">
+        <div v-for="file in detail.files" :key="file.fileId" class="local-file">
           <div>
             <strong>{{ file.originalFilename }}</strong>
             <div class="hint">{{ file.fileFormat }}，{{ formatSize(file.fileSize) }}，{{ file.fileRole }}</div>
@@ -188,7 +188,7 @@ function toggleBorrowForm() {
 
 function handlePreview(file: InternalFile) {
   previewFile.value = {
-    id: file.id,
+    id: file.fileId,
     name: file.originalFilename,
     mime: (file as { mimeType?: string }).mimeType || file.fileFormat,
   }
@@ -198,7 +198,7 @@ function handlePreview(file: InternalFile) {
 async function handleDownload(file: InternalFile) {
   downloading.value = true
   try {
-    const blob = await downloadInternalFile(file.id)
+    const blob = await downloadInternalFile(file.fileId)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

@@ -40,8 +40,8 @@ const archiveSmartCity: InternalArchiveDetail = {
   summary: '2025 年度智慧城市建设项目技术总结，含立项、实施、验收全流程技术材料。',
   retentionPeriod: '30y',
   files: [
-    { id: 2001, originalFilename: '智慧城市年度技术报告.pdf', fileFormat: 'PDF', fileSize: 8_200_000, fileRole: '原文', fileCheckStatus: 'safe', canPreview: true, canDownload: true },
-    { id: 2002, originalFilename: '系统架构扫描件.jpg', fileFormat: 'JPG', fileSize: 3_400_000, fileRole: '扫描件', fileCheckStatus: 'safe', canPreview: true, canDownload: true },
+    { fileId: 2001, originalFilename: '智慧城市年度技术报告.pdf', fileFormat: 'PDF', fileSize: 8_200_000, fileRole: '原文', fileCheckStatus: 'safe', canPreview: true, canDownload: true },
+    { fileId: 2002, originalFilename: '系统架构扫描件.jpg', fileFormat: 'JPG', fileSize: 3_400_000, fileRole: '扫描件', fileCheckStatus: 'safe', canPreview: true, canDownload: true },
   ],
 }
 
@@ -67,7 +67,7 @@ const archiveMeeting: InternalArchiveDetail = {
   summary: '信息化建设推进会议纪要，含决议事项与责任分工。',
   retentionPeriod: '10y',
   files: [
-    { id: 2003, originalFilename: '信息化建设会议纪要.pdf', fileFormat: 'PDF', fileSize: 1_200_000, fileRole: '原文', fileCheckStatus: 'safe', canPreview: true, canDownload: true },
+    { fileId: 2003, originalFilename: '信息化建设会议纪要.pdf', fileFormat: 'PDF', fileSize: 1_200_000, fileRole: '原文', fileCheckStatus: 'safe', canPreview: true, canDownload: true },
   ],
 }
 
@@ -117,7 +117,7 @@ const archiveBudget: InternalArchiveDetail = {
   summary: '2025 年度财政预算批复，含电子正本与纸质原件。',
   retentionPeriod: '30y',
   files: [
-    { id: 2004, originalFilename: '2025预算批复.pdf', fileFormat: 'PDF', fileSize: 2_100_000, fileRole: '原文', fileCheckStatus: 'safe', canPreview: true, canDownload: false },
+    { fileId: 2004, originalFilename: '2025预算批复.pdf', fileFormat: 'PDF', fileSize: 2_100_000, fileRole: '原文', fileCheckStatus: 'safe', canPreview: true, canDownload: false },
   ],
 }
 

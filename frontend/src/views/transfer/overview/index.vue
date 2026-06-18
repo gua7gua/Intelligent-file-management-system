@@ -5,6 +5,11 @@
       <p class="page-subtitle">
         跟踪本单位移交清单从编制到上架的全过程。
       </p>
+      <p v-if="authStore.user" class="page-subtitle">
+        当前账号：<strong>{{ authStore.user.realName }}</strong>
+        <span v-if="authStore.user.departmentName"> · 部门：{{ authStore.user.departmentName }}</span>
+        <span v-if="authStore.user.phone"> · 电话：{{ authStore.user.phone }}</span>
+      </p>
     </section>
 
     <!-- 加载状态 -->
@@ -240,6 +245,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getTransferDashboard, getTransferBatches, getTransferBatchDetail, exportTransferBatch } from '@/api/transfer'
 import type { TransferDashboard, TransferBatch, TransferBatchDetail } from '@/types/transfer'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 const tabs = [
   { label: '全部', value: 'all' },

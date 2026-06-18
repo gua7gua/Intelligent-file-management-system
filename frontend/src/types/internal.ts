@@ -35,7 +35,7 @@ export interface InternalSearchParams extends PageParams {
 
 /** 内部档案文件 */
 export interface InternalFile {
-  id: number
+  fileId: number
   originalFilename: string
   fileFormat: string
   fileSize: number
