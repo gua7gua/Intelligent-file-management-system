@@ -13,9 +13,13 @@ export interface ArchiveAccessLog {
   userType: AccessUserType
   /** 富字段：用户姓名 */
   userName?: string
+  /** 富字段：访问人姓名（后端联 users.real_name 填充，与 userName 同义，后端实际返回字段名） */
+  actorName?: string
   archiveId: number
   /** 富字段：档号，便于展示 */
   archiveNo?: string
+  /** 富字段：档案题名 */
+  title?: string
   archiveFileId?: number
   accessType: AccessType
   ipAddress?: string

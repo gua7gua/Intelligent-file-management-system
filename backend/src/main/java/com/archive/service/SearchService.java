@@ -228,11 +228,15 @@ public class SearchService {
     private ArchiveSearchDetailResponse toDetail(Archive a, boolean includeSensitive) {
         List<ArchiveFile> files = archiveFileMapper.selectList(new QueryWrapper<ArchiveFile>()
                 .eq("archive_id", a.getId()).eq("file_status", "normal"));
+        // 电子件预览/下载要求档案 open_status=open；公众版 includeSensitive=false 时 a 已经过 open 过滤，
+        // 内部版需要按 open_status 单独判定（closed 档案只允许查看元数据）。
+        boolean accessible = "open".equals(a.getOpenStatus());
         List<ArchiveSearchDetailResponse.FileSummary> fileSummaries = files.stream()
                 .map(f -> new ArchiveSearchDetailResponse.FileSummary(
                         f.getId(), f.getOriginalFilename(), f.getFileExt(),
                         f.getFileSize(), f.getMimeType(),
-                        f.getFileRole() == null ? null : f.getFileRole().name()))
+                        f.getFileRole() == null ? null : f.getFileRole().name(),
+                        accessible, accessible))
                 .toList();
         String categoryName = loadCategoryNames().get(a.getCategoryId());
         return new ArchiveSearchDetailResponse(
@@ -294,18 +298,20 @@ public class SearchService {
         return file;
     }
 
-    /** 加载内部可见文件：文件存在 + 所属档案在当前用户权限范围 + file_status=normal。 */
+    /** 加载内部可见文件：文件存在 + 所属档案在当前用户权限范围 + 公开 + file_status=normal。
+     *  电子件预览/下载要求 open_status=open（与公众一致），closed 档案只允许查看元数据。 */
     ArchiveFile loadVisibleInternalFile(Long fileId, int maxSecurityLevel, DataScope dataScope, Long organizationId) {
         ArchiveFile file = archiveFileMapper.selectById(fileId);
         if (file == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "档案文件不存在");
         }
         QueryWrapper<Archive> w = new QueryWrapper<>();
-        w.eq("id", file.getArchiveId()).eq("lifecycle_status", "normal").le("security_level", maxSecurityLevel);
+        w.eq("id", file.getArchiveId()).eq("lifecycle_status", "normal")
+                .le("security_level", maxSecurityLevel).eq("open_status", "open");
         applyDataScope(w, dataScope, organizationId);
         Archive a = archiveMapper.selectOne(w);
         if (a == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "档案不存在或无权访问");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "档案不存在或不公开");
         }
         if (file.getFileStatus() != FileStatus.normal) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "文件不可用");

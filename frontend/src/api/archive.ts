@@ -99,10 +99,20 @@ function normalizePendingBatchDetail(raw: Record<string, unknown>, batchId: numb
     archiveId: (it.generatedArchiveId as number) ?? (it.archiveId as number | undefined),
     archiveNo: it.archiveNo as string | undefined,
     lifecycleStatus: it.lifecycleStatus as string | undefined,
+    archiveFondsId: (it.archiveFondsId as number | undefined) ?? undefined,
+    archiveBoxId: (it.archiveBoxId as number | undefined) ?? undefined,
     createdAt: (it.createdAt as string) ?? '',
     updatedAt: (it.updatedAt as string) ?? '',
   }))
-  return { ...(raw as object), id: batchId, items } as PendingBatchDetail
+  // 详情接口现已回填 latestAiTaskStatus（与列表口径一致）；统一归一化为 aiStatus，
+  // 避免 activeBatch.aiStatus 为 undefined 导致详情视图 AI 标签回退为「未开始」。
+  const latestAiTaskStatus = (raw.latestAiTaskStatus as string | undefined) ?? (raw.aiStatus as string | undefined)
+  return {
+    ...(raw as object),
+    id: batchId,
+    items,
+    aiStatus: (latestAiTaskStatus ?? 'not_started') as PendingBatch['aiStatus'],
+  } as PendingBatchDetail
 }
 
 /** 启动 AI 补全 */

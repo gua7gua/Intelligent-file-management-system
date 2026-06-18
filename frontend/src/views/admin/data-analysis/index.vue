@@ -19,6 +19,19 @@ const newTaskType = ref<AnalysisTaskTypeValue>('mixed')
 const newIncludeAi = ref(true)
 const filterStatus = ref<'' | 'running' | 'completed' | 'failed'>('')
 
+// 扫描范围：档案门类多选 + 形成年度范围。
+// 门类 id 与档案管理页 categoryTree 一致（1=文书 2=科技 3=会计 4=音像 5=人事）。
+const scanCategories = [
+  { id: 1, name: '文书档案' },
+  { id: 2, name: '科技档案' },
+  { id: 3, name: '会计档案' },
+  { id: 4, name: '音像档案' },
+  { id: 5, name: '人事档案' },
+]
+const newCategoryIds = ref<number[]>([1, 2, 3, 4, 5])
+const newYearStart = ref<number>(2010)
+const newYearEnd = ref<number>(2026)
+
 const filteredTasks = computed(() => filterStatus.value ? tasks.value.filter((t) => t.status === filterStatus.value) : tasks.value)
 const adoptedQueue = computed(() => current.value?.items.filter((i) => i.status === 'adopted') ?? [])
 
@@ -67,10 +80,23 @@ async function doHandle(action: 'adopted' | 'rejected') {
 }
 
 async function startScan() {
+  if (!newCategoryIds.value.length) {
+    ElMessage.warning('请至少选择一个档案门类作为扫描范围')
+    return
+  }
+  if (!newYearStart.value || !newYearEnd.value || newYearStart.value > newYearEnd.value) {
+    ElMessage.warning('请填写有效的形成年度范围')
+    return
+  }
   try {
     const detail = await createAnalysisTask({
       scanMethod: newTaskType.value,
-      rule: { categoryIds: [1, 3], formedYearStart: 2010, formedYearEnd: 2026, includeAiSuggestion: newIncludeAi.value },
+      rule: {
+        categoryIds: [...newCategoryIds.value],
+        formedYearStart: newYearStart.value,
+        formedYearEnd: newYearEnd.value,
+        includeAiSuggestion: newIncludeAi.value,
+      },
     })
     ElMessage.success('扫描已开始')
     await load()
@@ -115,8 +141,25 @@ onMounted(load)
           <h2 class="section-title">扫描控制</h2>
           <div class="form-grid">
             <div class="field">
-              <label>扫描范围</label>
-              <select disabled><option>正式档案：科技档案 / 文书档案</option></select>
+              <label>扫描范围（档案门类）</label>
+              <div class="scope-checks">
+                <label v-for="cat in scanCategories" :key="cat.id" class="check">
+                  <input
+                    type="checkbox"
+                    :value="cat.id"
+                    v-model="newCategoryIds"
+                  />
+                  {{ cat.name }}
+                </label>
+              </div>
+            </div>
+            <div class="field">
+              <label>形成年度范围</label>
+              <div class="row">
+                <input v-model.number="newYearStart" type="number" placeholder="如 2010" />
+                <span>—</span>
+                <input v-model.number="newYearEnd" type="number" placeholder="如 2026" />
+              </div>
             </div>
             <div class="field">
               <label>任务类型</label>
@@ -249,6 +292,10 @@ onMounted(load)
 .field select { padding: 6px 8px; }
 .check { display: flex; align-items: center; gap: 6px; }
 .check input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; }
+.scope-checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.scope-checks .check { margin: 0; }
+.row { display: flex; align-items: center; gap: 8px; }
+.row input[type="number"] { width: 96px; padding: 6px 8px; }
 .task-strip { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-top: 12px; }
 .task-cell { display: grid; gap: 4px; padding: 8px; background: #f7f9fc; border-radius: 6px; }
 .task-cell span { font-size: 12px; color: #909399; }

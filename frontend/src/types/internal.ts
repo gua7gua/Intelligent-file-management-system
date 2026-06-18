@@ -67,11 +67,39 @@ export interface InternalArchive {
   archivedAt: string
 }
 
-/** 内部档案详情 */
+/** 内部档案详情：兼容旧 mock 数据与后端 ArchiveSearchDetailResponse 真实返回 */
 export interface InternalArchiveDetail extends InternalArchive {
+  /** 后端详情响应字段为 archiveId（与列表的 id 同义），保留兼容 */
+  archiveId?: number
   summary?: string
-  retentionPeriod: RetentionPeriodValue
+  retentionPeriod?: RetentionPeriodValue
   files: InternalFile[]
+}
+
+/** 后端详情响应字段（ArchiveSearchDetailResponse），独立于检索摘要 */
+export interface InternalArchiveDetailResponse {
+  archiveId: number
+  archiveNo: string
+  title: string
+  responsibleText: string
+  formedYear?: number
+  formedDate?: string
+  categoryName: string
+  carrierStatus: CarrierStatusValue
+  securityLevel?: number
+  openStatus?: OpenStatusValue
+  retentionPeriod?: RetentionPeriodValue
+  files: InternalFileSummary[]
+}
+
+/** 后端详情中的电子文件摘要（FileSummary） */
+export interface InternalFileSummary {
+  fileId: number
+  originalFilename: string
+  fileExt?: string
+  fileSize?: number
+  mimeType?: string
+  fileRole?: string
 }
 
 /** AI 检索条件生成请求 */
@@ -131,51 +159,31 @@ export interface BorrowRequestParams extends PageParams {
   keyword?: string
 }
 
-/** 工作台指标 */
-export interface InternalDashboardStats {
-  recentViewCount: number
-  pendingApprovalCount: number
-  approvedPendingPickupCount: number
-  downloadCount: number
-}
-
-/** 最近查阅记录 */
+/** 最近查阅记录（11.1 后端返回；只含元数据访问摘要，无分类/密级等冗余字段） */
 export interface RecentViewRecord {
-  id: number
   archiveId: number
   archiveNo: string
   title: string
-  categoryName: string
-  securityLevel: number
-  viewedAt: string
-  accessStatus: 'available' | 'permission_changed'
+  accessedAt?: string
 }
 
-/** 工作台下载记录 */
-export interface DownloadRecord {
-  id: number
+/** 借阅摘要（11.1 我的申请/当前借阅/逾期提示共用结构） */
+export interface BorrowSummaryItem {
+  requestNo: string
   archiveId: number
   archiveNo: string
   title: string
-  downloadedAt: string
+  status: BorrowStatusValue
+  dueAt?: string
+  appliedAt: string
 }
 
-/** 当前用户权限范围 */
-export interface InternalPermission {
-  role: string
-  organizationName: string
-  maxSecurityLevel: number
-  dataScope: string
-}
-
-/** 工作台聚合数据 */
+/** 工作台聚合数据：对齐后端 §11.1 真实返回 */
 export interface InternalDashboardData {
-  stats: InternalDashboardStats
   recentViews: RecentViewRecord[]
-  borrowRequests: BorrowRequest[]
-  currentLoans: BorrowRequest[]
-  downloads: DownloadRecord[]
-  permission: InternalPermission
+  myBorrowRequests: BorrowSummaryItem[]
+  currentBorrows: BorrowSummaryItem[]
+  overdueReminders: BorrowSummaryItem[]
 }
 
 export type InternalArchivePage = PageData<InternalArchive>

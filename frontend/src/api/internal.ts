@@ -66,7 +66,10 @@ export function createBorrowRequest(data: BorrowRequestCreateData): Promise<Borr
 /** 11.8 查询我的借阅申请 */
 export function getMyBorrowRequests(params?: BorrowRequestParams): Promise<BorrowRequestPage> {
   if (USE_MOCK) return import('@/mock/modules/internal').then((m) => m.mockMyBorrowRequests(params))
-  return request.get('/internal/borrow-requests', { params })
+  // 后端返回 archive 嵌套对象（{archiveId, archiveNo, title,...}）+ createdAt，
+  // 前端 BorrowRequest 类型期望扁平字段 archiveId/archiveNo/archiveTitle/appliedAt，
+  // 在 API 层做一次归一化，避免每个调用方重复适配。
+  return request.get('/internal/borrow-requests', { params }).then(normalizeBorrowPage)
 }
 
 /** 11.9 借阅申请详情 */
@@ -78,7 +81,33 @@ export function getBorrowRequestDetail(requestId: number): Promise<BorrowRequest
       return detail
     })
   }
-  return request.get(`/internal/borrow-requests/${requestId}`)
+  return request.get(`/internal/borrow-requests/${requestId}`).then(normalizeBorrowDetail)
+}
+
+// 后端 BorrowRequestResponse：archive 为嵌套对象、申请时间为 createdAt。
+// 前端类型 BorrowRequest：扁平 archiveId/archiveNo/archiveTitle、申请时间为 appliedAt。
+// 保留后端原始字段（如 createdAt）以兼容历史代码，同时补齐前端期望的扁平字段。
+function normalizeBorrowItem<T extends Record<string, unknown>>(raw: T): T {
+  if (!raw) return raw
+  const archive = raw.archive as { archiveId?: number; archiveNo?: string; title?: string } | undefined
+  const out: Record<string, unknown> = { ...raw }
+  if (archive) {
+    if (archive.archiveId != null && out.archiveId == null) out.archiveId = archive.archiveId
+    if (archive.archiveNo && !out.archiveNo) out.archiveNo = archive.archiveNo
+    if (archive.title && !out.archiveTitle) out.archiveTitle = archive.title
+  }
+  // appliedAt ← createdAt（后端实体审计字段）
+  if (raw.createdAt && !out.appliedAt) out.appliedAt = raw.createdAt
+  return out as T
+}
+
+function normalizeBorrowPage(page: BorrowRequestPage): BorrowRequestPage {
+  if (!page || !Array.isArray(page.records)) return page
+  return { ...page, records: page.records.map(normalizeBorrowItem) }
+}
+
+function normalizeBorrowDetail(detail: BorrowRequestDetail): BorrowRequestDetail {
+  return normalizeBorrowItem(detail)
 }
 
 /** 11.10 导出借阅凭证 */

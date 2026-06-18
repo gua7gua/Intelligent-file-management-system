@@ -11,17 +11,17 @@ async function waitForAsyncData() {
 }
 
 describe('InternalOverview', () => {
-  it('renders metrics, recent views and borrow requests from mock', async () => {
+  it('renders recent views and my borrow requests from dashboard mock', async () => {
     const wrapper = mount(InternalOverview)
     await waitForAsyncData()
 
-    expect(wrapper.text()).toContain('最近查阅')
-    expect(wrapper.text()).toContain('待审批申请')
+    expect(wrapper.text()).toContain('我的最近查阅')
+    expect(wrapper.text()).toContain('我的借阅申请')
     expect(wrapper.text()).toContain('智慧城市项目年度技术报告')
     expect(wrapper.text()).toContain('BR-202606-021')
   })
 
-  it('shows export voucher for approved and view link for others', async () => {
+  it('shows export voucher for approved/voucher_issued and view link for others', async () => {
     const wrapper = mount(InternalOverview)
     await waitForAsyncData()
 

@@ -17,4 +17,6 @@ public class ArchiveAccessLogResponse {
     private String archiveNo;
     /** 档案题名（联表 archives 填充）。 */
     private String title;
+    /** 访问人姓名（联 users.real_name）。 */
+    private String actorName;
 }

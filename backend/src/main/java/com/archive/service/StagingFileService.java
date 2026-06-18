@@ -216,7 +216,9 @@ public class StagingFileService {
         resp.setFileSize(file.getSize());
         resp.setSha256(sha256);
         resp.setScanResult(sf.getScanResult().name());
-        resp.setMatchStatus(sf.getMatchStatus().name());
+        // tryAutoMatch 内部会更新 staging_files.match_status；响应字段须与 matchedItemId 一致，
+        // 避免出现 matchStatus=unmatched 但 matchedItemId 非空的矛盾
+        resp.setMatchStatus(matchedItemId != null ? MatchStatus.matched.name() : sf.getMatchStatus().name());
         resp.setMatchedItemId(matchedItemId);
         return resp;
     }

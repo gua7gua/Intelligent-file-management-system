@@ -50,6 +50,10 @@ export interface PendingItem {
   archiveId?: number
   archiveNo?: string
   lifecycleStatus?: string
+  /** 已入库档案的所属全宗 ID，由后端在 generatedArchiveId 非空时回填，供入库后表单回显所属全宗。 */
+  archiveFondsId?: number
+  /** 已入库档案所在档案盒 ID，纯电子为 null；供入库后表单回显档案盒。 */
+  archiveBoxId?: number
   boxNo?: string
   spine?: string
   locationCode?: string
@@ -123,6 +127,7 @@ export interface ArchiveRecord {
   lifecycleStatus: string
   responsibleText: string
   formedDate: string
+  formedYear?: number
   tags: string[]
   fondsId: number
   fondsName?: string

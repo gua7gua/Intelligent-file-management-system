@@ -38,5 +38,9 @@ public class ArchiveSearchDetailResponse {
         private Long fileSize;
         private String mimeType;
         private String fileRole;
+        /** 该文件在当前上下文是否可预览（受 open_status 等限制） */
+        private Boolean canPreview;
+        /** 该文件在当前上下文是否可下载 */
+        private Boolean canDownload;
     }
 }

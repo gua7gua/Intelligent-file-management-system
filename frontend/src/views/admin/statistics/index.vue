@@ -13,6 +13,44 @@ const yearStart = ref<number>(2020)
 const yearEnd = ref<number>(2026)
 const yearOptions = [2020, 2021, 2022, 2023, 2024, 2025, 2026]
 
+// 业务汇总状态明细：后端按业务域返回原始状态码（snake_case），
+// 前端统一映射为人类可读的中文标签。覆盖移交/征集/借阅/销毁/保存/编研等域。
+const BusinessStatusLabel: Record<string, string> = {
+  // BatchStatus（移交/征集批次）
+  draft: '草稿',
+  pending_transfer: '待移交',
+  pending_contact: '待联系',
+  pending_receive: '待接收',
+  received: '已接收',
+  partially_received: '部分接收',
+  rejected: '已回退',
+  archived: '已入库',
+  shelved: '已上架',
+  // BorrowStatus
+  applied: '待审批',
+  approved: '已批准',
+  rejected: '已拒绝',
+  checked_out: '已出库',
+  borrowed: '借出中',
+  returned: '已归还',
+  overdue: '逾期',
+  // DestructionListStatus
+  pending_destroy: '待销毁',
+  destroying: '销毁中',
+  destroyed: '已销毁',
+  // BackupStatus
+  pending_backup: '待备份',
+  running: '进行中',
+  success: '成功',
+  failed: '失败',
+  // CompilationStatus
+  generated: '已生成正文',
+}
+
+function businessLabel(code: string): string {
+  return BusinessStatusLabel[code] || code
+}
+
 const maxIntake = computed(() => overview.value?.yearlyIntake.reduce((m, b) => Math.max(m, b.count), 1) ?? 1)
 
 function params(): StatisticsParams {
@@ -138,7 +176,7 @@ onMounted(load)
                   <td>{{ row.domain }}</td>
                   <td>{{ row.total }}</td>
                   <td>
-                    <span class="status" v-for="d in row.details" :key="d.label" style="margin-right:6px;">{{ d.label }} {{ d.count }}</span>
+                    <span class="status" v-for="d in row.details" :key="d.label" style="margin-right:6px;">{{ businessLabel(d.label) }} {{ d.count }}</span>
                   </td>
                 </tr>
               </tbody>
@@ -152,7 +190,7 @@ onMounted(load)
           <h2 class="section-title">领导关注指标</h2>
           <div class="timeline">
             <li><span>本月</span><div>馆藏新增 {{ overview.metrics[1]?.value.toLocaleString() ?? '—' }} 件，待上架 {{ overview.metrics[2]?.value.toLocaleString() ?? '—' }} 件。</div></li>
-            <li><span>借阅</span><div>累计申请 {{ overview.totals?.borrowCount?.toLocaleString?.() ?? '—' }} 件（来自 borrow_requests）。</div></li>
+            <li><span>借阅</span><div>累计申请 {{ overview.totals?.borrowCount?.toLocaleString?.() ?? '—' }} 件（来自借阅申请）。</div></li>
             <li><span>年度</span><div>待销毁清册 {{ overview.metrics[3]?.value.toLocaleString() ?? '—' }} 册，已销毁 {{ overview.totals?.destroyedCount?.toLocaleString?.() ?? '—' }} 册。</div></li>
           </div>
         </div>

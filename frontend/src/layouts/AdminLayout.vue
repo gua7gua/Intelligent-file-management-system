@@ -115,6 +115,8 @@ const menuSections = computed<NavSection[]>(() => {
         { path: '/admin/statistics', title: '数据统计', tag: '报表', roles: ['back_archivist', 'director'] },
         { path: '/admin/data-analysis', title: '数据研判', tag: '分析', roles: ['back_archivist'] },
         { path: '/admin/preservation', title: '档案保存', tag: '备份', roles: ['back_archivist'] },
+        { path: '/admin/audit-logs', title: '审计日志', tag: '审计', roles: ['back_archivist', 'sys_admin'] },
+        { path: '/admin/access-logs', title: '访问日志', tag: '访问', roles: ['back_archivist', 'sys_admin'] },
         { path: '/admin/user-management', title: '用户管理', tag: '系统', roles: ['sys_admin'] },
         { path: '/admin/system-settings', title: '系统配置', tag: '设置', roles: ['sys_admin'] },
       ],

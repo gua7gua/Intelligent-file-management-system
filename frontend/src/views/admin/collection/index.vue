@@ -519,9 +519,13 @@ async function handleCompleteReceive() {
     await completeBatchAcceptance(selectedBatch.value.id, { acceptanceNote: '征集到馆验收完成' })
     ElMessage.success('已确认接收，条目进入后续入库流程')
     // 刷新批次列表与详情，避免完成后卡片仍显示原状态（与 B12-1 同类问题）
+    const completedId = selectedBatch.value.id
     await loadCollections()
-    if (selectedBatch.value) {
-      await selectBatch(selectedBatch.value)
+    // 关键：从刷新后的 batchList 取最新对象再 selectBatch，
+    // 否则 selectedBatch 仍指向旧对象（status=pending_receive），头部状态不会更新
+    const refreshed = batchList.value.find((b) => b.id === completedId)
+    if (refreshed) {
+      await selectBatch(refreshed)
     }
   } catch {
     ElMessage.error('完成接收失败')

@@ -75,6 +75,7 @@
                 <tr>
                   <th>档号</th>
                   <th>题名</th>
+                  <th>年度</th>
                   <th>分类</th>
                   <th>密级</th>
                   <th>开放</th>
@@ -92,6 +93,7 @@
                 >
                   <td>{{ a.archiveNo }}</td>
                   <td>{{ a.title }}</td>
+                  <td>{{ a.formedYear ?? '—' }}</td>
                   <td>{{ a.categoryName }}</td>
                   <td>{{ SecurityLevelLabel[a.securityLevel] || '未知' }}</td>
                   <td>{{ a.openStatus === 'open' ? '公开' : '不公开' }}</td>

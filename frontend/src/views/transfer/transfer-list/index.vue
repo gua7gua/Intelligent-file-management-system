@@ -384,11 +384,8 @@ async function saveDraft() {
 }
 
 async function submitList() {
-  // 提交前同步：密级为内部及以上（>0）时强制 openStatus 为 closed，
-  // 避免出现「内部/公开」等不一致组合被持久化。
-  for (const it of items.value) {
-    if ((it.securityLevel ?? 0) > 0) it.openStatus = 'closed'
-  }
+  // 提交前校验：涉密档案（securityLevel > 0）不允许设置为公开，
+  // 由 validateTransferDraft 给出明确报错，不再静默改写 openStatus。
   if (!validate()) return
   try {
     const payload = {
@@ -411,6 +408,23 @@ async function submitList() {
         items: items.value,
       })
       batchId.value = created.id
+    } else {
+      // 草稿已存在时，先把最新条目（含密级/公开等修改）同步到后端，
+      // 否则 submit 仅触发状态机，后端用的是旧草稿数据，校验会失真。
+      await updateTransferBatch(batchId.value, {
+        ...payload,
+        id: batchId.value,
+        batchNo: '',
+        sourceType: 'transfer' as const,
+        status: 'draft' as const,
+        statusText: '草稿',
+        organizationName: '',
+        contactName: '',
+        itemCount: items.value.length,
+        acceptedCount: 0,
+        rejectedCount: 0,
+        items: items.value,
+      })
     }
     await submitTransferBatch(batchId.value!)
     submitted.value = true

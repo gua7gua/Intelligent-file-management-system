@@ -437,9 +437,9 @@ export const CheckTypeLabel: Record<string, string> = {
 }
 // 四性检测结果保留原值展示（原型以 passed/failed/not_configured 原文呈现）
 export const CheckResultLabel: Record<string, string> = {
-  passed: 'passed',
-  failed: 'failed',
-  not_configured: 'not_configured',
+  passed: '通过',
+  failed: '未通过',
+  not_configured: '未配置',
 }
 export const UserTypeLabel: Record<string, string> = {
   internal: '内部',

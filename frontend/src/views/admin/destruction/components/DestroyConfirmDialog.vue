@@ -34,7 +34,7 @@
       <label>现场照片（至少 1 张，jpg/png，≤10MB）</label>
       <input type="file" accept="image/jpeg,image/png" multiple @change="handleFileChange" />
       <div v-if="photos.length > 0" class="photo-list">
-        <span v-for="p in photos" :key="p.id" class="photo-chip">{{ p.fileName }}</span>
+        <span v-for="p in photos" :key="p.id" class="photo-chip">{{ p.originalFilename }}</span>
       </div>
     </div>
     <div class="field check">

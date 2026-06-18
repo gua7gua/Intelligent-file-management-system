@@ -240,6 +240,14 @@ public class PendingArchiveService {
                 }).collect(Collectors.toList());
         resp.setAvailableLocations(locSummaries);
 
+        // 关联查询该批次最近一次 AI 补全任务状态（与列表接口口径一致），避免详情视图 AI 标签回退为「未开始」。
+        AiTask latestAiTaskInDetail = aiTaskMapper.selectOne(new QueryWrapper<AiTask>()
+                .eq("business_type", "intake_batch")
+                .eq("business_id", batch.getId())
+                .orderByDesc("started_at")
+                .last("limit 1"));
+        resp.setLatestAiTaskStatus(latestAiTaskInDetail != null ? latestAiTaskInDetail.getStatus() : null);
+
         return resp;
     }
 
@@ -621,8 +629,23 @@ public class PendingArchiveService {
         // 已入库档案的生命周期状态
         if (item.getGeneratedArchiveId() != null) {
             Archive ar = archiveMapper.selectById(item.getGeneratedArchiveId());
-            if (ar != null && ar.getLifecycleStatus() != null) {
-                r.setLifecycleStatus(ar.getLifecycleStatus().name());
+            if (ar != null) {
+                if (ar.getLifecycleStatus() != null) {
+                    r.setLifecycleStatus(ar.getLifecycleStatus().name());
+                }
+                // 回填已入库档案的 fonds_id，供前端入库后表单回显所属全宗（避免回弹为「请选择」）。
+                r.setArchiveFondsId(ar.getFondsId());
+                // 纸质档案已装盒时，反查 archive_box_items 拿 box_id，供前端回显档案盒。
+                if (ar.getCarrierStatus() != null
+                        && !"electronic".equalsIgnoreCase(ar.getCarrierStatus().name())) {
+                    ArchiveBoxItem boxItem = archiveBoxItemMapper.selectOne(
+                            new QueryWrapper<ArchiveBoxItem>()
+                                    .eq("archive_id", ar.getId())
+                                    .last("limit 1"));
+                    if (boxItem != null) {
+                        r.setArchiveBoxId(boxItem.getBoxId());
+                    }
+                }
             }
         }
 

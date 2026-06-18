@@ -63,6 +63,12 @@ public class PendingItemResponse {
     /** 已入库档案的生命周期状态（pending_shelf/normal 等），未入库为 null。 */
     private String lifecycleStatus;
 
+    /** 已入库档案所属全宗 ID，未入库为 null。供前端入库后表单回显所属全宗，避免回弹为「请选择」。 */
+    private Long archiveFondsId;
+
+    /** 已入库档案所在档案盒 ID，未入库或纯电子为 null。供前端入库后表单回显档案盒。 */
+    private Long archiveBoxId;
+
     @Data
     public static class StagingFileSummary {
         private Long id;

@@ -29,7 +29,9 @@ request.interceptors.request.use(
       config.headers.Authorization = `Bearer ${authStore.token}`
     }
     // POST/PUT body 递归清理空字符串，避免空串导致后端 LocalDate 等反序列化 400
-    if (config.data && typeof config.data === 'object') {
+    // 跳过 FormData/Blob：Object.entries 无法枚举 FormData，会把 multipart 上传体清成空对象 {}，
+    // 导致后端报 "Current request is not a multipart request"（人#13 销毁 photos）。
+    if (config.data && typeof config.data === 'object' && !(config.data instanceof FormData) && !(config.data instanceof Blob)) {
       config.data = cleanEmptyStrings(config.data)
     }
     return config

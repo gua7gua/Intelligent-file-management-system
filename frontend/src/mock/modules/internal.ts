@@ -11,6 +11,7 @@ import type {
   InternalArchivePage,
   InternalDashboardData,
   InternalSearchParams,
+  BorrowSummaryItem,
 } from '@/types/internal'
 
 // ——————————————————————————————————
@@ -199,31 +200,27 @@ const borrowRequestDetails: Record<number, BorrowRequestDetail> = {
 
 export function mockInternalDashboard(): Promise<InternalDashboardData> {
   return Promise.resolve({
-    stats: {
-      recentViewCount: 14,
-      pendingApprovalCount: 2,
-      approvedPendingPickupCount: 1,
-      downloadCount: 23,
-    },
     recentViews: [
-      { id: 401, archiveId: 101, archiveNo: 'KJ-2025-0188', title: '智慧城市项目年度技术报告', categoryName: '科技档案', securityLevel: 2, viewedAt: '2026-06-07T11:20:00+08:00', accessStatus: 'available' },
-      { id: 402, archiveId: 102, archiveNo: 'WS-2024-0912', title: '信息化建设会议纪要', categoryName: '文书档案', securityLevel: 0, viewedAt: '2026-06-05T16:42:00+08:00', accessStatus: 'available' },
-      { id: 403, archiveId: 105, archiveNo: 'WS-2019-0440', title: '历史专项资料汇编', categoryName: '文书档案', securityLevel: 2, viewedAt: '2026-05-22T09:10:00+08:00', accessStatus: 'permission_changed' },
+      { archiveId: 101, archiveNo: 'KJ-2025-0188', title: '智慧城市项目年度技术报告', accessedAt: '2026-06-07T11:20:00+08:00' },
+      { archiveId: 102, archiveNo: 'WS-2024-0912', title: '信息化建设会议纪要', accessedAt: '2026-06-05T16:42:00+08:00' },
+      { archiveId: 105, archiveNo: 'WS-2019-0440', title: '历史专项资料汇编', accessedAt: '2026-05-22T09:10:00+08:00' },
     ],
-    borrowRequests: [borrowRequests[0], borrowRequests[1], borrowRequests[4], borrowRequests[5]],
-    currentLoans: [borrowRequests[3]],
-    downloads: [
-      { id: 501, archiveId: 101, archiveNo: 'KJ-2025-0188', title: '智慧城市项目年度技术报告', downloadedAt: '2026-06-07T11:25:00+08:00' },
-      { id: 502, archiveId: 102, archiveNo: 'WS-2024-0912', title: '信息化建设会议纪要', downloadedAt: '2026-06-03T14:10:00+08:00' },
-      { id: 503, archiveId: 104, archiveNo: 'WS-2025-0501', title: '财政局2025年度预算批复', downloadedAt: '2026-05-28T10:00:00+08:00' },
-    ],
-    permission: {
-      role: '内部查阅者',
-      organizationName: '技术部',
-      maxSecurityLevel: 2,
-      dataScope: '本单位授权全宗',
-    },
+    myBorrowRequests: [borrowRequests[0], borrowRequests[1], borrowRequests[4], borrowRequests[5]].map(toSummary),
+    currentBorrows: [borrowRequests[3]].map(toSummary),
+    overdueReminders: [],
   })
+}
+
+function toSummary(b: BorrowRequest): BorrowSummaryItem {
+  return {
+    requestNo: b.requestNo,
+    archiveId: b.archiveId,
+    archiveNo: b.archiveNo,
+    title: b.archiveTitle,
+    status: b.status,
+    dueAt: b.dueAt,
+    appliedAt: b.appliedAt,
+  }
 }
 
 export function mockSearchInternalArchives(params?: InternalSearchParams): Promise<InternalArchivePage> {
