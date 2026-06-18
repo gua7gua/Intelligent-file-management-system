@@ -75,12 +75,12 @@ public class UserController {
     }
 
     @DeleteMapping("/{userId}")
-    @Operation(summary = "软删除用户")
+    @Operation(summary = "删除用户（硬删除并留痕）")
     public R<Void> delete(@PathVariable Long userId) {
         if (!AuthContext.hasRole(RoleCode.sys_admin)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "仅系统管理员可删除用户");
         }
-        userService.softDelete(userId);
+        userService.deleteUser(userId);
         return R.ok();
     }
 }

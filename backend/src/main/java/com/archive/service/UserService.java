@@ -19,11 +19,13 @@ import com.archive.mapper.UserRoleMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -49,7 +51,7 @@ public class UserService {
             "SELECT module_name, operation_type, operated_at FROM audit_logs " +
             "WHERE actor_user_id = ? ORDER BY operated_at DESC LIMIT 10";
 
-    // 软删除业务关联检查：借阅申请 / 审批申请 / 移交征集批次（含 transfer 与 collection 两种来源）
+    // 删除前业务关联检查：借阅申请 / 审批申请 / 移交征集批次（含 transfer 与 collection 两种来源）
     private static final String BORROW_LINK_SQL =
             "SELECT COUNT(*) FROM borrow_requests WHERE borrower_id = ? AND deleted_at IS NULL";
     private static final String APPROVAL_LINK_SQL =
@@ -198,10 +200,10 @@ public class UserService {
         auditService.log("M14", "reset_password", "user", id, Map.of());
     }
 
-    // ==================== 22.7 软删除用户 ====================
+    // ==================== 22.7 删除用户（硬删除 + 留痕，D1） ====================
 
     @Transactional
-    public void softDelete(Long id) {
+    public void deleteUser(Long id) {
         User user = userMapper.selectById(id);
         if (user == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
@@ -212,9 +214,22 @@ public class UserService {
         if (hasBusinessLinks(id)) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "账号存在业务关联，无法删除");
         }
-        user.setDeletedAt(java.time.OffsetDateTime.now());
-        userMapper.updateById(user);
-        auditService.log("M14", "delete_user", "user", id, Map.of());
+        // 留痕：先采集被删用户身份写入审计 detail（操作人由 AuditService 自动取当前管理员），
+        // 审计记录 business_id 存被删用户 id（无外键），即「谁删了谁」。
+        Map<String, Object> detail = new HashMap<>();
+        detail.put("deletedLoginName", user.getLoginName());
+        detail.put("deletedRealName", user.getRealName());
+        detail.put("deletedPhone", user.getPhone());
+
+        try {
+            // 硬删除：User 无 @TableLogic，deleteById 即物理删除；
+            // user_roles 随 ON DELETE CASCADE 清理；audit_logs/archive_access_logs 经 V22 改 ON DELETE SET NULL 保留痕迹。
+            userMapper.deleteById(id);
+        } catch (DataIntegrityViolationException e) {
+            // 兜底：仍有未被 hasBusinessLinks 显式覆盖的业务表外键引用（如 archives.created_by），转为友好提示
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "账号存在业务关联，无法删除");
+        }
+        auditService.log("M14", "delete_user", "user", id, detail);
     }
 
     /** 校验该用户是否仍存在未软删的业务关联（借阅 / 审批 / 移交征集）。 */
