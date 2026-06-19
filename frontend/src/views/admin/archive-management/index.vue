@@ -98,7 +98,7 @@
                   <td>{{ a.title }}</td>
                   <td>{{ a.formedYear ?? '—' }}</td>
                   <td>{{ a.categoryName }}</td>
-                  <td>{{ a.fondsName || a.organizationName || '—' }}</td>
+                  <td>{{ a.fondsName || '无' }}</td>
                   <td>{{ SecurityLevelLabel[a.securityLevel] || '未知' }}</td>
                   <td>{{ a.openStatus === 'open' ? '公开' : '不公开' }}</td>
                   <td>{{ CarrierStatusLabel[a.carrierStatus] || a.carrierStatus }}</td>
@@ -142,7 +142,7 @@
           <div class="detail-kv"><span>生命周期</span><strong>{{ ArchiveStatusLabel[detail?.lifecycleStatus || 'normal'] }}</strong></div>
           <div class="detail-kv"><span>架位</span><strong>{{ detail?.locationCode || '纯电子无架位' }}</strong></div>
           <div class="detail-kv"><span>所属组织</span><strong>{{ detail?.organizationName || selectedArchive?.organizationName || '—' }}</strong></div>
-          <div class="detail-kv"><span>所属全宗</span><strong>{{ detail?.fondsName || selectedArchive?.fondsName || '—' }}</strong></div>
+          <div class="detail-kv"><span>所属全宗</span><strong>{{ detail?.fondsName || selectedArchive?.fondsName || '无' }}</strong></div>
 
           <!-- 可编辑元数据 -->
           <h3 class="section-title" style="margin-top:12px">可编辑元数据</h3>
@@ -215,8 +215,8 @@
             <textarea v-model="approvalForm.reason" placeholder="填写调整依据和理由" rows="3" />
           </div>
           <div class="actions">
-            <el-button @click="handleSecurityAdjust">密级调整</el-button>
-            <el-button @click="handleOpenAdjust">开放调整</el-button>
+            <el-button :loading="adjusting" @click="handleSecurityAdjust">密级调整</el-button>
+            <el-button :loading="adjusting" @click="handleOpenAdjust">开放调整</el-button>
             <router-link to="/admin/approval" class="button ghost">审批工作台</router-link>
           </div>
         </div>
@@ -266,6 +266,8 @@ const selectedArchive = ref<ArchiveRecord | null>(null)
 const detail = ref<ArchiveDetail | null>(null)
 const listLoading = ref(false)
 const detailLoading = ref(false)
+// 密级/开放调整提交中锁，防止单击触发两次 POST（200+409 冲突）
+const adjusting = ref(false)
 
 // ── 预览 ──
 const previewVisible = ref(false)
@@ -414,6 +416,8 @@ function validateApproval(): boolean {
 
 async function handleSecurityAdjust() {
   if (!detail.value || !validateApproval()) return
+  if (adjusting.value) return
+  adjusting.value = true
   try {
     await submitSecurityAdjust(detail.value.id, {
       newSecurityLevel: approvalForm.newSecurityLevel,
@@ -424,11 +428,15 @@ async function handleSecurityAdjust() {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '提交失败'
     ElMessage.error(msg)
+  } finally {
+    adjusting.value = false
   }
 }
 
 async function handleOpenAdjust() {
   if (!detail.value || !validateApproval()) return
+  if (adjusting.value) return
+  adjusting.value = true
   try {
     await submitOpenAdjust(detail.value.id, {
       newOpenStatus: approvalForm.newOpenStatus,
@@ -439,6 +447,8 @@ async function handleOpenAdjust() {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '提交失败'
     ElMessage.error(msg)
+  } finally {
+    adjusting.value = false
   }
 }
 

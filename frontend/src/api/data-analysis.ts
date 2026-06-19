@@ -46,3 +46,11 @@ export function deleteAnalysisTask(taskId: number): Promise<void> {
   }
   return request.delete(`/admin/analysis-tasks/${taskId}`)
 }
+
+/** 删除研判异常项（软删，§20.9） */
+export function deleteAnalysisItem(itemId: number): Promise<void> {
+  if (USE_MOCK) {
+    return Promise.resolve()
+  }
+  return request.delete(`/admin/analysis-items/${itemId}`)
+}

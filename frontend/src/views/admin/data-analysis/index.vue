@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  createAnalysisTask, deleteAnalysisTask, getAnalysisTaskDetail, getAnalysisTasks, handleAnalysisItem,
+  createAnalysisTask, deleteAnalysisItem, deleteAnalysisTask, getAnalysisTaskDetail, getAnalysisTasks, handleAnalysisItem,
 } from '@/api/data-analysis'
 import type { AnalysisItem, AnalysisTask, AnalysisTaskDetail } from '@/types/data-analysis'
 import type { AnalysisTaskTypeValue } from '@/types/enums'
@@ -82,6 +82,27 @@ async function deleteTask(t: AnalysisTask) {
     await load()
   } catch (e) {
     ElMessage.error((e as Error).message || '删除研判任务失败')
+  }
+}
+
+// 删除单条异常项（R3-C2：走完闭环——可扫描产生/采纳不采纳/删除；软删保留留痕）
+async function deleteItem(item: AnalysisItem) {
+  try {
+    await ElMessageBox.confirm('删除该异常项？删除后列表不再展示（数据软删保留留痕）。', '提示', {
+      type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteAnalysisItem(item.id)
+    ElMessage.success('异常项已删除。')
+    if (current.value) {
+      await selectTask(current.value.id)
+      // 删掉的恰好是当前选中项时，selectTask 会重置为 items[0]
+    }
+  } catch (e) {
+    ElMessage.error((e as Error).message || '删除异常项失败')
   }
 }
 
@@ -270,6 +291,7 @@ onMounted(load)
                   <th>问题描述</th>
                   <th>建议动作</th>
                   <th>状态</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -286,9 +308,10 @@ onMounted(load)
                   <td>{{ i.problemDesc }}</td>
                   <td>{{ i.suggestedAction }}</td>
                   <td><span class="status">{{ AnalysisItemStatusLabel[i.status] }}</span></td>
+                  <td><el-button size="small" type="danger" @click.stop="deleteItem(i)">删除</el-button></td>
                 </tr>
                 <tr v-if="!current || !current.items.length">
-                  <td colspan="6" class="muted" style="text-align:center;padding:16px;">暂无异常建议。</td>
+                  <td colspan="7" class="muted" style="text-align:center;padding:16px;">暂无异常建议。</td>
                 </tr>
               </tbody>
             </table>
@@ -304,6 +327,15 @@ onMounted(load)
             <div class="detail-line"><span>题名</span><strong>{{ selectedItem.title }}</strong></div>
             <div class="detail-line"><span>问题</span><strong>{{ selectedItem.problemDesc }}</strong></div>
             <div class="detail-line"><span>建议</span><strong>{{ selectedItem.suggestedAction }}</strong></div>
+            <div v-if="selectedItem.suggestion?.candidates?.length" class="candidates">
+              <div class="candidates-title">AI 候选明细（字段 / 原值 / 建议值 / 置信度）</div>
+              <div v-for="(c, idx) in selectedItem.suggestion.candidates" :key="idx" class="candidate">
+                <div class="cand-row"><span>字段</span><strong>{{ c.field }}</strong></div>
+                <div class="cand-row"><span>原值</span><strong>{{ c.currentValue || '（空）' }}</strong></div>
+                <div class="cand-row"><span>建议值</span><strong>{{ (c.suggestedValue || []).join('、') || '—' }}</strong></div>
+                <div class="cand-row"><span>置信度</span><strong>{{ Math.round((c.confidence || 0) * 100) }}%</strong></div>
+              </div>
+            </div>
             <div class="actions" style="margin-top:12px">
               <button class="button secondary" :disabled="selectedItem.status !== 'pending'" @click="onAdopt">采纳</button>
               <button class="button ghost" :disabled="selectedItem.status !== 'pending'" @click="onReject">不采纳</button>
@@ -354,6 +386,11 @@ onMounted(load)
 .task-item:hover { border-color: var(--primary, #1f6f78); }
 .task-item.active { border-color: var(--primary, #1f6f78); background: rgba(31,111,120,0.06); }
 .detail-line { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.candidates { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); display: grid; gap: 8px; }
+.candidates-title { font-size: 12px; color: var(--muted, #909399); font-weight: 700; }
+.candidate { padding: 8px 10px; border: 1px solid var(--border, #ebeef5); border-radius: 6px; background: #f7f9fc; display: grid; gap: 4px; }
+.cand-row { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 8px; font-size: 13px; }
+.cand-row span { color: #909399; }
 .queue { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .actions { display: flex; align-items: center; gap: 8px; }
 .tabs { display: flex; gap: 4px; }

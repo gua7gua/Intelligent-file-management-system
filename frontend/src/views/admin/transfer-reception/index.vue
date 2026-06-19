@@ -472,6 +472,16 @@ async function confirmReceive() {
     ElMessage.error(`仍有 ${pending.length} 条待验收，不能确认接收。`)
     return
   }
+  // R3-B2：电子件文件名未匹配/重复/检查异常时阻断接收，否则这些暂存文件不会挂到任何条目，确认接收后永久丢失
+  const problematicFiles = activeBatch.value.stagingFiles.filter(
+    (f) => f.matchStatus === 'unmatched' || f.matchStatus === 'duplicate' || f.matchStatus === 'failed',
+  )
+  if (problematicFiles.length > 0) {
+    ElMessage.error(
+      `有 ${problematicFiles.length} 个电子件未匹配或检查异常，请先人工确认/处理后确认接收，否则电子件将丢失。`,
+    )
+    return
+  }
   try {
     // 逐条提交验收结论（§7.5 PUT /admin/reception/items/{itemId}/acceptance）
     for (const i of items) {

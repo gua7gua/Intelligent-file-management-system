@@ -118,7 +118,7 @@
               <div class="evidence-desc">
                 <template v-if="listDetail.status === 'destroyed'">
                   {{ DestroyMethodLabel[listDetail.destroyMethod!] }} · {{ listDetail.supervisorName1 }}/{{ listDetail.supervisorName2 }}
-                  · {{ listDetail.photos.length }} 张照片 · {{ listDetail.destroyedAt }}
+                  · {{ listDetail.photos.length }} 张照片 · {{ formatDateTime(listDetail.destroyedAt) }}
                 </template>
                 <template v-else>待确认</template>
               </div>
@@ -182,6 +182,16 @@ const countByStatus = (s: DestructionListStatusValue) => allLists.value.filter((
 function statusClass(s: string): string {
   const map: Record<string, string> = { draft: 'warning', pending_approval: 'info', pending_destroy: 'danger', destroyed: 'success' }
   return map[s] || ''
+}
+
+// R3-B4：销毁确认时间戳统一本地格式（与审计/概览页一致，不显 ISO）
+function formatDateTime(iso?: string): string {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleString('zh-CN')
+  } catch {
+    return iso
+  }
 }
 
 // 状态筛选后的结果集（用于分页切片与总数）

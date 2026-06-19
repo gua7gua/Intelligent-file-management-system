@@ -21,6 +21,19 @@ export function getAppraisalBatches(
   return request.get('/admin/appraisal-batches', { params })
 }
 
+/** 鉴定工作台顶部统计（真实聚合，替代前端硬编码假值） */
+export interface AppraisalStats {
+  expiringCount: number
+  pendingDestructionCount: number
+  generatedListCount: number
+}
+export function getAppraisalStats(): Promise<AppraisalStats> {
+  if (USE_MOCK) {
+    return Promise.resolve({ expiringCount: 0, pendingDestructionCount: 0, generatedListCount: 0 })
+  }
+  return request.get('/admin/appraisal-batches/stats')
+}
+
 /** 创建鉴定批次（§14.2） */
 export function createAppraisalBatch(data: AppraisalBatchCreateData): Promise<AppraisalBatchDetail> {
   if (USE_MOCK) {

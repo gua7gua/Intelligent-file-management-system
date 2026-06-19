@@ -187,6 +187,7 @@ import {
   createAppraisalBatch,
   getAppraisalBatchDetail,
   getAppraisalBatches,
+  getAppraisalStats,
   saveAppraisalItems,
 } from '@/api/appraisal'
 import { validateAppraisalCompletion } from '@/utils/appraisalValidation'
@@ -201,7 +202,8 @@ const categoryTree = [
   { id: 5, name: '人事档案' },
 ]
 
-const metrics = reactive({ expiring: 28, pendingDestroy: 6, generatedLists: 4 })
+// R3-C5：顶部指标接真实统计接口（/admin/appraisal-batches/stats），不再硬编码假值
+const metrics = reactive({ expiring: 0, pendingDestroy: 0, generatedLists: 0 })
 
 const batches = ref<AppraisalBatch[]>([])
 const filterStatus = ref<'' | 'draft' | 'completed'>('')
@@ -332,7 +334,21 @@ function goDestruction(listId: number) {
   router.push({ path: '/admin/destruction', query: { focus: String(listId) } })
 }
 
-onMounted(loadBatches)
+async function loadStats() {
+  try {
+    const s = await getAppraisalStats()
+    metrics.expiring = s.expiringCount
+    metrics.pendingDestroy = s.pendingDestructionCount
+    metrics.generatedLists = s.generatedListCount
+  } catch {
+    // 静默：统计加载失败不阻断主流程，保留 0
+  }
+}
+
+onMounted(() => {
+  loadBatches()
+  loadStats()
+})
 </script>
 
 <style scoped>
