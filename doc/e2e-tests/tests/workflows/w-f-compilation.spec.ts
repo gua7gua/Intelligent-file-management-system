@@ -22,12 +22,13 @@ test.describe('W-F 档案编研闭环', () => {
     await page.locator('#saveDraft').click()
     await expect(page.locator('.el-message').filter({ hasText: '草稿已保存' })).toBeVisible({ timeout: 15_000 })
 
-    // 加素材：检索种子档号 ARC-000001 → 添加（6.10 物理分区：可添加/已引用）
-    await page.getByPlaceholder('题名/档号').fill('ARC-000001')
+    // 加素材：检索种子档号 ARC-000004 → 添加（6.10 物理分区：可添加/已引用）
+    // 注：避开 ARC-000001（低号基线，W-D 鉴定销毁会递增销毁低号，导致素材消失）
+    await page.getByPlaceholder('题名/档号').fill('ARC-000004')
     await page.locator('.row').getByRole('button', { name: /查询/ }).click()
     await expect(page.locator('.candidate-list li').first()).toBeVisible({ timeout: 10_000 })
     await page.locator('.candidate-list li').first().getByRole('button', { name: '添加' }).click()
-    await expect(page.locator('.material-list li').filter({ hasText: 'ARC-000001' })).toBeVisible()
+    await expect(page.locator('.material-list li').filter({ hasText: 'ARC-000004' })).toBeVisible()
 
     // 入库表单：所属全宗（选第一个）+ 形成日期（D3 要求全宗+日期）
     await page.locator('.field').filter({ hasText: '所属全宗' }).locator('select').selectOption({ index: 1 })
