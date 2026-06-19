@@ -24,8 +24,7 @@ test.describe('系统管理员页面冒烟', () => {
     await smokePage(page, '/admin/audit-logs', '审计日志')
   })
 
-  test('A-SYS-5 访问日志（访问时间列为 ISO 未格式化＝已知体感 bug，C 类，单独跟踪）', async ({ page }) => {
-    // 审计日志时间已本地格式化，但访问日志「访问时间」仍为 ISO（如 2026-06-19T07:11:31），暂跳过 ISO 检查
-    await smokePage(page, '/admin/access-logs', '访问日志', { checkIso: false })
+  test('A-SYS-5 访问日志（访问时间本地格式化）', async ({ page }) => {
+    await smokePage(page, '/admin/access-logs', '访问日志')
   })
 })
