@@ -397,10 +397,18 @@ async function handleRunAi() {
   try {
     const task = await startAiCompletion(activeBatch.value.id)
     if (task.status === 'running') {
+      let lastStatus = 'running'
       for (let i = 0; i < 30; i++) {
         await new Promise((r) => setTimeout(r, 1000))
         const t = await getAiTask(task.aiTaskId)
+        lastStatus = t.status
         if (t.status !== 'running') break
+      }
+      // 轮询超时仍在 running：不再弹「完成」假阳性（任务实际可能仍在跑/失败），
+      // 否则误导用户以为补全已完成、后续按缺失字段入库。提示稍后刷新查看。
+      if (lastStatus === 'running') {
+        ElMessage.warning('AI 补全仍在进行，请稍后点击批次刷新查看结果。')
+        return
       }
     }
     await selectBatch(activeBatch.value)
