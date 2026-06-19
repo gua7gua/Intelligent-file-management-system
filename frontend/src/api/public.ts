@@ -38,7 +38,16 @@ export function getPublicHome(): Promise<PublicHomeData> {
 
 export function searchPublicArchives(params?: PublicSearchParams): Promise<PublicArchivePage> {
   if (USE_MOCK) return import('@/mock/modules/public').then((m) => m.mockSearchPublicArchives(params))
-  return request.get('/public/archives/search', { params })
+  // 后端 ArchiveSummaryResponse 返回 tagNames，前端 PublicArchive.tags，做一次映射（与档案管理 F5 一致）
+  return request.get('/public/archives/search', { params }).then((page) => {
+    if (page && Array.isArray(page.records)) {
+      page.records = page.records.map((r) => {
+        const raw = r as PublicArchive & { tagNames?: string[] }
+        return { ...r, tags: raw.tagNames ?? r.tags ?? [] }
+      })
+    }
+    return page
+  })
 }
 
 export function getPublicArchiveDetail(archiveId: number): Promise<PublicArchiveDetail> {

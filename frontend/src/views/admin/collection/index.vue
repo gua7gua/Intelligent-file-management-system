@@ -6,7 +6,7 @@
 
   <!-- 概览指标 -->
   <section class="grid four" aria-label="征集待办统计">
-    <div class="metric">
+    <div v-if="!isFrontArchivist" class="metric">
       <span class="label">待联系</span>
       <span class="value">{{ contactCount }}</span>
       <span class="note">后台判断征集方向</span>
@@ -273,11 +273,19 @@ const isBackArchivist = computed(() => hasRole('back_archivist'))
 const isFrontArchivist = computed(() => hasRole('front_archivist'))
 
 // ── 筛选 ──
-const collectionTabs = [
-  { key: 'all', label: '全部' },
-  { key: 'pending_contact', label: '待联系' },
-  { key: 'pending_receive', label: '待接收' },
-] as const
+// R3-D4：前台无 pending_contact 处理权（filteredCollections 已过滤该状态），隐藏「待联系」tab 避免点进去空白
+const collectionTabs = computed(() =>
+  isFrontArchivist.value
+    ? [
+        { key: 'all', label: '全部' },
+        { key: 'pending_receive', label: '待接收' },
+      ]
+    : [
+        { key: 'all', label: '全部' },
+        { key: 'pending_contact', label: '待联系' },
+        { key: 'pending_receive', label: '待接收' },
+      ],
+)
 const activeTab = ref<string>('all')
 const loading = ref(false)
 
