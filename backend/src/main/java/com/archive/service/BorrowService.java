@@ -186,8 +186,9 @@ public class BorrowService {
         }
 
         BorrowStatus st = b.getStatus();
+        // returned 也允许补打凭证（归还后作历史/报销凭据）；此时 voucher_no 已发，仅补打不改状态
         if (st != BorrowStatus.approved && st != BorrowStatus.voucher_issued
-                && st != BorrowStatus.checked_out) {
+                && st != BorrowStatus.checked_out && st != BorrowStatus.returned) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "申请尚未审批通过，无法导出凭证");
         }
 

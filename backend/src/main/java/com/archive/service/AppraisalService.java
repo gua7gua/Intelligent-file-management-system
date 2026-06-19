@@ -7,6 +7,7 @@ import com.archive.dto.request.AppraisalBatchCreateRequest;
 import com.archive.dto.request.AppraisalItemSaveRequest;
 import com.archive.dto.response.AppraisalBatchDetailResponse;
 import com.archive.dto.response.AppraisalBatchResponse;
+import com.archive.dto.response.AppraisalStatsResponse;
 import com.archive.entity.AppraisalBatch;
 import com.archive.entity.AppraisalItem;
 import com.archive.entity.Archive;
@@ -106,6 +107,25 @@ public class AppraisalService {
         }
         w.orderByAsc("id");
         return archiveMapper.selectList(w);
+    }
+
+    // ==================== 14.1b 鉴定工作台顶部统计（真实聚合，替代前端硬编码假值） ====================
+
+    public AppraisalStatsResponse stats() {
+        AppraisalStatsResponse s = new AppraisalStatsResponse();
+        // 即将到期：retention_until 在 today+365 天内（含已过期未处理），未销毁
+        s.setExpiringCount(archiveMapper.selectCount(new QueryWrapper<Archive>()
+                .isNull("deleted_at")
+                .isNotNull("retention_until")
+                .apply("retention_until <= CURRENT_DATE + INTERVAL '365 days'")
+                .ne("lifecycle_status", "destroyed")));
+        // 待销毁：已鉴定为销毁、尚未走完销毁流程
+        s.setPendingDestructionCount(archiveMapper.selectCount(new QueryWrapper<Archive>()
+                .isNull("deleted_at").eq("lifecycle_status", "pending_destruction")));
+        // 已生成销毁清册数
+        s.setGeneratedListCount(destructionListMapper.selectCount(new QueryWrapper<DestructionList>()
+                .isNull("deleted_at")));
+        return s;
     }
 
     // ==================== 14.1 查询鉴定批次 ====================

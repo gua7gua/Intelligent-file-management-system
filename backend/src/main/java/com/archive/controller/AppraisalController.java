@@ -6,6 +6,7 @@ import com.archive.dto.request.AppraisalBatchCreateRequest;
 import com.archive.dto.request.AppraisalItemSaveRequest;
 import com.archive.dto.response.AppraisalBatchDetailResponse;
 import com.archive.dto.response.AppraisalBatchResponse;
+import com.archive.dto.response.AppraisalStatsResponse;
 import com.archive.service.AppraisalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +32,12 @@ public class AppraisalController {
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
         return R.ok(appraisalService.listBatches(status, categoryId, formedYearStart, formedYearEnd, pageNo, pageSize));
+    }
+
+    @GetMapping("/stats")
+    @Operation(summary = "鉴定工作台顶部统计（真实聚合）")
+    public R<AppraisalStatsResponse> stats() {
+        return R.ok(appraisalService.stats());
     }
 
     @PostMapping
