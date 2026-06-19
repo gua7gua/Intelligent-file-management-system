@@ -404,7 +404,10 @@ function fileScanHint(file: StagingFile): string {
 async function loadCollections() {
   loading.value = true
   try {
-    const res = await getCollections()
+    // 征集管理页一次性拉取较多批次：后端默认 pageSize=20，批次累积时会截断，
+    // 导致 tab 筛选（前端过滤）漏掉分页之外的新批次（如新提交的待联系批次）。
+    // 后端 pageSize 上限 100，取 100 容纳常规累积（完整分页/tab 后端筛选为后续优化）。
+    const res = await getCollections({ pageSize: 100 })
     batchList.value = res.records
   } catch {
     ElMessage.error('加载征集批次失败')

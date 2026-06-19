@@ -142,7 +142,8 @@ function statusClass(status: string): string {
   return map[status] ?? 'info'
 }
 function canExportVoucher(status: string): boolean {
-  return status === 'approved' || status === 'voucher_issued'
+  // returned 后亦允许补打凭证（R3-D1，归还后作历史/报销凭据），与后端 exportVoucher 允许状态一致
+  return status === 'approved' || status === 'voucher_issued' || status === 'returned'
 }
 function formatDate(iso?: string | null): string {
   return iso ? iso.slice(0, 10) : '—'
