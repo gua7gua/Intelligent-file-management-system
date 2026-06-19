@@ -153,13 +153,18 @@ public class SearchService {
         Map<Integer, String> categoryNameById = loadCategoryNames();
         Page<Archive> page = new Page<>(pageNo, pageSize);
         archiveMapper.selectPage(page, w);
-        List<ArchiveSummaryResponse> records = page.getRecords().stream()
-                .map(a -> toSummary(a, categoryNameById))
+        List<Archive> archives = page.getRecords();
+        // 批量加载标签，避免逐条 N+1 查询
+        Map<Long, List<String>> tagNamesByArchive = loadTagNamesByArchive(archives);
+        List<ArchiveSummaryResponse> records = archives.stream()
+                .map(a -> toSummary(a, categoryNameById,
+                        tagNamesByArchive.getOrDefault(a.getId(), List.of())))
                 .toList();
         return new PageResult<>(records, pageNo, pageSize, page.getTotal());
     }
 
-    private ArchiveSummaryResponse toSummary(Archive a, Map<Integer, String> categoryNameById) {
+    private ArchiveSummaryResponse toSummary(Archive a, Map<Integer, String> categoryNameById,
+                                             List<String> tagNames) {
         Long fileCount = archiveFileMapper.selectCount(new QueryWrapper<ArchiveFile>()
                 .eq("archive_id", a.getId()).eq("file_status", "normal"));
         return new ArchiveSummaryResponse(
@@ -168,7 +173,28 @@ public class SearchService {
                 a.getCarrierStatus() == null ? null : a.getCarrierStatus().name(),
                 fileCount != null && fileCount > 0,
                 a.getSourceType() == null ? null : a.getSourceType().name(),
-                a.getSecurityLevel());
+                a.getSecurityLevel(),
+                tagNames);
+    }
+
+    /** 批量查询给定档案集合的标签名（archive_id → tag_name 列表）。ids 来自库内记录，非用户输入。 */
+    private Map<Long, List<String>> loadTagNamesByArchive(List<Archive> archives) {
+        if (archives == null || archives.isEmpty()) {
+            return Map.of();
+        }
+        String inClause = archives.stream().map(a -> String.valueOf(a.getId()))
+                .collect(Collectors.joining(","));
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT at.archive_id AS aid, t.tag_name AS name FROM archive_tags at " +
+                        "JOIN tags t ON t.id = at.tag_id " +
+                        "WHERE at.archive_id IN (" + inClause + ")");
+        Map<Long, List<String>> map = new HashMap<>();
+        for (Map<String, Object> r : rows) {
+            Long aid = ((Number) r.get("aid")).longValue();
+            String name = (String) r.get("name");
+            map.computeIfAbsent(aid, k -> new ArrayList<>()).add(name);
+        }
+        return map;
     }
 
     private Map<Integer, String> loadCategoryNames() {
@@ -228,9 +254,10 @@ public class SearchService {
     private ArchiveSearchDetailResponse toDetail(Archive a, boolean includeSensitive) {
         List<ArchiveFile> files = archiveFileMapper.selectList(new QueryWrapper<ArchiveFile>()
                 .eq("archive_id", a.getId()).eq("file_status", "normal"));
-        // 电子件预览/下载要求档案 open_status=open；公众版 includeSensitive=false 时 a 已经过 open 过滤，
-        // 内部版需要按 open_status 单独判定（closed 档案只允许查看元数据）。
-        boolean accessible = "open".equals(a.getOpenStatus());
+        // 电子件可访问性：内部版（includeSensitive=true）已在 internalDetail 按 maxSecurityLevel+数据范围
+        // 校验过权限，故内部用户对权限内档案（含 closed）均可预览/下载；公众版仅 open 档案可访问。
+        // （open_status 表示"是否对外开放"，约束公众；不约束内部在密级+数据范围权限内的访问。）
+        boolean accessible = includeSensitive || "open".equals(a.getOpenStatus());
         List<ArchiveSearchDetailResponse.FileSummary> fileSummaries = files.stream()
                 .map(f -> new ArchiveSearchDetailResponse.FileSummary(
                         f.getId(), f.getOriginalFilename(), f.getFileExt(),
@@ -298,8 +325,8 @@ public class SearchService {
         return file;
     }
 
-    /** 加载内部可见文件：文件存在 + 所属档案在当前用户权限范围 + 公开 + file_status=normal。
-     *  电子件预览/下载要求 open_status=open（与公众一致），closed 档案只允许查看元数据。 */
+    /** 加载内部可见文件：文件存在 + 所属档案在当前用户密级上限+数据范围权限内 + file_status=normal。
+     *  open_status 仅约束公众开放，不约束内部在权限内的访问（closed 档案内部可见元数据+电子件）。 */
     ArchiveFile loadVisibleInternalFile(Long fileId, int maxSecurityLevel, DataScope dataScope, Long organizationId) {
         ArchiveFile file = archiveFileMapper.selectById(fileId);
         if (file == null) {
@@ -307,11 +334,11 @@ public class SearchService {
         }
         QueryWrapper<Archive> w = new QueryWrapper<>();
         w.eq("id", file.getArchiveId()).eq("lifecycle_status", "normal")
-                .le("security_level", maxSecurityLevel).eq("open_status", "open");
+                .le("security_level", maxSecurityLevel);
         applyDataScope(w, dataScope, organizationId);
         Archive a = archiveMapper.selectOne(w);
         if (a == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "档案不存在或不公开");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "档案不存在或无权访问");
         }
         if (file.getFileStatus() != FileStatus.normal) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "文件不可用");

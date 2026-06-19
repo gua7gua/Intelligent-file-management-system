@@ -50,6 +50,13 @@ public class AnalysisController {
         return R.ok(analysisService.handleItem(itemId, req));
     }
 
+    @DeleteMapping("/api/admin/analysis-items/{itemId}")
+    @Operation(summary = "20.9 删除研判异常项（软删，保留数据）")
+    public R<Void> deleteItem(@PathVariable Long itemId) {
+        analysisService.deleteItem(itemId);
+        return R.ok();
+    }
+
     @DeleteMapping("/api/admin/analysis-tasks/{taskId}")
     @Operation(summary = "20.8 删除研判任务")
     public R<Void> delete(@PathVariable Long taskId) {

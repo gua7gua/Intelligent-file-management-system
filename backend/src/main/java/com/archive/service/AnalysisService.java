@@ -260,6 +260,19 @@ public class AnalysisService {
         return toItemResponse(it);
     }
 
+    /** 20.9 删除研判异常项（软删置 deleted_at，保留数据；与任务级联软删一致策略）。 */
+    @Transactional
+    public void deleteItem(Long itemId) {
+        requireRole();
+        AnalysisItem it = itemMapper.selectById(itemId);
+        if (it == null || it.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "研判项不存在");
+        }
+        it.setDeletedAt(OffsetDateTime.now());
+        itemMapper.updateById(it);
+        auditService.log("M14", "delete_analysis_item", "analysis_item", itemId, Map.of());
+    }
+
     /** 20.8 删除研判任务（仅 completed/failed 可删；级联软删 analysis_items）。 */
     @Transactional
     public void delete(Long taskId) {
