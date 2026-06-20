@@ -217,7 +217,6 @@
           <div class="actions">
             <el-button :loading="adjusting" @click="handleSecurityAdjust">密级调整</el-button>
             <el-button :loading="adjusting" @click="handleOpenAdjust">开放调整</el-button>
-            <router-link to="/admin/approval" class="button ghost">审批工作台</router-link>
           </div>
         </div>
       </el-dialog>
