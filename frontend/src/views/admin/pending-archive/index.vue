@@ -20,43 +20,28 @@
       <div class="left-col">
         <div class="card panel" style="margin:0">
           <h2 class="section-title">待处理批次</h2>
-          <div v-if="batchLoading" class="panel-scroll detail-empty">加载中...</div>
-          <div v-else-if="batches.length === 0" class="panel-scroll detail-empty">暂无待入库批次</div>
+          <div class="hint" style="margin: 0 0 8px;">已接收未入库 + 已入库待上架（纸质上架未完成仍属待处理）</div>
+          <div v-if="batchLoading || shelvableLoading" class="panel-scroll detail-empty">加载中...</div>
+          <div v-else-if="displayBatches.length === 0" class="panel-scroll detail-empty">暂无待处理批次</div>
           <div v-else class="panel-scroll">
-            <button
-              v-for="b in batches"
+            <div
+              v-for="b in displayBatches"
               :key="b.id"
               class="batch-card"
-              :class="{ active: activeBatch?.id === b.id }"
-              type="button"
+              :class="{ active: activeBatch?.id === b.id, 'shelvable-card': (b.pendingShelfCount ?? 0) > 0 }"
               @click="selectBatch(b)"
             >
               <strong>{{ b.title }}</strong>
               <span class="batch-no">{{ b.batchNo }}</span>
-              <span>接收 {{ b.acceptedCount }} / 回退 {{ b.returnedCount }}</span>
+              <span v-if="(b.pendingShelfCount ?? 0) > 0">待上架 {{ b.pendingShelfCount }} 件</span>
+              <span v-else>接收 {{ b.acceptedCount }} / 回退 {{ b.returnedCount }}</span>
               <span class="hint">AI：{{ aiLabel(b.aiStatus) }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="card panel" style="margin:0">
-          <h2 class="section-title">已入库待上架</h2>
-          <div v-if="shelvableLoading" class="panel-scroll detail-empty">加载中...</div>
-          <div v-else-if="shelvableBatches.length === 0" class="panel-scroll detail-empty">暂无待上架批次</div>
-          <div v-else class="panel-scroll">
-            <div
-              v-for="b in shelvableBatches"
-              :key="b.id"
-              class="batch-card shelvable-card"
-            >
-              <strong>{{ b.title }}</strong>
-              <span class="batch-no">{{ b.batchNo }}</span>
-              <span>待上架 {{ b.pendingShelfCount ?? 0 }} 件</span>
               <el-button
+                v-if="(b.pendingShelfCount ?? 0) > 0"
                 size="small"
                 type="primary"
                 :loading="shelvingId === b.id"
-                @click="handleShelveBatch(b)"
+                @click.stop="handleShelveBatch(b)"
               >
                 确认上架
               </el-button>
@@ -303,6 +288,9 @@ function statusClass(s: string): string {
   }
   return map[s] || ''
 }
+
+// 待处理批次 = 已接收未入库 + 已入库待上架（纸质上架未完成），合并展示
+const displayBatches = computed(() => [...batches.value, ...shelvableBatches.value])
 
 const aiStatusLabel = computed(() => aiLabel(activeBatch.value?.aiStatus || 'not_started'))
 
