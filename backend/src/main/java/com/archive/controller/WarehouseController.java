@@ -59,6 +59,15 @@ public class WarehouseController {
         return R.ok(warehouseService.updateRoom(roomId, req));
     }
 
+    // ==================== 16.10 删除库房 ====================
+
+    @DeleteMapping("/rooms/{roomId}")
+    @Operation(summary = "删除库房（无活动档案盒时允许；历史盒解除架位归属）")
+    public R<Void> deleteRoom(@PathVariable Long roomId) {
+        warehouseService.deleteRoom(roomId);
+        return R.ok();
+    }
+
     // ==================== 16.4 查询架位 ====================
 
     @GetMapping("/locations")

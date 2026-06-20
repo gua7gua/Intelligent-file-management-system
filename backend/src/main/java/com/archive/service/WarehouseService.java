@@ -157,6 +157,30 @@ public class WarehouseService {
         return toRoomResponse(room, countOccupiedSlots(roomId));
     }
 
+    /** 16.10 删除库房（物理删除；存在活动档案盒时拒绝）。 */
+    @Transactional
+    public void deleteRoom(Long roomId) {
+        WarehouseRoom room = warehouseRoomMapper.selectById(roomId);
+        if (room == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "库房不存在");
+        }
+        int activeBoxes = countOccupiedSlots(roomId);
+        if (activeBoxes > 0) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT,
+                    "该库房存在 " + activeBoxes + " 个活动档案盒，无法删除，请先移出档案盒");
+        }
+        // 残留历史盒（moved/destroyed）解除架位引用，保留盒记录
+        jdbcTemplate.update(
+                "UPDATE archive_boxes SET location_id = NULL WHERE location_id IN " +
+                "(SELECT id FROM storage_locations WHERE room_id = ?)", roomId);
+        // 物理删除该库房全部架位（建库房时批量生成，无业务数据）
+        jdbcTemplate.update("DELETE FROM storage_locations WHERE room_id = ?", roomId);
+        // 物理删除库房
+        warehouseRoomMapper.deleteById(roomId);
+        auditService.log("M07", "delete_room", "warehouse_room", roomId,
+                Map.of("roomNo", room.getRoomNo(), "roomName", room.getRoomName()));
+    }
+
     // ==================== 16.4 查询架位列表 ====================
 
     public PageResult<StorageLocationResponse> listLocations(

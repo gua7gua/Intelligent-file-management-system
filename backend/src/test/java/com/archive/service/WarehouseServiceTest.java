@@ -27,6 +27,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -57,6 +58,43 @@ class WarehouseServiceTest {
         service = new WarehouseService(warehouseRoomMapper, storageLocationMapper,
                 archiveBoxMapper, archiveBoxItemMapper, archiveMapper,
                 jdbcTemplate, boxNoUtil, auditService);
+    }
+
+    @Test
+    void deleteRoom_有活动档案盒_抛CONFLICT且不删() {
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(11L);
+        when(warehouseRoomMapper.selectById(11L)).thenReturn(room);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(11L))).thenReturn(3L);
+
+        assertThatThrownBy(() -> service.deleteRoom(11L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.BUSINESS_CONFLICT);
+        verify(warehouseRoomMapper, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void deleteRoom_无活动盒_清架位并物理删除() {
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(10L);
+        room.setRoomNo("K001");
+        room.setRoomName("1号库房");
+        when(warehouseRoomMapper.selectById(10L)).thenReturn(room);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(10L))).thenReturn(0L);
+
+        service.deleteRoom(10L);
+
+        verify(jdbcTemplate).update(eq("DELETE FROM storage_locations WHERE room_id = ?"), eq(10L));
+        verify(warehouseRoomMapper).deleteById(10L);
+        verify(auditService).log(eq("M07"), eq("delete_room"), eq("warehouse_room"), eq(10L), any());
+    }
+
+    @Test
+    void deleteRoom_库房不存在_抛NOT_FOUND() {
+        when(warehouseRoomMapper.selectById(99L)).thenReturn(null);
+        assertThatThrownBy(() -> service.deleteRoom(99L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
     }
 
     @Test
