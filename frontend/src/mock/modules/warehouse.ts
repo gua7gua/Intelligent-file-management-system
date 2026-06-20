@@ -134,6 +134,16 @@ export function mockUpdateWarehouseRoom(id: number, data: WarehouseRoomUpdateDat
   return room
 }
 
+export function mockDeleteWarehouseRoom(roomId: number): void {
+  const idx = rooms.findIndex((r) => r.id === roomId)
+  if (idx < 0) throw new Error('库房不存在')
+  rooms.splice(idx, 1)
+  // 一并清理该库房的架位（mock 端简化，不做活动盒校验）
+  for (let i = locations.length - 1; i >= 0; i--) {
+    if (locations[i].roomId === roomId) locations.splice(i, 1)
+  }
+}
+
 export function mockStorageLocations(params?: StorageLocationParams): PageData<StorageLocation> {
   let list = locations.slice()
   if (params?.roomId) list = list.filter((l) => l.roomId === params.roomId)

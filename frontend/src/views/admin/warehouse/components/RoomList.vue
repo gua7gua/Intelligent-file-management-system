@@ -6,10 +6,12 @@
     </div>
     <div class="room-list">
       <div v-if="rooms.length === 0" class="empty">暂无库房</div>
-      <button
+      <div
         v-for="r in rooms"
         :key="r.id"
         class="room-item"
+        role="button"
+        tabindex="0"
         :class="{ active: modelValue === r.id }"
         @click="emit('update:modelValue', r.id)"
       >
@@ -18,13 +20,16 @@
             <strong>{{ r.roomNo }} {{ r.roomName }}</strong><br>
             <span class="muted">{{ r.rackCount }} 个机架 · {{ r.layersPerRack }} 层 · 每层 {{ r.boxesPerLayer }} 盒位</span>
           </span>
-          <span class="status" :class="r.warning ? 'warning' : 'success'">{{ r.warning ? '容量告警' : '启用' }}</span>
+          <span class="room-head-right">
+            <span class="status" :class="r.warning ? 'warning' : 'success'">{{ r.warning ? '容量告警' : '启用' }}</span>
+            <el-button size="small" type="danger" plain @click.stop="emit('delete', r.id)">删除</el-button>
+          </span>
         </span>
         <span class="usage">
           <span class="usage-track"><span class="usage-fill" :class="{ warning: r.warning }" :style="{ width: Math.round(r.occupancyRate * 100) + '%' }"></span></span>
           <span class="usage-text"><span>已用 {{ r.occupiedSlots }} / {{ r.capacity }}</span><span>{{ Math.round(r.occupancyRate * 100) }}%</span></span>
         </span>
-      </button>
+      </div>
     </div>
   </section>
 </template>
@@ -33,7 +38,10 @@
 import type { WarehouseRoom } from '@/types/warehouse'
 
 defineProps<{ rooms: WarehouseRoom[]; modelValue: number | null }>()
-const emit = defineEmits<{ (e: 'update:modelValue', id: number): void }>()
+const emit = defineEmits<{
+  (e: 'update:modelValue', id: number): void
+  (e: 'delete', id: number): void
+}>()
 </script>
 
 <style scoped>
@@ -45,6 +53,7 @@ const emit = defineEmits<{ (e: 'update:modelValue', id: number): void }>()
 .room-item:hover { background: #fafafa; }
 .room-item.active { border-color: #8abcbf; box-shadow: 0 0 0 3px rgba(31, 111, 120, 0.1); }
 .room-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.room-head-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .usage { display: grid; gap: 6px; }
 .usage-track { height: 9px; border-radius: 999px; background: #e5edf2; overflow: hidden; }
 .usage-fill { display: block; height: 100%; background: var(--primary); }
