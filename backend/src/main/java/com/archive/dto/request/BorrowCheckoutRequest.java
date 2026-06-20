@@ -1,7 +1,6 @@
 package com.archive.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -16,7 +15,7 @@ public class BorrowCheckoutRequest {
     @NotBlank(message = "凭证号不能为空")
     private String voucherNo;
 
-    @NotNull(message = "应还时间不能为空")
+    /** 应还时间：可选，留空则由出库服务按借阅时长（expectedDays）自动计算。 */
     private OffsetDateTime dueAt;
 
     @Size(max = 500)
