@@ -107,7 +107,7 @@ test.describe('W-A-4 后台入库', () => {
     await page.goto('/admin/pending-archive')
     await expect(page.getByRole('button', { name: 'AI 整批补全' })).toBeVisible()
 
-    const batchCard = page.locator('button.batch-card').filter({ hasText: wf('W-A').batchNo! })
+    const batchCard = page.locator('.batch-card').filter({ hasText: wf('W-A').batchNo! })
     await expect(batchCard).toBeVisible({ timeout: 15_000 })
     await batchCard.click()
     await expect(page.getByText('05-old-city-photo-2003').first()).toBeVisible({ timeout: 10_000 })

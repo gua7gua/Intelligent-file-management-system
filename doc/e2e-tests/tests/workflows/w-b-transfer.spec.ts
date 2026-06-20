@@ -79,7 +79,7 @@ test.describe('W-B-3 小刘入库', () => {
     await page.goto('/admin/pending-archive')
     await expect(page.getByRole('button', { name: 'AI 整批补全' })).toBeVisible()
 
-    const card = page.locator('button.batch-card').filter({ hasText: wf('W-B').batchNo! })
+    const card = page.locator('.batch-card').filter({ hasText: wf('W-B').batchNo! })
     await expect(card).toBeVisible({ timeout: 15_000 })
     await card.click()
     // 等详情区加载（入库表单）：纯电子条目文件名不在详情文本，改等「确认入库」按钮可见
@@ -117,13 +117,14 @@ test.describe('W-B-4 小刘确认上架', () => {
 
   test('已入库批次确认上架进入正常利用', async ({ page }) => {
     await page.goto('/admin/pending-archive')
-    // 左下「已入库待上架」分区定位本次批次（纸质部分 pendingShelfCount>0）
-    const shelvable = page.locator('.shelvable-card').filter({ hasText: wf('W-B').batchNo! })
+    // W-B-3：已入库待上架已合并到「待处理批次」（displayBatches = batches + shelvableBatches）。
+    // shelvable 批次（pendingShelfCount>0）卡片带 .shelvable-card 类 + 「待上架 N 件」 + 「确认上架」按钮。
+    const shelvable = page.locator('.batch-card.shelvable-card').filter({ hasText: wf('W-B').batchNo! })
     await expect(shelvable).toBeVisible({ timeout: 15_000 })
     await shelvable.getByRole('button', { name: '确认上架' }).click()
     await expect(page.locator('.el-message').filter({ hasText: /已确认上架/ })).toBeVisible({ timeout: 15_000 })
-    // 上架后该批次从「已入库待上架」分区移除
-    await expect(page.locator('.shelvable-card').filter({ hasText: wf('W-B').batchNo! })).toHaveCount(0)
+    // 上架后 pendingShelfCount=0，批次从 shelvableBatches 移除，.shelvable-card 类随之消失
+    await expect(page.locator('.batch-card.shelvable-card').filter({ hasText: wf('W-B').batchNo! })).toHaveCount(0)
   })
 })
 

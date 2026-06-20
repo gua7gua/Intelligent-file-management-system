@@ -116,11 +116,12 @@ test.describe('W-E-4 小陈出库与归还', () => {
     // 5.4 门控：前台 front_archivist 无审批按钮，应见提示
     await expect(page.locator('.notice').filter({ hasText: '审批由档案管理岗操作' })).toBeVisible({ timeout: 10_000 })
 
-    // 凭证号由前端 resetForms 从 detail.voucherNo 回填（导出凭证时生成），不手动覆盖
+    // W-E-1 重构：凭证号审批通过时由后端自动生成，此处只读展示（disabled input），不手动覆盖
     const voucherInput = page.locator('.field').filter({ hasText: '凭证号' }).locator('input')
     await expect(voucherInput).not.toHaveValue('', { timeout: 10_000 })
-    await page.locator('.field').filter({ hasText: '应还时间' }).locator('input[type="datetime-local"]').fill('2026-07-20T10:00')
 
+    // 应还时间由后端按 expectedDays 在确认出库时自动计算，前端不再有可编辑应还时间 input；
+    // approved/voucher_issued 阶段仅展示「确认出库」按钮，直接点击 + 确认弹窗。
     await expect(page.getByRole('button', { name: '确认出库' })).toBeEnabled({ timeout: 10_000 })
     await page.getByRole('button', { name: '确认出库' }).click()
     await expect(page.locator('.el-message-box').filter({ hasText: '确认出库' })).toBeVisible()

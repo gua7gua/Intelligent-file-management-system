@@ -50,12 +50,14 @@ test.describe('W-G 数据研判闭环', () => {
       }
     }
 
-    // R3-C2 删除首行异常项：行内删除 → ElMessageBox 确认
+    // R3-C2 删除当前选中异常项：W-G 改版后行内「删除」按钮已移除，删除动作移到【条目详情】区。
+    // 默认筛选 tab=「待处理」；选中首行后条目详情可见，点详情区「删除」按钮 → ElMessageBox 确认。
     const beforeCount = await table.locator('tbody tr').count()
-    await table.locator('tbody tr').first().getByRole('button', { name: '删除' }).click()
+    const detailPanel = page.locator('.card.panel').filter({ hasText: '条目详情' })
+    await detailPanel.getByRole('button', { name: '删除' }).click()
     await page.locator('.el-message-box').getByRole('button', { name: '删除' }).click()
     await expect(page.locator('.el-message').filter({ hasText: '异常项已删除' })).toBeVisible({ timeout: 10_000 })
-    // 删除后列表行数减少（软删后 selectTask 重刷过滤）
+    // 删除后列表行数减少（软删后 selectTask 重刷「待处理」过滤，该项移出当前视图）
     await expect(table.locator('tbody tr')).toHaveCount(beforeCount - 1, { timeout: 10_000 })
   })
 })
