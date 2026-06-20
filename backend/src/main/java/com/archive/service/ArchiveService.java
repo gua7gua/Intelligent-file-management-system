@@ -11,6 +11,7 @@ import com.archive.entity.*;
 import com.archive.enums.ApprovalStatus;
 import com.archive.enums.ApprovalType;
 import com.archive.enums.LifecycleStatus;
+import com.archive.enums.OpenStatus;
 import com.archive.exception.BusinessException;
 import com.archive.mapper.*;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -290,6 +291,13 @@ public class ArchiveService {
 
         if (req.getNewOpenStatus().equals(archive.getOpenStatus())) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "新开放状态与当前状态相同");
+        }
+
+        // 涉密档案（密级高于非密）不可设为公开，防止产生「公开的涉密档案」
+        if (OpenStatus.open.name().equals(req.getNewOpenStatus())
+                && archive.getSecurityLevel() != null && archive.getSecurityLevel() > 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "档案密级高于非密，不可设为公开；如需公开请先下调密级");
         }
 
         validateEvidenceArchive(req.getEvidenceArchiveNo(), archive);
