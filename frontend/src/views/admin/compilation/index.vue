@@ -255,7 +255,6 @@ onMounted(() => {
       </div>
       <div class="actions">
         <button class="button secondary new-compilation" id="newCompilation" @click="openNew"><span class="icon">+</span>新建编研成果</button>
-        <button class="button" id="saveDraft" :disabled="isReadonly || saving" @click="saveDraft"><span class="icon">S</span>保存草稿</button>
       </div>
     </div>
 
@@ -438,7 +437,8 @@ onMounted(() => {
               <input v-model="archiveForm.tagNames" placeholder="多个标签用逗号分隔" :disabled="isReadonly" />
             </div>
           </div>
-          <div class="actions" style="margin-top:14px">
+          <div class="actions" style="margin-top:14px; justify-content:space-between">
+            <button class="button" id="saveDraft" :disabled="isReadonly || saving" @click="saveDraft"><span class="icon">S</span>保存草稿</button>
             <button class="button" :disabled="isReadonly || generating || !currentDetail" @click="generateAndArchive"><span class="icon">A</span>生成正文并入库</button>
           </div>
         </div>
