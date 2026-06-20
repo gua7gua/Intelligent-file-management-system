@@ -279,11 +279,13 @@ const collectionTabs = computed(() =>
     ? [
         { key: 'all', label: '全部' },
         { key: 'pending_receive', label: '待接收' },
+        { key: 'received', label: '已接收' },
       ]
     : [
         { key: 'all', label: '全部' },
         { key: 'pending_contact', label: '待联系' },
         { key: 'pending_receive', label: '待接收' },
+        { key: 'received', label: '已接收' },
       ],
 )
 const activeTab = ref<string>('all')
@@ -327,7 +329,10 @@ const agreementErrorCount = computed(() => 0)
 const filteredCollections = computed(() => {
   return batchList.value.filter((b) => {
     if (isFrontArchivist.value && (b.status === 'pending_contact' || b.status === 'rejected')) return false
-    if (activeTab.value !== 'all' && b.status !== activeTab.value) return false
+    if (activeTab.value === 'received') {
+      // 已接收（未入库）：received 与 partially_received 合并展示，便于补导出回执，避免接收后批次"消失"
+      if (b.status !== 'received' && b.status !== 'partially_received') return false
+    } else if (activeTab.value !== 'all' && b.status !== activeTab.value) return false
     return true
   })
 })
@@ -532,6 +537,8 @@ async function handleCompleteReceive() {
     // 刷新批次列表与详情，避免完成后卡片仍显示原状态（与 B12-1 同类问题）
     const completedId = selectedBatch.value.id
     await loadCollections()
+    // 接收完成后自动切到「已接收」tab，前台直观看到成果并支持补导出回执
+    activeTab.value = 'received'
     // 关键：从刷新后的 batchList 取最新对象再 selectBatch，
     // 否则 selectedBatch 仍指向旧对象（status=pending_receive），头部状态不会更新
     const refreshed = batchList.value.find((b) => b.id === completedId)

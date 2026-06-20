@@ -254,6 +254,7 @@ import {
 const filterTabs = [
   { key: 'pending', label: '待移交' },
   { key: 'today', label: '今日到馆' },
+  { key: 'received', label: '已接收' },
   { key: 'abnormal', label: '存在异常' },
 ] as const
 const activeFilter = ref<string>('pending')
@@ -303,10 +304,15 @@ const filteredBatches = computed(() => {
       const today = new Date().toISOString().slice(0, 10)
       return b.expectedTransferDate === today
     }
+    if (activeFilter.value === 'received') {
+      // 已接收（未入库）：received 与 partially_received 合并，便于补导出回执
+      return b.status === 'received' || b.status === 'partially_received'
+    }
     if (activeFilter.value === 'abnormal') {
       return true
     }
-    return true
+    // pending（默认）：待移交/待接收，排除已接收，避免接收后批次仍停留在「待移交」
+    return b.status !== 'received' && b.status !== 'partially_received'
   })
 })
 
@@ -499,6 +505,8 @@ async function confirmReceive() {
     // 刷新左栏批次列表（接收后批次从待验收变成已接收/部分接收，列表卡片状态需同步），
     // 同时刷新当前 activeBatch 详情避免本地状态滞后。
     await loadBatches()
+    // 接收完成后切到「已接收」tab，直观看到成果并支持补导出回执
+    activeFilter.value = 'received'
     if (activeBatch.value) await selectBatch(activeBatch.value.batch.id)
   } catch {
     ElMessage.error('确认接收失败')
