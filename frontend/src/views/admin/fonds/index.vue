@@ -71,6 +71,7 @@
                     <div class="actions" @click.stop>
                       <el-button size="small" @click="selectRow(f)">编辑</el-button>
                       <el-button size="small" :type="f.status === 'active' ? 'warning' : 'danger'" :disabled="f.status === 'disabled'" @click="removeOrDisable(f)">{{ f.status === 'disabled' ? '已停用' : '停用' }}</el-button>
+                      <el-button size="small" type="danger" @click="onDelete(f)">删除</el-button>
                     </div>
                   </td>
                 </tr>
@@ -148,8 +149,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { createFonds, getFonds, updateFonds } from '@/api/fonds'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { createFonds, getFonds, removeFonds, updateFonds } from '@/api/fonds'
 import { getOrganizations } from '@/api/organizations'
 import { validateFondsForm } from '@/utils/fondsValidation'
 import type { FondsItem } from '@/types/fonds'
@@ -285,12 +286,34 @@ async function save() {
 
 async function removeOrDisable(f: FondsItem) {
   try {
-    // 接口文档 §17.4 明确全宗不做物理删除；无论是否有关联数据，统一通过 status=disabled 停用，保留历史档案归属
+    // 停用：仅置 status=disabled，保留全宗与历史归属；如需彻底清理误建全宗，使用「删除」（onDelete，关联 fonds_id 置空）
     await updateFonds(f.id, { status: 'disabled' })
     ElMessage.success(isLinked(f) ? '该全宗已有归档档案或档案盒，已停用。' : '无关联数据的全宗已停用。')
     await loadAll()
   } catch (e) {
     ElMessage.error((e as Error).message || '操作失败')
+  }
+}
+
+async function onDelete(f: FondsItem) {
+  const linked = isLinked(f)
+  const tip = linked
+    ? `该全宗关联 ${f.archiveCount} 件档案 / ${f.boxCount} 个档案盒，删除后这些记录的全宗字段将被清空，且不可恢复。确认删除？`
+    : '删除全宗不可恢复，确认删除？'
+  try {
+    await ElMessageBox.confirm(tip, '删除全宗', {
+      type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消',
+    })
+  } catch {
+    return // 用户取消
+  }
+  try {
+    await removeFonds(f.id)
+    ElMessage.success('全宗已删除')
+    if (selectedId.value === f.id) selectedId.value = null
+    await loadAll()
+  } catch (e) {
+    ElMessage.error((e as Error).message || '删除失败')
   }
 }
 
