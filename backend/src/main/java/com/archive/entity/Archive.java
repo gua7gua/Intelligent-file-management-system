@@ -68,4 +68,7 @@ public class Archive extends BaseEntity {
     private OffsetDateTime archivedAt;
 
     private OffsetDateTime shelvedAt;
+
+    /** 研判「不采纳」后永久跳过的时间戳；NULL=未跳过，下次扫描仍纳入候选。 */
+    private OffsetDateTime analysisIgnoredAt;
 }

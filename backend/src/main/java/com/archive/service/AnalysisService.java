@@ -176,7 +176,8 @@ public class AnalysisService {
 
     private List<Long> scopedArchiveIds(AnalysisRule rule) {
         StringBuilder sql = new StringBuilder(
-                "SELECT id FROM archives WHERE deleted_at IS NULL AND lifecycle_status<>'destroyed'");
+                "SELECT id FROM archives WHERE deleted_at IS NULL AND lifecycle_status<>'destroyed'" +
+                        " AND analysis_ignored_at IS NULL");
         List<Object> args = new ArrayList<>();
         if (rule.getCategoryIds() != null && !rule.getCategoryIds().isEmpty()) {
             sql.append(" AND category_id IN (");
@@ -251,10 +252,17 @@ public class AnalysisService {
         if (it.getStatus() != AnalysisItemStatus.pending) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "研判项已处理");
         }
-        it.setStatus("adopted".equals(req.getAction()) ? AnalysisItemStatus.adopted : AnalysisItemStatus.rejected);
+        boolean rejected = "rejected".equals(req.getAction());
+        it.setStatus(rejected ? AnalysisItemStatus.rejected : AnalysisItemStatus.adopted);
         it.setHandledBy(AuthContext.getCurrentUserId());
         it.setHandledAt(OffsetDateTime.now());
         itemMapper.updateById(it);
+        // 不采纳=该档案无问题：打永久跳过标记，下次扫描不再纳入候选；
+        // （删除则不走这里，仅软删当前异常项，下次扫描仍可再次发现。）
+        if (rejected && it.getArchiveId() != null) {
+            jdbcTemplate.update("UPDATE archives SET analysis_ignored_at = ? WHERE id = ?",
+                    OffsetDateTime.now(), it.getArchiveId());
+        }
         auditService.log("M14", "handle_analysis_item", "analysis_item", itemId,
                 Map.of("action", req.getAction()));
         return toItemResponse(it);
