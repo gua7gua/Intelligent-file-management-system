@@ -135,6 +135,22 @@ public class FondsService {
         auditService.log("M06", "update_fonds", "fonds", id, Map.of());
     }
 
+    /** 17.4 删除全宗（物理删除；关联档案/档案盒的 fonds_id 先置空）。 */
+    @Transactional
+    public void deleteFonds(Long id) {
+        Fonds fonds = fondsMapper.selectById(id);
+        if (fonds == null || fonds.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "全宗不存在");
+        }
+        long assoc = countAssoc(id);
+        // 外键 RESTRICT：必须先解除 archives / archive_boxes 对全宗的引用，再物理删除
+        jdbcTemplate.update("UPDATE archives SET fonds_id = NULL WHERE fonds_id = ?", id);
+        jdbcTemplate.update("UPDATE archive_boxes SET fonds_id = NULL WHERE fonds_id = ?", id);
+        fondsMapper.deleteById(id);
+        auditService.log("M06", "delete_fonds", "fonds", id,
+                Map.of("fondsName", fonds.getFondsName(), "assoc", assoc));
+    }
+
     /** 详情 */
     public FondsDetailResponse getFondsDetail(Long id) {
         Fonds fonds = fondsMapper.selectById(id);

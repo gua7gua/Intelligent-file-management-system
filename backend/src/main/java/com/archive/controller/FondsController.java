@@ -55,6 +55,14 @@ public class FondsController {
         return R.ok();
     }
 
+    @DeleteMapping("/{fondsId}")
+    @Operation(summary = "删除全宗（物理删除；关联档案/档案盒的 fonds_id 置空）")
+    public R<Void> delete(@PathVariable Long fondsId) {
+        requireBackOrAdmin();
+        fondsService.deleteFonds(fondsId);
+        return R.ok();
+    }
+
     private void requireBackOrAdmin() {
         if (!(AuthContext.hasRole(RoleCode.back_archivist) || AuthContext.hasRole(RoleCode.sys_admin))) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "权限不足");

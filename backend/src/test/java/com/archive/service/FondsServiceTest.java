@@ -185,6 +185,51 @@ class FondsServiceTest {
         assertThat(d.getBoxCount()).isEqualTo(2L);
     }
 
+    @Test
+    void deleteFonds_无关联_置空引用后物理删除() {
+        Fonds fonds = new Fonds();
+        fonds.setId(5L);
+        fonds.setFondsName("误建全宗");
+        when(fondsMapper.selectById(5L)).thenReturn(fonds);
+        when(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM archives WHERE fonds_id = ?"),
+                eq(Long.class), eq(5L))).thenReturn(0L);
+        when(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM archive_boxes WHERE fonds_id = ?"),
+                eq(Long.class), eq(5L))).thenReturn(0L);
+
+        service.deleteFonds(5L);
+
+        verify(jdbcTemplate).update(eq("UPDATE archives SET fonds_id = NULL WHERE fonds_id = ?"), eq(5L));
+        verify(jdbcTemplate).update(eq("UPDATE archive_boxes SET fonds_id = NULL WHERE fonds_id = ?"), eq(5L));
+        verify(fondsMapper).deleteById(5L);
+        verify(auditService).log(eq("M06"), eq("delete_fonds"), eq("fonds"), eq(5L), any());
+    }
+
+    @Test
+    void deleteFonds_有关联_仍置空引用后删除() {
+        Fonds fonds = new Fonds();
+        fonds.setId(6L);
+        fonds.setFondsName("在用全宗");
+        when(fondsMapper.selectById(6L)).thenReturn(fonds);
+        when(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM archives WHERE fonds_id = ?"),
+                eq(Long.class), eq(6L))).thenReturn(3L);
+        when(jdbcTemplate.queryForObject(eq("SELECT COUNT(*) FROM archive_boxes WHERE fonds_id = ?"),
+                eq(Long.class), eq(6L))).thenReturn(2L);
+
+        service.deleteFonds(6L);
+
+        verify(jdbcTemplate).update(eq("UPDATE archives SET fonds_id = NULL WHERE fonds_id = ?"), eq(6L));
+        verify(jdbcTemplate).update(eq("UPDATE archive_boxes SET fonds_id = NULL WHERE fonds_id = ?"), eq(6L));
+        verify(fondsMapper).deleteById(6L);
+    }
+
+    @Test
+    void deleteFonds_全宗不存在_抛NOT_FOUND() {
+        when(fondsMapper.selectById(99L)).thenReturn(null);
+        assertThatThrownBy(() -> service.deleteFonds(99L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
+    }
+
     private Fonds newFonds(Long id, String no, String name, Long orgId) {
         Fonds f = new Fonds();
         f.setId(id);
