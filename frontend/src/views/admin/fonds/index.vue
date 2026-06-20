@@ -119,8 +119,8 @@
 
         <div class="field">
           <label>全宗号</label>
-          <input v-model="form.fondsNo" data-testid="fondsNo" :disabled="!isCreate" :placeholder="isCreate ? '手动输入，创建后不可改' : ''" />
-          <span class="hint">创建后不可修改；新建时手动输入并校验唯一。</span>
+          <input v-model="form.fondsNo" data-testid="fondsNo" :disabled="!isCreate" :placeholder="isCreate ? '留空自动生成（F### 续编）' : ''" />
+          <span class="hint">创建后不可修改；新建时留空则由后端按 F### 续编自动生成并校验唯一。</span>
         </div>
         <div class="field"><label>全宗名称</label><input v-model="form.fondsName" /></div>
         <div class="field">
