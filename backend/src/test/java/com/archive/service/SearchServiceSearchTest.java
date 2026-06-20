@@ -52,6 +52,25 @@ class SearchServiceSearchTest {
     }
 
     @Test
+    void buildInternalWrapper_own_org_含本单位与他单位非密的OR分支() {
+        ArchiveSearchQuery q = new ArchiveSearchQuery();
+        QueryWrapper<Archive> w = service.buildInternalWrapper(q, 2, DataScope.own_org, 100L);
+        String sql = w.getCustomSqlSegment().toUpperCase();
+        // 改造后 own_org 引入 (organization_id=? OR (organization_id<>? AND security_level=0)) 结构
+        assertThat(sql).contains("ORGANIZATION_ID");
+        assertThat(sql).contains("SECURITY_LEVEL");
+        assertThat(sql).contains("OR");
+    }
+
+    @Test
+    void buildInternalWrapper_all_不施加组织过滤() {
+        ArchiveSearchQuery q = new ArchiveSearchQuery();
+        QueryWrapper<Archive> w = service.buildInternalWrapper(q, 4, DataScope.all, 100L);
+        String sql = w.getCustomSqlSegment().toUpperCase();
+        assertThat(sql).doesNotContain("ORGANIZATION_ID");
+    }
+
+    @Test
     void 公众检索强制过滤非密公开正常() {
         when(jdbcTemplate.queryForObject(anyString(), eq(Integer.class))).thenReturn(1);
         when(archiveMapper.selectPage(any(Page.class), any())).thenAnswer(inv -> {

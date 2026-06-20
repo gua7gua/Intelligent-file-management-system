@@ -8,6 +8,7 @@ import com.archive.dto.response.ArchiveSummaryResponse;
 import com.archive.entity.Archive;
 import com.archive.entity.ArchiveFile;
 import com.archive.enums.DataScope;
+import com.archive.enums.SecurityLevel;
 import com.archive.exception.BusinessException;
 import com.archive.mapper.ArchiveAccessLogMapper;
 import com.archive.mapper.ArchiveFileMapper;
@@ -143,7 +144,11 @@ public class SearchService {
     private void applyDataScope(QueryWrapper<Archive> w, DataScope scope, Long organizationId) {
         if (scope == DataScope.all || organizationId == null) return;
         if (scope == DataScope.own_org) {
-            w.eq("organization_id", organizationId);
+            // 内部查阅者：本单位（受外层 security_level<=maxSL 约束）+ 其他单位仅非密
+            w.and(inner -> inner
+                    .eq("organization_id", organizationId)
+                    .or(o -> o.ne("organization_id", organizationId)
+                              .eq("security_level", SecurityLevel.NONE.getLevel())));
         } else if (scope == DataScope.own_fonds) {
             w.inSql("fonds_id", "SELECT id FROM fonds WHERE organization_id = " + organizationId);
         }
