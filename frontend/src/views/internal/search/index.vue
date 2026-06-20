@@ -197,12 +197,10 @@
       </div>
     </div>
 
-    <!-- 右栏详情面板 -->
-    <aside class="detail-panel-wrapper">
-      <el-dialog v-model="detailDialogVisible" title="档案详情" width="720px" align-center destroy-on-close>
-        <ArchiveDetailPanel :archive-id="selectedArchiveId" />
-      </el-dialog>
-    </aside>
+    <!-- 详情弹窗（详情改为弹窗，页面主体单列布局，避免右侧固定留白） -->
+    <el-dialog v-model="detailDialogVisible" title="档案详情" width="720px" align-center destroy-on-close>
+      <ArchiveDetailPanel :archive-id="selectedArchiveId" />
+    </el-dialog>
   </section>
 </template>
 
@@ -415,7 +413,7 @@ onMounted(async () => {
 <style scoped>
 .search-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 400px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -438,10 +436,8 @@ onMounted(async () => {
 .json-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .result-row { cursor: pointer; transition: background 0.16s ease; }
 .result-row:hover { background: #f8fbfc; }
-.detail-panel-wrapper { display: grid; gap: 12px; position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; }
 @media (max-width: 1120px) {
   .search-layout { grid-template-columns: 1fr; }
-  .detail-panel-wrapper { position: static; }
 }
 @media (max-width: 960px) {
   .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

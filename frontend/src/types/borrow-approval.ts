@@ -48,7 +48,8 @@ export interface BorrowApproveData {
 /** 确认出库请求（§12.4） */
 export interface BorrowCheckoutData {
   voucherNo: string
-  dueAt: string
+  /** 应还时间：留空由后端按借阅时长（expectedDays）自动计算 */
+  dueAt?: string
   note?: string
 }
 

@@ -86,18 +86,40 @@
 
             <div class="card panel">
               <h2 class="section-title">凭证、出库与归还</h2>
-              <div class="field"><label>凭证号</label><input v-model="voucherNo" placeholder="VCH-xxxxxx"></div>
-              <div class="field"><label>应还时间</label><input v-model="dueAt" type="datetime-local"></div>
-              <div class="field"><label>归还检查结果</label>
-                <select v-model="returnCheckResult">
-                  <option v-for="opt in returnOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
-              </div>
-              <div class="field"><label>归还检查说明</label><textarea v-model="returnNote" placeholder="异常归还时必填"></textarea></div>
-              <div class="actions">
-                <button class="button" :disabled="!canCheckout" @click="onCheckout">确认出库</button>
-                <button class="button ghost" :disabled="!canReturn" @click="onReturn">确认归还</button>
-              </div>
+
+              <!-- 凭证号：审批通过即由系统生成，此处只读展示，前台无需手填 -->
+              <div class="field"><label>凭证号</label><input :value="detail.voucherNo || '—'" disabled></div>
+
+              <!-- 出库阶段：approved / voucher_issued —— 应还时间在确认出库时按借阅时长自动计算 -->
+              <template v-if="canCheckout">
+                <div class="notice" style="margin-top:8px">
+                  应还时间将按借阅时长（{{ detail.expectedDays }} 天）在确认出库时自动计算，无需手填。
+                </div>
+                <div class="actions">
+                  <button class="button" @click="onCheckout">确认出库</button>
+                </div>
+              </template>
+
+              <!-- 归还阶段：checked_out —— 仅此时显示归还检查 -->
+              <template v-else-if="canReturn">
+                <div class="field"><label>应还时间</label><input :value="formatDateTime(detail.dueAt)" disabled></div>
+                <div class="field"><label>归还检查结果</label>
+                  <select v-model="returnCheckResult">
+                    <option v-for="opt in returnOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                  </select>
+                </div>
+                <div class="field"><label>归还检查说明</label><textarea v-model="returnNote" placeholder="异常归还时必填"></textarea></div>
+                <div class="actions">
+                  <button class="button ghost" @click="onReturn">确认归还</button>
+                </div>
+              </template>
+
+              <!-- 已归还/其他：只读历史 -->
+              <template v-else>
+                <div v-if="detail.dueAt" class="field"><label>应还时间</label><input :value="formatDateTime(detail.dueAt)" disabled></div>
+                <div v-if="detail.returnedAt" class="field"><label>归还时间</label><input :value="formatDateTime(detail.returnedAt)" disabled></div>
+                <div class="notice" style="margin-top:8px">当前状态无需出库/归还操作。</div>
+              </template>
             </div>
           </div>
         </template>
@@ -141,8 +163,6 @@ const detail = ref<BorrowApprovalDetail | null>(null)
 const detailLoading = ref(false)
 
 const rejectReason = ref('')
-const voucherNo = ref('')
-const dueAt = ref('')
 const returnCheckResult = ref<ReturnCheckResultValue>(ReturnCheckResult.NORMAL)
 const returnNote = ref('')
 
@@ -153,32 +173,13 @@ const returnOptions: { value: ReturnCheckResultValue; label: string }[] = [
   { value: ReturnCheckResult.OTHER, label: '其他' },
 ]
 
-/**
- * 将 <input type="datetime-local"> 的本地值（"YYYY-MM-DDTHH:mm"）转为带本地时区偏移的
- * ISO 字符串（"YYYY-MM-DDTHH:mm:00±HH:MM"），供后端 OffsetDateTime 反序列化。
- */
-function toOffsetIso(localValue: string): string {
-  if (!localValue) return localValue
-  const d = new Date(localValue)
-  if (Number.isNaN(d.getTime())) return localValue
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const offset = -d.getTimezoneOffset()
-  const sign = offset >= 0 ? '+' : '-'
-  const abs = Math.abs(offset)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
-}
-
-/**
- * 将后端返回的 ISO 偏移字符串（如 "2026-07-01T10:00:00+08:00"）转换为
- * <input type="datetime-local"> 所需的本地格式 "YYYY-MM-DDTHH:mm"。
- * 直接把带时区的 ISO 字符串塞给 datetime-local 不会被浏览器识别，导致应还时间不回填。
- */
-function fromOffsetIso(iso: string | null | undefined): string {
-  if (!iso) return ''
+/** 将后端 ISO 时间字符串格式化为本地可读的 "YYYY-MM-DD HH:mm"。 */
+function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return '—'
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
+  if (Number.isNaN(d.getTime())) return '—'
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 const metrics = computed(() => {
@@ -239,8 +240,6 @@ async function selectRequest(id: number) {
 
 function resetForms() {
   rejectReason.value = ''
-  voucherNo.value = detail.value?.voucherNo ?? ''
-  dueAt.value = fromOffsetIso(detail.value?.dueAt)
   returnCheckResult.value = ReturnCheckResult.NORMAL
   returnNote.value = ''
 }
@@ -265,8 +264,8 @@ async function onApprove(approved: boolean) {
 
 async function onCheckout() {
   if (!detail.value) return
-  // datetime-local 值为 "YYYY-MM-DDTHH:mm"，后端 OffsetDateTime 需要带时区偏移的 ISO，补秒与本地偏移
-  const data: BorrowCheckoutData = { voucherNo: voucherNo.value, dueAt: toOffsetIso(dueAt.value) }
+  // 凭证号审批通过时已由系统生成，此处只读回传；应还时间留空，由后端按借阅时长自动计算
+  const data: BorrowCheckoutData = { voucherNo: detail.value.voucherNo ?? '' }
   const errors = validateBorrowCheckout(detail.value, data)
   if (errors.length) {
     errors.forEach((e) => ElMessage.warning(e))

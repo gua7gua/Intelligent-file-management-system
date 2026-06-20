@@ -23,7 +23,7 @@ export function validateBorrowCheckout(
   const errors: string[] = []
   if (detail.status !== 'approved' && detail.status !== 'voucher_issued') errors.push('仅已批准申请可确认出库。')
   if (!data.voucherNo.trim()) errors.push('凭证号必填。')
-  if (!data.dueAt) errors.push('应还时间必填。')
+  // 应还时间由后端按借阅时长自动计算，前端无需手填
   // 已导出凭证（voucher_issued）时，出库录入的凭证号必须与已导出凭证一致
   if (detail.voucherNo && data.voucherNo !== detail.voucherNo) {
     errors.push('凭证号与已导出凭证不匹配。')
