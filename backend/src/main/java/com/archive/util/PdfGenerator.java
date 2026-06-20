@@ -161,7 +161,8 @@ public class PdfGenerator {
      * 内容：凭证信息、借阅人信息、档案信息、单位意见盖章区、已归还盖章区。
      */
     public byte[] generateBorrowVoucherPdf(BorrowRequest borrow, Archive archive,
-                                           User borrower, Organization org) {
+                                           User borrower, Organization org,
+                                           boolean crossOrg, String archiveOrgName) {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             Document doc = new Document(PageSize.A4, 50, 50, 50, 50);
             PdfWriter.getInstance(doc, baos);
@@ -219,9 +220,16 @@ public class PdfGenerator {
 
             doc.add(Chunk.NEWLINE);
 
-            // 单位意见盖章区
-            doc.add(new Paragraph("单位意见（盖章）：", headerFont));
-            doc.add(new Paragraph("\n\n\n（借阅人所在单位意见与盖章位置）\n\n\n", normalFont));
+            // 单位意见盖章区（跨单位纸质借阅由档案馆代原单位盖章）
+            if (crossOrg) {
+                String orgDisplay = (archiveOrgName != null && !archiveOrgName.isBlank())
+                        ? archiveOrgName : "原属单位";
+                doc.add(new Paragraph("档案馆代原属单位（" + orgDisplay + "）意见（档案馆盖章）：", headerFont));
+                doc.add(new Paragraph("\n\n\n（档案馆代原属单位意见与盖章位置）\n\n\n", normalFont));
+            } else {
+                doc.add(new Paragraph("单位意见（盖章）：", headerFont));
+                doc.add(new Paragraph("\n\n\n（借阅人所在单位意见与盖章位置）\n\n\n", normalFont));
+            }
 
             // 已归还盖章区
             doc.add(new Paragraph("档案馆归还确认（盖章）：", headerFont));

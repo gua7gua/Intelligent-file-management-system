@@ -209,7 +209,16 @@ public class BorrowService {
         User borrower = userMapper.selectById(b.getBorrowerId());
         Organization org = (borrower != null && borrower.getOrganizationId() != null)
                 ? organizationMapper.selectById(borrower.getOrganizationId()) : null;
-        return pdfGenerator.generateBorrowVoucherPdf(b, archive, borrower, org);
+        // 跨单位纸质借阅：档案所属单位 ≠ 借阅人单位 → 凭证改由档案馆代原单位盖章
+        boolean crossOrg = archive != null && archive.getOrganizationId() != null
+                && borrower != null && borrower.getOrganizationId() != null
+                && !archive.getOrganizationId().equals(borrower.getOrganizationId());
+        String archiveOrgName = null;
+        if (crossOrg) {
+            Organization archiveOrg = organizationMapper.selectById(archive.getOrganizationId());
+            archiveOrgName = archiveOrg != null ? archiveOrg.getOrgName() : null;
+        }
+        return pdfGenerator.generateBorrowVoucherPdf(b, archive, borrower, org, crossOrg, archiveOrgName);
     }
 
     // ==================== 12.4 核验凭证并确认出库 ====================
