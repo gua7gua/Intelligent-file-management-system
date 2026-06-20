@@ -68,6 +68,10 @@ public class AuthService {
         userInfo.setId(user.getId());
         userInfo.setRealName(user.getRealName());
         userInfo.setUserType(user.getUserType() != null ? user.getUserType().name() : null);
+        userInfo.setLoginName(user.getLoginName());
+        userInfo.setEmployeeNo(user.getEmployeeNo());
+        userInfo.setPhone(user.getPhone());
+        userInfo.setDepartmentName(user.getDepartmentName());
         userInfo.setRoles(new ArrayList<>(roleCodes));
         userInfo.setOrganizationId(user.getOrganizationId());
         userInfo.setMaxSecurityLevel(user.getMaxSecurityLevel());
