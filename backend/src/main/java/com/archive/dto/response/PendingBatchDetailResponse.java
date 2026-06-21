@@ -31,6 +31,9 @@ public class PendingBatchDetailResponse {
     /** 最近一次 AI 补全任务状态，与列表接口 latestAiTaskStatus 对齐，供前端在详情视图刷新 AI 标签。 */
     private String latestAiTaskStatus;
 
+    /** 最近一次 AI 补全任务 ID，供前端失败后重试。 */
+    private Long latestAiTaskId;
+
     private List<PendingItemResponse> items;
 
     /** 可用档案盒摘要（boxNo + categoryId + fondsId + usedCount/capacity）。 */

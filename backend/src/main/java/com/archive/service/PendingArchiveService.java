@@ -246,6 +246,7 @@ public class PendingArchiveService {
                 .orderByDesc("started_at")
                 .last("limit 1"));
         resp.setLatestAiTaskStatus(latestAiTaskInDetail != null ? latestAiTaskInDetail.getStatus() : null);
+        resp.setLatestAiTaskId(latestAiTaskInDetail != null ? latestAiTaskInDetail.getId() : null);
 
         return resp;
     }

@@ -64,4 +64,11 @@ public class AppraisalController {
     public R<AppraisalBatchDetailResponse> complete(@PathVariable Long batchId) {
         return R.ok(appraisalService.completeBatch(batchId));
     }
+
+    @DeleteMapping("/{batchId}")
+    @Operation(summary = "删除未完成的鉴定批次")
+    public R<Void> deleteBatch(@PathVariable Long batchId) {
+        appraisalService.deleteBatch(batchId);
+        return R.ok();
+    }
 }

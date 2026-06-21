@@ -69,6 +69,15 @@ public class BorrowController {
         return ResponseEntity.ok().headers(headers).body(pdf);
     }
 
+    // ==================== 11.11 撤回借阅申请（仅本人 + applied，撤回即删除） ====================
+
+    @PostMapping("/api/internal/borrow-requests/{requestId}/withdraw")
+    @Operation(summary = "撤回借阅申请")
+    public R<Void> withdraw(@PathVariable Long requestId) {
+        borrowService.cancelRequest(requestId);
+        return R.ok();
+    }
+
     // ==================== 12.1 管理端查询借阅申请 ====================
 
     @GetMapping("/api/admin/borrow-requests")

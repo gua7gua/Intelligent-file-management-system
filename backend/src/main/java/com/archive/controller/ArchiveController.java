@@ -2,6 +2,7 @@ package com.archive.controller;
 
 import com.archive.common.PageResult;
 import com.archive.common.R;
+import com.archive.dto.request.ArchivePlacementRequest;
 import com.archive.dto.request.ArchiveUpdateRequest;
 import com.archive.dto.request.OpenAdjustRequest;
 import com.archive.dto.request.SecurityAdjustRequest;
@@ -62,6 +63,14 @@ public class ArchiveController {
             @PathVariable Long archiveId,
             @RequestBody @Valid ArchiveUpdateRequest req) {
         return R.ok(archiveService.updateArchive(archiveId, req));
+    }
+
+    @PutMapping("/{archiveId}/placement")
+    @Operation(summary = "档案换盒（改所在档案盒）")
+    public R<Void> placeArchive(@PathVariable Long archiveId,
+                                @RequestBody @Valid ArchivePlacementRequest req) {
+        archiveService.placeArchive(archiveId, req);
+        return R.ok();
     }
 
     @PostMapping("/{archiveId}/security-adjustments")

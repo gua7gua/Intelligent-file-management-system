@@ -4,6 +4,7 @@ import com.archive.common.ErrorCode;
 import com.archive.common.PageResult;
 import com.archive.dto.request.ArchiveUpdateRequest;
 import com.archive.dto.request.OpenAdjustRequest;
+import com.archive.dto.request.ArchivePlacementRequest;
 import com.archive.dto.request.SecurityAdjustRequest;
 import com.archive.dto.response.ArchiveResponse;
 import com.archive.dto.response.ArchiveFileResponse;
@@ -242,6 +243,68 @@ public class ArchiveService {
     }
 
     // ==================== 10.4 发起密级调整审批 ====================
+
+    // ==================== 档案换盒（改 archive_box_items 归属） ====================
+
+    @Transactional
+    public void placeArchive(Long archiveId, ArchivePlacementRequest req) {
+        Archive archive = archiveMapper.selectById(archiveId);
+        if (archive == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "档案不存在");
+        }
+        ArchiveBox newBox = archiveBoxMapper.selectById(req.getBoxId());
+        if (newBox == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "目标档案盒不存在");
+        }
+        if (!"normal".equals(newBox.getStatus()) && !"full".equals(newBox.getStatus())) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "目标档案盒不可用");
+        }
+        // 同分类校验（盒分类须与档案分类一致，与入库上架规则一致）
+        if (newBox.getCategoryId() != null && archive.getCategoryId() != null
+                && !newBox.getCategoryId().equals(archive.getCategoryId())) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "目标档案盒分类与档案不一致");
+        }
+        // 当前盒关联
+        ArchiveBoxItem oldItem = archiveBoxItemMapper.selectOne(
+                new QueryWrapper<ArchiveBoxItem>().eq("archive_id", archiveId));
+        if (oldItem != null && req.getBoxId().equals(oldItem.getBoxId())) {
+            return; // 已在该盒，无需变动
+        }
+        // 换盒：校验新盒未满
+        if (newBox.getCapacity() != null && newBox.getUsedCount() != null
+                && newBox.getUsedCount() >= newBox.getCapacity()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "目标档案盒已满");
+        }
+        // 删旧关联 + 旧盒计数 -1
+        if (oldItem != null) {
+            archiveBoxItemMapper.deleteById(oldItem.getId());
+            ArchiveBox oldBox = archiveBoxMapper.selectById(oldItem.getBoxId());
+            if (oldBox != null && oldBox.getUsedCount() != null && oldBox.getUsedCount() > 0) {
+                oldBox.setUsedCount(oldBox.getUsedCount() - 1);
+                archiveBoxMapper.updateById(oldBox);
+            }
+        }
+        // 插新关联（保留页数/物理状态）
+        ArchiveBoxItem newItem = new ArchiveBoxItem();
+        newItem.setBoxId(req.getBoxId());
+        newItem.setArchiveId(archiveId);
+        newItem.setSortNo(nextBoxSortNoInArchive(req.getBoxId()));
+        newItem.setPageCount(oldItem != null ? oldItem.getPageCount() : null);
+        newItem.setPhysicalStatus(oldItem != null ? oldItem.getPhysicalStatus() : "normal");
+        archiveBoxItemMapper.insert(newItem);
+        // 新盒计数 +1
+        newBox.setUsedCount((newBox.getUsedCount() != null ? newBox.getUsedCount() : 0) + 1);
+        archiveBoxMapper.updateById(newBox);
+        auditService.log("M08", "place_archive", "archive", archiveId,
+                java.util.Map.of("boxId", String.valueOf(req.getBoxId())));
+    }
+
+    private int nextBoxSortNoInArchive(Long boxId) {
+        ArchiveBoxItem latest = archiveBoxItemMapper.selectOne(
+                new QueryWrapper<ArchiveBoxItem>().eq("box_id", boxId)
+                        .orderByDesc("sort_no").last("limit 1"));
+        return latest != null && latest.getSortNo() != null ? latest.getSortNo() + 1 : 1;
+    }
 
     @Transactional
     public ApprovalRequest createSecurityAdjustment(Long archiveId, SecurityAdjustRequest req) {

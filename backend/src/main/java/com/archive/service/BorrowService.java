@@ -132,6 +132,22 @@ public class BorrowService {
         return toResponse(b, false, false);
     }
 
+    // ==================== 12.2.1 撤回借阅申请（仅本人 + applied 状态，撤回即删除） ====================
+
+    @Transactional
+    public void cancelRequest(Long requestId) {
+        requireRole(RoleCode.internal_reader);
+        BorrowRequest b = mustGet(requestId);
+        if (!b.getBorrowerId().equals(AuthContext.getCurrentUserId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "只能撤回本人的借阅申请");
+        }
+        if (b.getStatus() != BorrowStatus.applied) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "仅待审批（已申请）状态可撤回");
+        }
+        borrowRequestMapper.deleteById(requestId);
+        auditService.log("M09", "cancel_borrow", "borrow_request", requestId, Map.of());
+    }
+
     // ==================== 12.3 审批借阅申请 ====================
 
     @Transactional

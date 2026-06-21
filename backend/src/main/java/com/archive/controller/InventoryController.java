@@ -65,4 +65,11 @@ public class InventoryController {
         String summary = body != null ? body.get("summary") : null;
         return R.ok(inventoryService.complete(taskId, summary));
     }
+
+    @DeleteMapping("/api/admin/inventory-tasks/{taskId}")
+    @Operation(summary = "18.7 删除草稿盘点任务")
+    public R<Void> deleteTask(@PathVariable Long taskId) {
+        inventoryService.deleteTask(taskId);
+        return R.ok();
+    }
 }

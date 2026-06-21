@@ -169,6 +169,24 @@ public class InventoryService {
         return getDetail(taskId);
     }
 
+    /** 18.5 删除草稿盘点任务（仅 draft 可删，级联清理应盘明细） */
+    @Transactional
+    public void deleteTask(Long taskId) {
+        requireRole();
+        InventoryTask task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "盘点任务不存在");
+        }
+        if (!InventoryTaskStatus.draft.name().equals(task.getStatus())) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "仅草稿状态的盘点任务可删除");
+        }
+        // 草稿未实际盘点，级联清理应盘明细后物理删除任务
+        itemMapper.delete(new QueryWrapper<InventoryItem>().eq("task_id", taskId));
+        taskMapper.deleteById(taskId);
+        auditService.log("M12", "delete_inventory_task", "inventory_task", taskId,
+                Map.of("taskNo", task.getTaskNo() != null ? task.getTaskNo() : ""));
+    }
+
     /** 18.4 获取盘点详情（任务 + 明细 + 统计） */
     public InventoryTaskDetailResponse getDetail(Long taskId) {
         requireRole();

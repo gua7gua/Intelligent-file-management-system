@@ -228,6 +228,24 @@ public class AppraisalService {
         return toDetailFromItems(batch, items, archiveMap);
     }
 
+    // ==================== 14.3.1 删除未完成的鉴定批次 ====================
+
+    @Transactional
+    public void deleteBatch(Long batchId) {
+        AppraisalBatch batch = batchMapper.selectById(batchId);
+        if (batch == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "鉴定批次不存在");
+        }
+        if (batch.getStatus() == AppraisalBatchStatus.completed) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "已完成的鉴定批次不可删除（已生成销毁清册）");
+        }
+        // draft 未完成鉴定、未生成销毁清册，级联清理鉴定明细后物理删除批次
+        itemMapper.delete(new QueryWrapper<AppraisalItem>().eq("batch_id", batchId));
+        batchMapper.deleteById(batchId);
+        auditService.log("M10", "delete_appraisal_batch", "appraisal_batch", batchId,
+                Map.of("batchNo", batch.getBatchNo() != null ? batch.getBatchNo() : ""));
+    }
+
     // ==================== 14.4 保存鉴定明细 ====================
 
     @Transactional
