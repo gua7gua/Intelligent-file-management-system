@@ -17,6 +17,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 移交单位门户接口。
@@ -100,8 +102,15 @@ public class TransferController {
     @Operation(summary = "导出移交清单 PDF")
     public ResponseEntity<byte[]> exportBatch(@PathVariable Long batchId) {
         byte[] data = intakeBatchService.exportTransferPdf(batchId);
+        // 文件名带批次号中文化（P2-1）：移交清单-BAT-000012.pdf
+        String batchNo = String.valueOf(batchId);
+        try {
+            IntakeBatchResponse resp = intakeBatchService.getReceptionDetail(batchId);
+            if (resp != null && resp.getBatchNo() != null) batchNo = resp.getBatchNo();
+        } catch (Exception ignored) { }
+        String filename = URLEncoder.encode("移交清单-" + batchNo + ".pdf", StandardCharsets.UTF_8);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"transfer.pdf\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(data);
     }
