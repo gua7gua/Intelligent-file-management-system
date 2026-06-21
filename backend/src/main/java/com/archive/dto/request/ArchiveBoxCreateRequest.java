@@ -14,11 +14,5 @@ public class ArchiveBoxCreateRequest {
 
     private Integer categoryId;
 
-    private Long fondsId;
-
-    private String yearLabel;
-
-    private String spineText;
-
     private Integer capacity;
 }

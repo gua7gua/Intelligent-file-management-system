@@ -132,4 +132,13 @@ public class WarehouseController {
             @RequestBody @Valid ArchiveBoxMoveRequest req) {
         return R.ok(warehouseService.moveBox(boxId, req));
     }
+
+    // ==================== 16.10 删除空档案盒（释放架位） ====================
+
+    @DeleteMapping("/boxes/{boxId}")
+    @Operation(summary = "删除空档案盒，释放所在架位")
+    public R<Void> deleteBox(@PathVariable Long boxId) {
+        warehouseService.deleteBox(boxId);
+        return R.ok();
+    }
 }

@@ -374,7 +374,6 @@ class WarehouseServiceTest {
         ArchiveBoxCreateRequest req = new ArchiveBoxCreateRequest();
         req.setLocationId(10L);
         req.setCategoryId(3);
-        req.setYearLabel("2025");
         req.setCapacity(30);
 
         ArchiveBoxResponse resp = service.createBox(req);
@@ -561,5 +560,42 @@ class WarehouseServiceTest {
         assertThat(result.get(0).getRoomId()).isEqualTo(1L);
         assertThat(result.get(0).getOccupiedSlots()).isEqualTo(90);
         assertThat(result.get(0).getOccupancyRate()).isEqualByComparingTo(new BigDecimal("0.9000"));
+    }
+
+    @Test
+    void deleteBox_空档案盒_物理删除并释放架位() {
+        com.archive.entity.ArchiveBox box = new com.archive.entity.ArchiveBox();
+        box.setId(20L);
+        box.setBoxNo("BOX-000020");
+        box.setUsedCount(0);
+        when(archiveBoxMapper.selectById(20L)).thenReturn(box);
+
+        service.deleteBox(20L);
+
+        verify(archiveBoxMapper).deleteById(20L);
+        verify(auditService).log(eq("M07"), eq("delete_box"), eq("archive_box"), eq(20L), any());
+    }
+
+    @Test
+    void deleteBox_盒内仍有档案_抛CONFLICT且不删() {
+        com.archive.entity.ArchiveBox box = new com.archive.entity.ArchiveBox();
+        box.setId(21L);
+        box.setBoxNo("BOX-000021");
+        box.setUsedCount(3);
+        when(archiveBoxMapper.selectById(21L)).thenReturn(box);
+
+        assertThatThrownBy(() -> service.deleteBox(21L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.BUSINESS_CONFLICT);
+        verify(archiveBoxMapper, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void deleteBox_档案盒不存在_抛NOT_FOUND() {
+        when(archiveBoxMapper.selectById(99L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.deleteBox(99L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
     }
 }

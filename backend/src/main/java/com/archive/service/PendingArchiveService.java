@@ -212,7 +212,6 @@ public class PendingArchiveService {
                     s.setId(b.getId());
                     s.setBoxNo(b.getBoxNo());
                     s.setCategoryId(b.getCategoryId());
-                    s.setFondsId(b.getFondsId());
                     s.setUsedCount(b.getUsedCount());
                     s.setCapacity(b.getCapacity());
                     return s;
@@ -385,16 +384,11 @@ public class PendingArchiveService {
                         "档案盒已满，请选择其他档案盒");
             }
 
-            // 校验同盒分类/全宗一致
+            // 校验同盒分类一致
             if (box.getCategoryId() != null && item.getConfirmedCategoryId() != null
                     && !box.getCategoryId().equals(item.getConfirmedCategoryId())) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
                         "同盒档案分类必须一致");
-            }
-            if (box.getFondsId() != null && req.getFondsId() != null
-                    && !box.getFondsId().equals(req.getFondsId())) {
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "同盒档案全宗必须一致");
             }
 
             // 创建盒内关系

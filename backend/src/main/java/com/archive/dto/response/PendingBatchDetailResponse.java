@@ -44,7 +44,6 @@ public class PendingBatchDetailResponse {
         private Long id;
         private String boxNo;
         private Integer categoryId;
-        private Long fondsId;
         private Integer usedCount;
         private Integer capacity;
     }
