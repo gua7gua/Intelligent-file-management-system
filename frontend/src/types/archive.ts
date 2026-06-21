@@ -15,6 +15,8 @@ export interface PendingBatch {
   aiStatus: 'not_started' | 'running' | 'partial_completed' | 'completed' | 'failed'
   /** 已入库批次中 lifecycle_status=pending_shelf 的档案数（仅 status=archived 查询时回填）。 */
   pendingShelfCount?: number
+  /** 最近一次 AI 补全任务 ID（详情接口回填），失败后用于重试。 */
+  latestAiTaskId?: number
   createdAt: string
   updatedAt: string
 }
@@ -174,6 +176,7 @@ export interface PendingApproval {
 /** 档案详情 */
 export interface ArchiveDetail extends ArchiveRecord {
   summary?: string
+  boxId?: number
   allowDigitization: boolean
   retentionPeriod: string
   loanStatus: string

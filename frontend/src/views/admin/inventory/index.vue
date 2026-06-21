@@ -65,6 +65,7 @@
             </div>
             <div class="actions">
               <button v-if="detail.status === 'draft'" class="button" :disabled="detail.items.length === 0" @click="onStart">开始盘点</button>
+              <button v-if="detail.status === 'draft'" class="button ghost" @click="onDeleteTask">删除任务</button>
               <button v-if="detail.status === 'running'" class="button" @click="onComplete">提交盘点结果</button>
             </div>
           </div>
@@ -145,7 +146,7 @@ import {
 } from '@/types/enums'
 import type { InventoryCheckResultValue, InventoryTaskStatusValue } from '@/types/enums'
 import {
-  completeInventoryTask, createInventoryTask, getInventoryTaskDetail,
+  completeInventoryTask, createInventoryTask, deleteInventoryTask, getInventoryTaskDetail,
   getInventoryTasks, startInventoryTask, updateInventoryItem,
 } from '@/api/inventory'
 import { getWarehouseRooms } from '@/api/warehouse'
@@ -330,6 +331,24 @@ async function onComplete() {
     await loadTasks()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '操作失败')
+  }
+}
+
+async function onDeleteTask() {
+  if (!detail.value) return
+  try {
+    await ElMessageBox.confirm('删除后不可恢复，仅草稿任务可删，是否继续？', '删除盘点任务', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await deleteInventoryTask(detail.value.id)
+    ElMessage.success('盘点任务已删除。')
+    selectedId.value = null
+    detail.value = null
+    await loadTasks()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
   }
 }
 

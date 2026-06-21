@@ -68,3 +68,9 @@ export function completeAppraisalBatch(batchId: number): Promise<AppraisalBatchD
   }
   return request.post(`/admin/appraisal-batches/${batchId}/complete`)
 }
+
+/** 删除未完成的鉴定批次（§14.3.1，仅 draft 可删） */
+export function deleteAppraisalBatch(batchId: number): Promise<void> {
+  if (USE_MOCK) return Promise.resolve()
+  return request.delete(`/admin/appraisal-batches/${batchId}`)
+}

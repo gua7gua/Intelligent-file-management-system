@@ -54,6 +54,7 @@
               </td>
               <td>
                 <button class="button ghost" type="button" @click="openDetail(req.id)">查看详情</button>
+                <button v-if="req.status === 'applied'" class="button ghost" type="button" @click="handleWithdraw(req.id)">撤回</button>
                 <button v-if="canExportVoucher(req.status)" class="button secondary" type="button" @click="handleExport(req.id)">导出凭证</button>
               </td>
             </tr>
@@ -106,8 +107,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { exportBorrowVoucher, getBorrowRequestDetail, getMyBorrowRequests } from '@/api/internal'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { exportBorrowVoucher, getBorrowRequestDetail, getMyBorrowRequests, withdrawBorrowRequest } from '@/api/internal'
 import { BorrowStatusLabel } from '@/types/enums'
 import type { BorrowRequest, BorrowRequestDetail } from '@/types/internal'
 
@@ -200,6 +201,21 @@ async function handleExport(id: number) {
     ElMessage.success('借阅凭证已导出')
   } catch {
     ElMessage.error('导出凭证失败')
+  }
+}
+
+async function handleWithdraw(id: number) {
+  try {
+    await ElMessageBox.confirm('撤回后该申请将被删除，是否继续？', '撤回借阅申请', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await withdrawBorrowRequest(id)
+    ElMessage.success('借阅申请已撤回。')
+    await searchFromFirstPage()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '撤回失败')
   }
 }
 

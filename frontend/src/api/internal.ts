@@ -150,3 +150,9 @@ export function exportBorrowVoucher(requestId: number): Promise<Blob> {
   if (USE_MOCK) return import('@/mock/modules/internal').then((m) => m.mockExportBorrowVoucher(requestId))
   return request.get(`/internal/borrow-requests/${requestId}/voucher`, { responseType: 'blob' }) as Promise<Blob>
 }
+
+/** 11.11 撤回借阅申请（仅本人 + applied 状态，撤回即删除） */
+export function withdrawBorrowRequest(requestId: number): Promise<void> {
+  if (USE_MOCK) return Promise.resolve()
+  return request.post(`/internal/borrow-requests/${requestId}/withdraw`)
+}

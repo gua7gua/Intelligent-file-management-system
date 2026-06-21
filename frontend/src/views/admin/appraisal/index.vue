@@ -42,6 +42,7 @@
             <span class="status" :class="b.status === 'completed' ? 'success' : 'warning'">
               {{ AppraisalBatchStatusLabel[b.status] }}
             </span>
+            <el-button v-if="b.status === 'draft'" size="small" type="danger" plain @click.stop="onDeleteBatch(b)">删除</el-button>
           </div>
           <div class="batch-meta">
             <span>{{ b.batchNo }}</span>
@@ -179,12 +180,13 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { AppraisalBatch, AppraisalBatchDetail } from '@/types/appraisal'
 import { AppraisalBatchStatusLabel, RetentionPeriodLabel } from '@/types/enums'
 import {
   completeAppraisalBatch,
   createAppraisalBatch,
+  deleteAppraisalBatch,
   getAppraisalBatchDetail,
   getAppraisalBatches,
   getAppraisalStats,
@@ -327,6 +329,25 @@ async function handleComplete() {
     await loadBatches()
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : '完成鉴定失败')
+  }
+}
+
+async function onDeleteBatch(b: { id: number; batchName: string }) {
+  try {
+    await ElMessageBox.confirm(`删除批次「${b.batchName}」？仅未完成（draft）批次可删，是否继续？`, '删除鉴定批次', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await deleteAppraisalBatch(b.id)
+    ElMessage.success('鉴定批次已删除。')
+    if (selectedBatchId.value === b.id) {
+      selectedBatchId.value = null
+      batchDetail.value = null
+    }
+    await loadBatches()
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
   }
 }
 

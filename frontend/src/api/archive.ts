@@ -249,6 +249,12 @@ export function updateArchive(
   return request.put(`/admin/archives/${archiveId}`, data)
 }
 
+/** 档案换盒（P0-1，改所在档案盒，目标盒须同分类） */
+export function placeArchive(archiveId: number, boxId: number): Promise<void> {
+  if (USE_MOCK) return Promise.resolve()
+  return request.put(`/admin/archives/${archiveId}/placement`, { boxId })
+}
+
 /** 发起密级调整审批 */
 export function submitSecurityAdjust(
   archiveId: number,

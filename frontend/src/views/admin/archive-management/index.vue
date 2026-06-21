@@ -174,6 +174,15 @@
             <el-button type="primary" @click="handleSaveMeta">保存元数据</el-button>
             <el-button @click="handlePreview">预览</el-button>
           </div>
+          <div v-if="detail?.boxId" class="field" style="margin-top:12px">
+            <label>所在档案盒（换盒，仅同分类）</label>
+            <div class="actions" style="gap:8px">
+              <select v-model.number="editBoxId" style="flex:1">
+                <option v-for="b in boxOptions" :key="b.id" :value="b.id">{{ b.boxNo }}（{{ b.locationCode }}，已用 {{ b.usedCount }}/{{ b.capacity }}）</option>
+              </select>
+              <el-button :disabled="!editBoxId || editBoxId === detail?.boxId" @click="handlePlace">换盒</el-button>
+            </div>
+          </div>
 
           <!-- 受保护字段（只读展示） -->
           <h3 class="section-title" style="margin-top:12px">受保护字段</h3>
@@ -237,7 +246,9 @@ import { ElMessage } from 'element-plus'
 import type { ArchiveRecord, ArchiveDetail } from '@/types/archive'
 import { ArchiveStatusLabel, CarrierStatusLabel, SecurityLevelLabel } from '@/types/enums'
 import FilePreview from '@/components/FilePreview/index.vue'
-import { getArchives, getArchiveDetail, updateArchive, submitSecurityAdjust, submitOpenAdjust, previewArchiveFile } from '@/api/archive'
+import { getArchives, getArchiveDetail, updateArchive, submitSecurityAdjust, submitOpenAdjust, previewArchiveFile, placeArchive } from '@/api/archive'
+import { getArchiveBoxes } from '@/api/warehouse'
+import type { ArchiveBox } from '@/types/warehouse'
 
 // ── 分类树 ──
 const categoryTree = [
@@ -296,6 +307,8 @@ const editForm = reactive({
   categoryId: 1,
   tagsStr: '',
 })
+const boxOptions = ref<ArchiveBox[]>([])
+const editBoxId = ref<number | null>(null)
 
 // ── 审批表单 ──
 const approvalForm = reactive({
@@ -346,6 +359,7 @@ async function selectArchive(a: ArchiveRecord) {
     const d = await getArchiveDetail(a.id)
     detail.value = d
     syncEditForm(d)
+    await loadBoxOptions(d.categoryId, d.boxId ?? null)
   } finally {
     detailLoading.value = false
   }
@@ -390,6 +404,28 @@ async function handleSaveMeta() {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '保存失败'
     ElMessage.error(msg)
+  }
+}
+
+// ── 档案换盒（P0-1：改所在档案盒，目标盒须同分类）──
+async function loadBoxOptions(categoryId: number | undefined, currentBoxId: number | null) {
+  editBoxId.value = currentBoxId
+  if (!categoryId) { boxOptions.value = []; return }
+  try {
+    const page = await getArchiveBoxes({ categoryId, pageSize: 200 })
+    boxOptions.value = page.records
+  } catch { boxOptions.value = [] }
+}
+
+async function handlePlace() {
+  if (!detail.value || !editBoxId.value || editBoxId.value === detail.value.boxId) return
+  try {
+    await placeArchive(detail.value.id, editBoxId.value)
+    ElMessage.success('已换到目标档案盒。')
+    detail.value = await getArchiveDetail(detail.value.id)
+    await loadBoxOptions(detail.value.categoryId, detail.value.boxId ?? null)
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '换盒失败')
   }
 }
 

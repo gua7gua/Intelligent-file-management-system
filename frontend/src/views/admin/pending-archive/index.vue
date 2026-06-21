@@ -13,6 +13,13 @@
       >
         AI 整批补全
       </el-button>
+      <el-button
+        v-if="activeBatch?.aiStatus === 'failed' && activeBatch?.latestAiTaskId"
+        :loading="aiLoading"
+        @click="handleRetryAi"
+      >
+        重试失败项
+      </el-button>
     </div>
 
     <section class="work-layout">
@@ -175,6 +182,7 @@ import {
   getPendingBatches,
   getPendingBatchDetail,
   startAiCompletion,
+  retryAiTask,
   getAiTask,
   confirmItem,
   archiveItem,
@@ -404,6 +412,36 @@ async function handleRunAi() {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : 'AI 补全失败'
     ElMessage.error(msg)
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+// AI 补全失败后重试失败项（后端 retry-failed 端点，轮询同 handleRunAi）
+async function handleRetryAi() {
+  if (!activeBatch.value?.latestAiTaskId) return
+  aiLoading.value = true
+  ElMessage.info('正在重试失败的补全项…')
+  try {
+    const taskId = activeBatch.value.latestAiTaskId
+    const task = await retryAiTask(taskId)
+    if (task.status === 'running') {
+      let lastStatus = 'running'
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 1000))
+        const t = await getAiTask(taskId)
+        lastStatus = t.status
+        if (t.status !== 'running') break
+      }
+      if (lastStatus === 'running') {
+        ElMessage.warning('重试仍在进行，请稍后点击批次刷新查看结果。')
+        return
+      }
+    }
+    if (activeBatch.value) await selectBatch(activeBatch.value)
+    ElMessage.success('失败项已重试完成，请核查。')
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '重试失败')
   } finally {
     aiLoading.value = false
   }
