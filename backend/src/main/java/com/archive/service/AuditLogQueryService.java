@@ -112,7 +112,15 @@ public class AuditLogQueryService {
             Map.entry("accept_batch", "接收清单"),
             Map.entry("archive_items", "条目入库"),
             Map.entry("apply_borrow", "申请借阅"),
-            Map.entry("approve_destruction", "审批销毁")
+            Map.entry("approve_destruction", "审批销毁"),
+            // P1-2 补全：删除类操作 + 取消借阅（全集核对后缺失项）
+            Map.entry("delete_fonds", "删除全宗"),
+            Map.entry("delete_box", "删除盒"),
+            Map.entry("delete_room", "删除库房"),
+            Map.entry("delete_inventory_task", "删除盘点任务"),
+            Map.entry("delete_appraisal_batch", "删除鉴定批次"),
+            Map.entry("delete_analysis_item", "删除研判项"),
+            Map.entry("cancel_borrow", "取消借阅")
     );
 
     /** 取模块中文标签，未知代号原样返回。 */
