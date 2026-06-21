@@ -343,16 +343,17 @@ public class PendingArchiveService {
         archive.setSecurityLevel(item.getSecurityLevel() != null ? item.getSecurityLevel() : 0);
         archive.setOpenStatus(item.getOpenStatus() != null ? item.getOpenStatus() : "open");
         archive.setAllowDigitization(item.getAllowDigitization() != null ? item.getAllowDigitization() : false);
-        archive.setLoanStatus(LoanStatus.available);
         archive.setConditionStatus(ConditionStatus.normal);
         archive.setArchivedAt(OffsetDateTime.now());
 
-        // 生命周期：纯电子 → normal，纸质相关 → pending_shelf
+        // 生命周期 + 借阅状态：纯电子 → normal/可借；纸质相关 → pending_shelf/未上架不可借（P2-3）
         boolean isElectronic = item.getCarrierStatus() == CarrierStatus.electronic;
         if (isElectronic) {
             archive.setLifecycleStatus(LifecycleStatus.normal);
+            archive.setLoanStatus(LoanStatus.available);
         } else {
             archive.setLifecycleStatus(LifecycleStatus.pending_shelf);
+            archive.setLoanStatus(LoanStatus.not_on_shelf);
         }
 
         // 计算 retention_until
@@ -493,6 +494,7 @@ public class PendingArchiveService {
             Archive archive = archiveMapper.selectById(archiveId);
             if (archive != null && archive.getLifecycleStatus() == LifecycleStatus.pending_shelf) {
                 archive.setLifecycleStatus(LifecycleStatus.normal);
+                archive.setLoanStatus(LoanStatus.available); // P2-3：上架恢复可借
                 archive.setShelvedAt(now);
                 archiveMapper.updateById(archive);
             }
