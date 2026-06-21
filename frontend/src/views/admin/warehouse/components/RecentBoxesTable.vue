@@ -7,14 +7,13 @@
     <div v-else class="table-wrap">
       <table>
         <thead>
-          <tr><th>库房号</th><th>位置编码</th><th>盒号</th><th>年度</th><th>盒内件数</th><th>状态</th></tr>
+          <tr><th>库房号</th><th>位置编码</th><th>盒号</th><th>盒内件数</th><th>状态</th></tr>
         </thead>
         <tbody>
           <tr v-for="b in boxes" :key="b.id">
             <td>{{ b.roomNo }}</td>
             <td class="mono">{{ b.locationCode }}</td>
             <td>{{ b.boxNo }}</td>
-            <td>{{ b.yearLabel }}</td>
             <td>{{ b.usedCount }} / {{ b.capacity }}</td>
             <td><span class="status" :class="boxStatusClass(b.status)">{{ BoxStatusLabel[b.status] }}</span></td>
           </tr>

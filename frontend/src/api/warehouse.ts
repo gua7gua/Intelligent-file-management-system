@@ -87,3 +87,11 @@ export function moveArchiveBox(boxId: number, data: ArchiveBoxMoveData): Promise
   }
   return request.post(`/admin/warehouse/boxes/${boxId}/move`, data)
 }
+
+/** 删除空档案盒，释放所在架位（§16.10） */
+export function deleteArchiveBox(boxId: number): Promise<void> {
+  if (USE_MOCK) {
+    return import('@/mock/modules/warehouse').then((m) => m.mockDeleteArchiveBox(boxId))
+  }
+  return request.delete(`/admin/warehouse/boxes/${boxId}`)
+}

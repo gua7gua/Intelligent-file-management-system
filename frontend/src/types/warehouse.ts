@@ -122,9 +122,6 @@ export interface ArchiveBoxDetail extends ArchiveBox {
 export interface ArchiveBoxCreateData {
   locationId: number
   categoryId: number
-  fondsId: number
-  yearLabel: string
-  spineText: string
   capacity: number
 }
 

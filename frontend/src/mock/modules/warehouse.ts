@@ -242,3 +242,23 @@ export function mockMoveArchiveBox(id: number, data: ArchiveBoxMoveData): Archiv
   const { items, ...rest } = box
   return rest
 }
+
+export function mockDeleteArchiveBox(boxId: number): void {
+  const idx = boxes.findIndex((b) => b.id === boxId)
+  if (idx < 0) throw new Error('档案盒不存在')
+  if (boxes[idx].usedCount && boxes[idx].usedCount > 0) {
+    throw new Error('档案盒内仍有档案，请先迁出档案后再删除')
+  }
+  const box = boxes[idx]
+  // 释放所在架位
+  const loc = locations.find((l) => l.id === box.locationId)
+  if (loc) {
+    loc.occupied = false
+    loc.currentBoxId = undefined
+    loc.currentBoxNo = undefined
+    loc.boxItemCount = undefined
+  }
+  boxes.splice(idx, 1)
+  const room = loc ? rooms.find((r) => r.id === loc.roomId) : undefined
+  if (room) recomputeRoom(room)
+}
