@@ -212,6 +212,7 @@
             </table>
           </div>
           <div class="actions" style="margin-top: 12px;">
+            <button class="button secondary" type="button" @click="acceptAllPaper">批量纸质验收通过</button>
             <button class="button" type="button" @click="handleCompleteReceive">完成接收</button>
             <button class="button secondary" type="button" :disabled="pendingItemsCount > 0" @click="handleExportReceipt">导出回执</button>
           </div>
@@ -503,6 +504,16 @@ function handleFilePick(e: Event) {
   const files = Array.from(input.files ?? [])
   handleFileUpload(files)
   input.value = ''
+}
+
+// ── 批量纸质验收通过（P2-4：与移交接收页对称）──
+function acceptAllPaper() {
+  if (!batchDetail.value) return
+  batchDetail.value.items.forEach((item) => {
+    item.result = 'accepted'
+    if (!item.acceptanceNote) item.acceptanceNote = '纸质核对通过'
+  })
+  ElMessage.success('已批量标记纸质验收通过。')
 }
 
 // ── 前台完成接收 ──
