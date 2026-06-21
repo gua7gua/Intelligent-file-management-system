@@ -198,10 +198,10 @@ export function mockCreateArchiveBox(data: ArchiveBoxCreateData): ArchiveBox {
   if (loc.occupied) throw new Error('架位已被占用')
   const room = rooms.find((r) => r.id === loc.roomId)
   const id = nextBoxId++
-  const boxNo = `BX-${data.yearLabel}-${String(id).padStart(3, '0')}`
+  const boxNo = `BOX-${String(id).padStart(3, '0')}`
   const box: ArchiveBoxDetail = {
     id, boxNo, locationId: loc.id, locationCode: loc.locationCode, roomNo: room?.roomNo ?? '',
-    categoryId: data.categoryId, fondsId: data.fondsId, yearLabel: data.yearLabel, spineText: data.spineText,
+    categoryId: data.categoryId, fondsId: 0, yearLabel: '', spineText: '',
     capacity: data.capacity, usedCount: 0, status: 'normal', items: [],
   }
   boxes.push(box)

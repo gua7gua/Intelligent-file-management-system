@@ -22,6 +22,7 @@
           </span>
           <span class="room-head-right">
             <span class="status" :class="r.warning ? 'warning' : 'success'">{{ r.warning ? '容量告警' : '启用' }}</span>
+            <el-button size="small" @click.stop="emit('edit', r)">编辑</el-button>
             <el-button size="small" type="danger" plain @click.stop="emit('delete', r.id)">删除</el-button>
           </span>
         </span>
@@ -40,6 +41,7 @@ import type { WarehouseRoom } from '@/types/warehouse'
 defineProps<{ rooms: WarehouseRoom[]; modelValue: number | null }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', id: number): void
+  (e: 'edit', room: WarehouseRoom): void
   (e: 'delete', id: number): void
 }>()
 </script>

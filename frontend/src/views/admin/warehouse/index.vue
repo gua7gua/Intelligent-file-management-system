@@ -5,7 +5,7 @@
         <h1 class="page-title">库房管理</h1>
         <p class="page-subtitle">维护库房房间、机架、层、盒位和档案盒占用状态，管理员可见完整架位编码。</p>
       </div>
-      <button class="button" @click="roomDialogVisible = true">+ 添加库房</button>
+      <button class="button" @click="openCreateRoom">+ 添加库房</button>
     </section>
 
     <section class="metric-row">
@@ -16,7 +16,7 @@
     </section>
 
     <section class="workspace">
-      <RoomList :rooms="rooms" v-model="selectedRoomId" @delete="onDeleteRoom" />
+      <RoomList :rooms="rooms" v-model="selectedRoomId" @edit="onEditRoom" @delete="onDeleteRoom" />
       <section class="rack-area">
         <div class="filters">
           <div class="field"><label>机架</label>
@@ -48,7 +48,7 @@
       <RecentBoxesTable :boxes="recentBoxes" />
     </div>
 
-    <CreateRoomDialog v-model="roomDialogVisible" @create="onCreateRoom" />
+    <CreateRoomDialog v-model="roomDialogVisible" :editing-room="editingRoom" @create="onCreateRoom" @save="onUpdateRoom" />
   </div>
 </template>
 
@@ -56,7 +56,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ArchiveBox, StorageLocation, WarehouseRoom, WarehouseRoomCreateData } from '@/types/warehouse'
-import { createWarehouseRoom, deleteWarehouseRoom, getArchiveBoxes, getStorageLocations, getWarehouseRooms } from '@/api/warehouse'
+import { createWarehouseRoom, deleteWarehouseRoom, updateWarehouseRoom, getArchiveBoxes, getStorageLocations, getWarehouseRooms } from '@/api/warehouse'
 import RoomList from './components/RoomList.vue'
 import RackBoard from './components/RackBoard.vue'
 import BoxDetailDrawer from './components/BoxDetailDrawer.vue'
@@ -71,6 +71,7 @@ const locError = ref(false)
 const selectedLocationId = ref<number | null>(null)
 const recentBoxes = ref<ArchiveBox[]>([])
 const roomDialogVisible = ref(false)
+const editingRoom = ref<WarehouseRoom | null>(null)
 const rackFilter = ref(0)
 const statusFilter = ref<'' | 'free' | 'occupied' | 'disabled'>('')
 
@@ -139,11 +140,35 @@ async function onCreateRoom(data: WarehouseRoomCreateData) {
   try {
     const room = await createWarehouseRoom(data)
     roomDialogVisible.value = false
+    editingRoom.value = null
     ElMessage.success(`库房 ${room.roomNo} 已创建，生成 ${room.capacity} 个架位。`)
     await loadRooms()
     selectedRoomId.value = room.id
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '创建失败')
+  }
+}
+
+function openCreateRoom() {
+  editingRoom.value = null
+  roomDialogVisible.value = true
+}
+
+function onEditRoom(room: WarehouseRoom) {
+  editingRoom.value = room
+  roomDialogVisible.value = true
+}
+
+async function onUpdateRoom(data: { roomName: string; warningThreshold: number }) {
+  if (!editingRoom.value) return
+  try {
+    await updateWarehouseRoom(editingRoom.value.id, data)
+    roomDialogVisible.value = false
+    editingRoom.value = null
+    ElMessage.success('库房已更新')
+    await loadRooms()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '更新失败')
   }
 }
 

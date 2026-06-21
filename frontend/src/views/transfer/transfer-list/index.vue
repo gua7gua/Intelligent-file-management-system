@@ -182,6 +182,7 @@
           <div class="actions" style="margin-top: 12px">
             <button class="button ghost" type="button" :disabled="submitted" @click="saveDraft">保存草稿</button>
             <button class="button" type="button" :disabled="submitted" @click="submitList">提交清单</button>
+            <button v-if="!submitted && batchId" class="button ghost" type="button" @click="deleteDraft">删除草稿</button>
             <button v-if="submitted" class="button secondary" type="button" @click="exportList">导出打印清单</button>
             <button v-if="submitted" class="button" type="button" @click="startNewList">新建清单</button>
           </div>
@@ -204,7 +205,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { parseLocalFiles } from '@/utils/fileParser'
 import type { ParsedLocalFile } from '@/utils/fileParser'
@@ -215,6 +216,7 @@ import {
   submitTransferBatch,
   exportTransferBatch,
   getTransferBatchDetail,
+  deleteTransferBatch,
 } from '@/api/transfer'
 import type { TransferItem } from '@/types/transfer'
 
@@ -482,6 +484,33 @@ function startNewList() {
   batch.departmentName = u?.departmentName ?? ''
   batch.contactPhone = u?.phone ?? ''
   ElMessage.success('已开始新清单，请继续编制。')
+}
+
+// 删除当前草稿清单（仅未提交且有 id 时），删除后回到新建空清单状态
+async function deleteDraft() {
+  if (!batchId.value) return
+  try {
+    await ElMessageBox.confirm('删除后不可恢复，是否继续？', '删除草稿清单', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await deleteTransferBatch(batchId.value)
+    ElMessage.success('草稿清单已删除。')
+    batchId.value = null
+    submitted.value = false
+    batch.title = ''
+    batch.archiveYear = undefined
+    batch.expectedTransferDate = ''
+    items.value = []
+    localFiles.value = []
+    validationErrors.value = []
+    const u = authStore.user
+    batch.departmentName = u?.departmentName ?? ''
+    batch.contactPhone = u?.phone ?? ''
+  } catch (e) {
+    ElMessage.error((e as Error).message || '删除失败')
+  }
 }
 </script>
 

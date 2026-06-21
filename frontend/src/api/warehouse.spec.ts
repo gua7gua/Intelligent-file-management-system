@@ -29,7 +29,7 @@ describe('warehouse api mock mode', () => {
   it('create box occupies a free location', async () => {
     const free = (await getStorageLocations({ roomId: 3, occupied: false, pageSize: 200 })).records[0]
     const box = await createArchiveBox({
-      locationId: free.id, categoryId: 1, fondsId: 1, yearLabel: '2026', spineText: '测试盒', capacity: 30,
+      locationId: free.id, categoryId: 1, capacity: 30,
     })
     expect(box.locationId).toBe(free.id)
     const after = await getStorageLocations({ roomId: 3, occupied: true, pageSize: 200 })

@@ -83,6 +83,7 @@
               <li v-for="o in organizations" :key="o.id">
                 <strong>{{ o.orgName }}</strong>
                 <span class="muted">{{ orgTypeLabel[o.orgType] || o.orgType }} · 全宗 {{ o.fondsCount }} · 用户 {{ o.userCount }} · {{ o.status === 'active' ? '正常' : '停用' }}</span>
+                <el-button size="small" @click="openEditOrgDialog(o)">编辑</el-button>
                 <el-button
                   v-if="o.status === 'active'"
                   size="small"
@@ -164,7 +165,7 @@
       </aside>
     </div>
 
-    <el-dialog v-if="orgDialogVisible" v-model="orgDialogVisible" title="新增组织" width="420px" :append-to-body="false">
+    <el-dialog v-if="orgDialogVisible" v-model="orgDialogVisible" :title="editingOrg ? '编辑组织' : '新增组织'" width="420px" :append-to-body="false">
       <div class="form-grid" style="grid-template-columns:1fr">
         <div class="field"><label>组织名称</label><input v-model="orgForm.orgName" data-testid="orgName" placeholder="组织名称" /></div>
         <div class="field">
@@ -211,6 +212,7 @@ const pageSize = ref(20)
 const total = ref(0)
 const saving = ref(false)
 const orgDialogVisible = ref(false)
+const editingOrg = ref<Organization | null>(null)
 const orgSaving = ref(false)
 const orgForm = reactive({
   orgName: '',
@@ -421,10 +423,20 @@ async function deleteUsr(u: User) {
 }
 
 function openOrgDialog() {
+  editingOrg.value = null
   orgForm.orgName = ''
   orgForm.orgType = 'government'
   orgForm.contactName = ''
   orgForm.contactPhone = ''
+  orgDialogVisible.value = true
+}
+
+function openEditOrgDialog(o: Organization) {
+  editingOrg.value = o
+  orgForm.orgName = o.orgName
+  orgForm.orgType = o.orgType as typeof orgForm.orgType
+  orgForm.contactName = o.contactName ?? ''
+  orgForm.contactPhone = o.contactPhone ?? ''
   orgDialogVisible.value = true
 }
 
@@ -435,13 +447,19 @@ async function submitOrg() {
   }
   orgSaving.value = true
   try {
-    await createOrganization({ orgName: orgForm.orgName, orgType: orgForm.orgType, contactName: orgForm.contactName, contactPhone: orgForm.contactPhone })
-    ElMessage.success('组织已新增。')
+    if (editingOrg.value) {
+      await updateOrganization(editingOrg.value.id, { orgName: orgForm.orgName, orgType: orgForm.orgType, contactName: orgForm.contactName, contactPhone: orgForm.contactPhone })
+      ElMessage.success('组织已更新。')
+    } else {
+      await createOrganization({ orgName: orgForm.orgName, orgType: orgForm.orgType, contactName: orgForm.contactName, contactPhone: orgForm.contactPhone })
+      ElMessage.success('组织已新增。')
+    }
     orgDialogVisible.value = false
+    editingOrg.value = null
     const o = await getOrganizations()
     organizations.value = o.records
   } catch (e) {
-    ElMessage.error((e as Error).message || '新增组织失败')
+    ElMessage.error((e as Error).message || '保存组织失败')
   } finally {
     orgSaving.value = false
   }
