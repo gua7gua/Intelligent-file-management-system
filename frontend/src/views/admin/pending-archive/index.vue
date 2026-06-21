@@ -374,6 +374,15 @@ async function selectBatch(b: PendingBatch) {
     items.value = detail.items
     activeItem.value = items.value.length > 0 ? items.value[0] : null
     if (activeItem.value) syncFormFromItem(activeItem.value)
+    // P2-2：同步 detail 的 AI 状态回 activeBatch 与列表项，补全后刷新批次卡/顶部 aiLabel
+    if (detail.aiStatus) {
+      activeBatch.value.aiStatus = detail.aiStatus
+      const lb = batches.value.find((x) => x.id === b.id)
+      if (lb) lb.aiStatus = detail.aiStatus
+    }
+    if (detail.latestAiTaskId != null) {
+      activeBatch.value.latestAiTaskId = detail.latestAiTaskId
+    }
   } catch {
     items.value = []
     activeItem.value = null
