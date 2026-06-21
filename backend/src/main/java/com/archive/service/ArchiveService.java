@@ -518,6 +518,7 @@ public class ArchiveService {
         if (boxItem != null) {
             ArchiveBox box = archiveBoxMapper.selectById(boxItem.getBoxId());
             if (box != null) {
+                resp.setBoxId(box.getId());
                 resp.setBoxNo(box.getBoxNo());
                 if (box.getLocationId() != null) {
                     StorageLocation loc = storageLocationMapper.selectById(box.getLocationId());
