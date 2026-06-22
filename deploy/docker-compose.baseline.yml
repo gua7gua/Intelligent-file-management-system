@@ -1,0 +1,150 @@
+# =============================================================================
+# 智能档案管理系统 — 基线 docker-compose（演示/测试，非上线）
+# -----------------------------------------------------------------------------
+# 一条命令得到完整可用系统 + 基线数据库：
+#   ./deploy/baseline-start.sh up        # 构建并启动，等待基线就绪并校验
+#   ./deploy/baseline-start.sh down      # 停止
+#   ./deploy/baseline-start.sh reset     # 停止并删除数据卷（恢复初始基线）
+#
+# 基线从何而来：
+#   1. postgres 首次启动（数据卷为空）时，docker-entrypoint-initdb.d 中的
+#      00-create-extension.sh 创建 pg_trgm 扩展（V13 迁移依赖它）。
+#   2. app 启动后，后端 Flyway 自动执行 V1~V30 迁移得到完整基线
+#      （schema + 角色/字典/配置 + 演示档案/档案盒等种子数据）。
+#   3. minio-init 一次性创建业务所需 bucket。
+# 外部依赖（AI/ClamAV/短信）默认关闭，保证零配置开机即用：
+#   - AI（DeepSeek）：AI_ENABLED=false，调用走应用内降级
+#   - 病毒扫描：FILE_SCAN_ENABLED=false，跳过 ClamAV
+#   - 短信：ALIYUN_SMS_ENABLED=false，走 fallback 固定验证码
+# =============================================================================
+
+name: archive-baseline
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: archive-baseline-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: archive_user
+      POSTGRES_PASSWORD: archive_pass_2024
+      POSTGRES_DB: archive_db
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    configs:
+      - source: pg_init
+        target: /docker-entrypoint-initdb.d/00-create-extension.sh
+        mode: 0555
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U archive_user -d archive_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks:
+      - archive-net
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2024-12-18T13-15-44Z
+    container_name: archive-baseline-minio
+    restart: unless-stopped
+    command: server --console-address ":9001" /data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    networks:
+      - archive-net
+
+  # 一次性任务：创建业务 bucket
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2024-11-21T17-21-54Z
+    container_name: archive-baseline-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: >
+      /bin/sh -c "
+      sleep 2;
+      mc alias set local http://minio:9000 minioadmin minioadmin123;
+      mc mb local/archive-files --ignore-existing;
+      mc mb local/archive-metadata --ignore-existing;
+      mc mb local/system-files --ignore-existing;
+      echo 'MinIO buckets created.';
+      exit 0;
+      "
+    networks:
+      - archive-net
+
+  app:
+    image: ghcr.io/gua7gua/intelligent-file-management-system:baseline
+    container_name: archive-baseline-app
+    restart: unless-stopped
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      # 使用 dev profile（含数据源/Flyway 配置），再以环境变量覆盖外部依赖开关
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: archive_db
+      DB_USER: archive_user
+      DB_PASSWORD: archive_pass_2024
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+      # 关闭外部依赖，零配置可用
+      AI_ENABLED: "false"
+      FILE_SCAN_ENABLED: "false"
+      ALIYUN_SMS_ENABLED: "false"
+    ports:
+      # 宿主 8081 -> 容器 80（避开宿主已占用的 80/8080）
+      - "8081:80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+    networks:
+      - archive-net
+
+configs:
+  # postgres 首次初始化时创建 pg_trgm 扩展（V13 的 gin_trgm_ops 索引依赖它）。
+  # 使用 compose 内联 content，无需额外文件。
+  pg_init:
+    content: |
+      #!/bin/sh
+      set -e
+      psql -v ON_ERROR_STOP=1 --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB" <<-EOSQL
+          CREATE EXTENSION IF NOT EXISTS pg_trgm;
+      EOSQL
+
+volumes:
+  db_data:
+    name: archive-baseline-db-data
+  minio_data:
+    name: archive-baseline-minio-data
+
+networks:
+  archive-net:
+    name: archive-baseline-net
+    driver: bridge
