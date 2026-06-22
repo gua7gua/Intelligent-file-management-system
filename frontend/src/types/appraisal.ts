@@ -18,8 +18,8 @@ export interface AppraisalBatchParams extends PageParams {
 export interface AppraisalBatchCreateData {
   batchName: string
   categoryId?: number
-  formedYearStart?: number
-  formedYearEnd?: number
+  /** 到期窗口天数（D4）：命中 retention_until <= 今天 + dueDays 的档案 */
+  dueDays: number
 }
 
 /** 鉴定明细（命中档案 + 鉴定结论） */
@@ -49,6 +49,8 @@ export interface AppraisalBatch {
   categoryName?: string
   formedYearStart?: number
   formedYearEnd?: number
+  /** 到期窗口天数（D4）；新建批次用此字段，旧批次可能为空 */
+  dueDays?: number
   status: AppraisalBatchStatusValue
   completedAt?: string
   hitCount: number

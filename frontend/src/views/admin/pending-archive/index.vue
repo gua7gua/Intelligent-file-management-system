@@ -13,6 +13,13 @@
       >
         AI 整批补全
       </el-button>
+      <el-button
+        v-if="activeBatch?.aiStatus === 'failed' && activeBatch?.latestAiTaskId"
+        :loading="aiLoading"
+        @click="handleRetryAi"
+      >
+        重试失败项
+      </el-button>
     </div>
 
     <section class="work-layout">
@@ -20,43 +27,28 @@
       <div class="left-col">
         <div class="card panel" style="margin:0">
           <h2 class="section-title">待处理批次</h2>
-          <div v-if="batchLoading" class="panel-scroll detail-empty">加载中...</div>
-          <div v-else-if="batches.length === 0" class="panel-scroll detail-empty">暂无待入库批次</div>
+          <div class="hint" style="margin: 0 0 8px;">已接收未入库 + 已入库待上架（纸质上架未完成仍属待处理）</div>
+          <div v-if="batchLoading || shelvableLoading" class="panel-scroll detail-empty">加载中...</div>
+          <div v-else-if="displayBatches.length === 0" class="panel-scroll detail-empty">暂无待处理批次</div>
           <div v-else class="panel-scroll">
-            <button
-              v-for="b in batches"
+            <div
+              v-for="b in displayBatches"
               :key="b.id"
               class="batch-card"
-              :class="{ active: activeBatch?.id === b.id }"
-              type="button"
+              :class="{ active: activeBatch?.id === b.id, 'shelvable-card': (b.pendingShelfCount ?? 0) > 0 }"
               @click="selectBatch(b)"
             >
               <strong>{{ b.title }}</strong>
               <span class="batch-no">{{ b.batchNo }}</span>
-              <span>接收 {{ b.acceptedCount }} / 回退 {{ b.returnedCount }}</span>
+              <span v-if="(b.pendingShelfCount ?? 0) > 0">待上架 {{ b.pendingShelfCount }} 件</span>
+              <span v-else>接收 {{ b.acceptedCount }} / 回退 {{ b.returnedCount }}</span>
               <span class="hint">AI：{{ aiLabel(b.aiStatus) }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="card panel" style="margin:0">
-          <h2 class="section-title">已入库待上架</h2>
-          <div v-if="shelvableLoading" class="panel-scroll detail-empty">加载中...</div>
-          <div v-else-if="shelvableBatches.length === 0" class="panel-scroll detail-empty">暂无待上架批次</div>
-          <div v-else class="panel-scroll">
-            <div
-              v-for="b in shelvableBatches"
-              :key="b.id"
-              class="batch-card shelvable-card"
-            >
-              <strong>{{ b.title }}</strong>
-              <span class="batch-no">{{ b.batchNo }}</span>
-              <span>待上架 {{ b.pendingShelfCount ?? 0 }} 件</span>
               <el-button
+                v-if="(b.pendingShelfCount ?? 0) > 0"
                 size="small"
                 type="primary"
                 :loading="shelvingId === b.id"
-                @click="handleShelveBatch(b)"
+                @click.stop="handleShelveBatch(b)"
               >
                 确认上架
               </el-button>
@@ -135,7 +127,7 @@
           <div class="detail-field">
             <label>所属全宗</label>
             <select v-model="form.fondsId">
-              <option :value="0">请选择</option>
+              <option :value="0">无（暂不归属全宗）</option>
               <option v-for="f in fondsOptions" :key="f.id" :value="f.id">{{ f.fondsNo }} · {{ f.fondsName }}</option>
             </select>
           </div>
@@ -146,9 +138,9 @@
               <label>档案盒</label>
               <select v-model="form.boxId">
                 <option :value="undefined">请选择</option>
-                <option v-for="b in boxOptions" :key="b.id" :value="b.id">{{ b.boxNo }}（{{ b.locationCode }}）</option>
+                <option v-for="b in filteredBoxOptions" :key="b.id" :value="b.id">{{ b.boxNo }}（{{ b.locationCode }}）</option>
               </select>
-              <div class="hint">盒即架位，选择档案盒即确定其所在架位（括号内为架位号）。</div>
+              <div class="hint">仅展示与当前分类一致的档案盒；盒即架位，括号内为架位号。</div>
             </div>
           </template>
           <div v-else class="notice" style="margin-top:8px">纯电子档案无需盒号和架位。</div>
@@ -190,6 +182,7 @@ import {
   getPendingBatches,
   getPendingBatchDetail,
   startAiCompletion,
+  retryAiTask,
   getAiTask,
   confirmItem,
   archiveItem,
@@ -236,6 +229,12 @@ const form = reactive({
 // 入库选项：全宗 / 档案盒（盒即架位，来自库房主数据，提供真实 ID）
 const fondsOptions = ref<FondsItem[]>([])
 const boxOptions = ref<ArchiveBox[]>([])
+
+// 6.4：档案盒按当前条目分类过滤，只展示同分类的盒（盒与档案分类必须一致）
+const filteredBoxOptions = computed(() => {
+  if (form.categoryId === 0) return boxOptions.value
+  return boxOptions.value.filter((b) => b.categoryId === form.categoryId)
+})
 
 async function loadArchiveOptions() {
   try {
@@ -297,6 +296,9 @@ function statusClass(s: string): string {
   }
   return map[s] || ''
 }
+
+// 待处理批次 = 已接收未入库 + 已入库待上架（纸质上架未完成），合并展示
+const displayBatches = computed(() => [...batches.value, ...shelvableBatches.value])
 
 const aiStatusLabel = computed(() => aiLabel(activeBatch.value?.aiStatus || 'not_started'))
 
@@ -372,6 +374,15 @@ async function selectBatch(b: PendingBatch) {
     items.value = detail.items
     activeItem.value = items.value.length > 0 ? items.value[0] : null
     if (activeItem.value) syncFormFromItem(activeItem.value)
+    // P2-2：同步 detail 的 AI 状态回 activeBatch 与列表项，补全后刷新批次卡/顶部 aiLabel
+    if (detail.aiStatus) {
+      activeBatch.value.aiStatus = detail.aiStatus
+      const lb = batches.value.find((x) => x.id === b.id)
+      if (lb) lb.aiStatus = detail.aiStatus
+    }
+    if (detail.latestAiTaskId != null) {
+      activeBatch.value.latestAiTaskId = detail.latestAiTaskId
+    }
   } catch {
     items.value = []
     activeItem.value = null
@@ -391,10 +402,18 @@ async function handleRunAi() {
   try {
     const task = await startAiCompletion(activeBatch.value.id)
     if (task.status === 'running') {
+      let lastStatus = 'running'
       for (let i = 0; i < 30; i++) {
         await new Promise((r) => setTimeout(r, 1000))
         const t = await getAiTask(task.aiTaskId)
+        lastStatus = t.status
         if (t.status !== 'running') break
+      }
+      // 轮询超时仍在 running：不再弹「完成」假阳性（任务实际可能仍在跑/失败），
+      // 否则误导用户以为补全已完成、后续按缺失字段入库。提示稍后刷新查看。
+      if (lastStatus === 'running') {
+        ElMessage.warning('AI 补全仍在进行，请稍后点击批次刷新查看结果。')
+        return
       }
     }
     await selectBatch(activeBatch.value)
@@ -407,12 +426,41 @@ async function handleRunAi() {
   }
 }
 
+// AI 补全失败后重试失败项（后端 retry-failed 端点，轮询同 handleRunAi）
+async function handleRetryAi() {
+  if (!activeBatch.value?.latestAiTaskId) return
+  aiLoading.value = true
+  ElMessage.info('正在重试失败的补全项…')
+  try {
+    const taskId = activeBatch.value.latestAiTaskId
+    const task = await retryAiTask(taskId)
+    if (task.status === 'running') {
+      let lastStatus = 'running'
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 1000))
+        const t = await getAiTask(taskId)
+        lastStatus = t.status
+        if (t.status !== 'running') break
+      }
+      if (lastStatus === 'running') {
+        ElMessage.warning('重试仍在进行，请稍后点击批次刷新查看结果。')
+        return
+      }
+    }
+    if (activeBatch.value) await selectBatch(activeBatch.value)
+    ElMessage.success('失败项已重试完成，请核查。')
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : '重试失败')
+  } finally {
+    aiLoading.value = false
+  }
+}
+
 // ── 确认入库 ──
 async function handleArchive() {
   if (!activeItem.value) return
   const required: Record<string, string> = {
     title: '正式题名',
-    responsible: '责任者',
     formedDate: '形成日期',
   }
   for (const [key, label] of Object.entries(required)) {
@@ -425,10 +473,7 @@ async function handleArchive() {
     ElMessage.warning('请选择分类后再入库。')
     return
   }
-  if (form.fondsId === 0) {
-    ElMessage.warning('请选择所属全宗后再入库。')
-    return
-  }
+  // 6.3：所属全宗非必填，无全宗档案可跳过（fonds_id 列可空）
   if (activeItem.value.carrierStatus !== 'electronic') {
     if (!form.boxId) {
       ElMessage.warning('纸质档案入库前必须选择档案盒。')
@@ -458,7 +503,7 @@ async function handleArchive() {
       }
     }
     const result = await archiveItem(activeItem.value.id, {
-      fondsId: form.fondsId,
+      fondsId: form.fondsId || undefined,
       boxId: form.boxId,
     })
     ElMessage.success(`${activeItem.value.inputTitle} 已入库，档号 ${result.archiveNo}。`)
@@ -493,6 +538,10 @@ function onCategoryChange(e: Event) {
   const raw = (e.target as HTMLSelectElement).value
   const num = Number(raw)
   form.categoryId = Number.isNaN(num) ? 0 : num
+  // 6.4：分类变更后，已选档案盒可能不属于新分类，重置以避免「分类不一致」冲突
+  if (form.boxId && !filteredBoxOptions.value.some((b) => b.id === form.boxId)) {
+    form.boxId = undefined
+  }
 }
 
 onMounted(() => {

@@ -30,7 +30,13 @@
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="authStore.logout()">退出登录</el-dropdown-item>
+                <el-dropdown-item disabled>
+                  <div class="user-meta">
+                    <span>部门：{{ authStore.user?.departmentName || '—' }}</span>
+                    <span>电话：{{ authStore.user?.phone || '—' }}</span>
+                  </div>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click="authStore.logout()">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -62,5 +68,13 @@ const authStore = useAuthStore()
   cursor: pointer;
   color: var(--muted);
   font-size: 13px;
+}
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: #606266;
+  padding: 4px 0;
 }
 </style>

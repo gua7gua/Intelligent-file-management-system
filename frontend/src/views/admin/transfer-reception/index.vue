@@ -2,7 +2,7 @@
   <section>
     <h1 class="page-title">移交验收与电子文件上传</h1>
     <p class="page-subtitle">
-      调取待移交清单，核对纸质原件、页数、数量和签章；上传 U 盘电子文件后按文件名匹配清单条目，异常必须人工确认或回退。
+      调取到馆的移交与征集清单，核对纸质原件、页数、数量和签章；上传 U 盘电子文件后按文件名匹配清单条目，异常必须人工确认或回退。
     </p>
   </section>
 
@@ -70,7 +70,10 @@
         >
           <strong>{{ batch.title }}</strong>
           <span class="mono">{{ batch.batchNo }}</span>
-          <span class="muted">{{ batch.organizationName }} / {{ batch.departmentName }}</span>
+          <span class="muted">
+            <span class="source-tag" :class="`src-${batch.sourceType}`">{{ sourceTypeLabel(batch.sourceType) }}</span>
+            {{ batch.organizationName || batch.contactName || '—' }}<template v-if="batch.departmentName"> / {{ batch.departmentName }}</template>
+          </span>
           <span>
             <span class="status info">{{ batch.statusText }}</span>
             <span class="muted">{{ batch.itemCount }} 条</span>
@@ -176,7 +179,8 @@
                 <td>{{ carrierStatusLabel(item.carrierStatus) }}</td>
                 <td class="mono">{{ item.expectedFilename || '无电子文件' }}</td>
                 <td>
-                  <select v-model="item.paperCheckStatus">
+                  <span v-if="item.carrierStatus === 'electronic'" class="status success">无需（纯电子）</span>
+                  <select v-else v-model="item.paperCheckStatus">
                     <option value="pending">待核对</option>
                     <option value="passed">通过</option>
                     <option value="failed">异常</option>
@@ -250,6 +254,7 @@ import {
 const filterTabs = [
   { key: 'pending', label: '待移交' },
   { key: 'today', label: '今日到馆' },
+  { key: 'received', label: '已接收' },
   { key: 'abnormal', label: '存在异常' },
 ] as const
 const activeFilter = ref<string>('pending')
@@ -299,10 +304,15 @@ const filteredBatches = computed(() => {
       const today = new Date().toISOString().slice(0, 10)
       return b.expectedTransferDate === today
     }
+    if (activeFilter.value === 'received') {
+      // 已接收（未入库）：received 与 partially_received 合并，便于补导出回执
+      return b.status === 'received' || b.status === 'partially_received'
+    }
     if (activeFilter.value === 'abnormal') {
       return true
     }
-    return true
+    // pending（默认）：待移交/待接收，排除已接收，避免接收后批次仍停留在「待移交」
+    return b.status !== 'received' && b.status !== 'partially_received'
   })
 })
 
@@ -368,6 +378,12 @@ function carrierStatusLabel(status: string): string {
   }
   return map[status] || status
 }
+function sourceTypeLabel(sourceType: string): string {
+  const map: Record<string, string> = {
+    transfer: '移交', collection: '征集', compilation: '编研',
+  }
+  return map[sourceType] || sourceType
+}
 function fileScanHint(file: StagingFile): string {
   if (file.matchStatus === 'matched') return '格式检查通过、安全检查通过'
   if (file.matchStatus === 'unmatched') return '文件名与清单不一致，需人工确认或回退'
@@ -379,7 +395,7 @@ function fileScanHint(file: StagingFile): string {
 async function loadBatches() {
   loading.value = true
   try {
-    const res = await getReceptionBatches({ sourceType: 'transfer' })
+    const res = await getReceptionBatches()
     batchList.value = res.records
   } catch {
     ElMessage.error('加载待验收清单失败')
@@ -391,6 +407,12 @@ async function loadBatches() {
 async function selectBatch(batchId: number) {
   try {
     activeBatch.value = await getReceptionBatchDetail(batchId)
+    // 5.1：纯电子条目无纸质件，纸质核对固定为「通过」，避免误导并解除核对阻塞
+    activeBatch.value.items.forEach((item) => {
+      if (item.carrierStatus === 'electronic') {
+        item.paperCheckStatus = 'passed'
+      }
+    })
   } catch {
     ElMessage.error('加载批次详情失败')
   }
@@ -456,6 +478,16 @@ async function confirmReceive() {
     ElMessage.error(`仍有 ${pending.length} 条待验收，不能确认接收。`)
     return
   }
+  // R3-B2：电子件文件名未匹配/重复/检查异常时阻断接收，否则这些暂存文件不会挂到任何条目，确认接收后永久丢失
+  const problematicFiles = activeBatch.value.stagingFiles.filter(
+    (f) => f.matchStatus === 'unmatched' || f.matchStatus === 'duplicate' || f.matchStatus === 'failed',
+  )
+  if (problematicFiles.length > 0) {
+    ElMessage.error(
+      `有 ${problematicFiles.length} 个电子件未匹配或检查异常，请先人工确认/处理后确认接收，否则电子件将丢失。`,
+    )
+    return
+  }
   try {
     // 逐条提交验收结论（§7.5 PUT /admin/reception/items/{itemId}/acceptance）
     for (const i of items) {
@@ -473,6 +505,8 @@ async function confirmReceive() {
     // 刷新左栏批次列表（接收后批次从待验收变成已接收/部分接收，列表卡片状态需同步），
     // 同时刷新当前 activeBatch 详情避免本地状态滞后。
     await loadBatches()
+    // 接收完成后切到「已接收」tab，直观看到成果并支持补导出回执
+    activeFilter.value = 'received'
     if (activeBatch.value) await selectBatch(activeBatch.value.batch.id)
   } catch {
     ElMessage.error('确认接收失败')
@@ -553,6 +587,33 @@ onMounted(() => {
   display: grid;
   gap: 10px;
   padding-right: 4px;
+}
+
+.source-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  margin-right: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #f0f4f5;
+  color: #23494f;
+}
+.source-tag.src-collection {
+  background: #fff7e6;
+  border-color: #ffd591;
+  color: #874d00;
+}
+.source-tag.src-transfer {
+  background: #e6f7f6;
+  border-color: #87e8de;
+  color: #006d75;
+}
+.source-tag.src-compilation {
+  background: #f6ffed;
+  border-color: #b7eb8f;
+  color: #389e0d;
 }
 
 .split-panel {

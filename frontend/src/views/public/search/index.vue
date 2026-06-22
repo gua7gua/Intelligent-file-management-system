@@ -7,28 +7,34 @@
     </section>
 
     <!-- AI 自然语言查询 -->
-    <section class="card panel" style="margin-top: 18px">
-      <h2 class="section-title">AI 智能查询</h2>
-      <div class="form-grid" style="grid-template-columns: 1fr auto; margin-top: 12px">
+    <details class="card panel ai-panel" open style="margin-top: 18px">
+      <summary>
+        <span class="section-title">AI 智能查询</span>
+        <span class="status info">点击展开</span>
+      </summary>
+      <div class="collapsible-body">
         <div class="field">
-          <label for="aiQuery">自然语言描述</label>
-          <input id="aiQuery" v-model="aiQueryText" placeholder="例如：查找 2000 年以后公开的老城改造影像资料" />
+          <label>自然语言检索描述</label>
+          <textarea v-model="aiQueryText" placeholder="例如：查找 2000 年以后公开的老城改造影像资料"></textarea>
+          <span class="hint">用自然语言描述检索需求，AI 帮您生成检索条件。</span>
         </div>
-        <div class="field">
-          <label>&nbsp;</label>
-          <button class="button secondary" type="button" :disabled="aiLoading" @click="handleAiQuery">生成查询条件</button>
+        <div class="actions">
+          <button class="button" type="button" :disabled="aiLoading" @click="handleAiQuery">{{ aiLoading ? '生成中…' : '生成查询条件' }}</button>
+        </div>
+        <div v-if="aiError" class="notice danger">{{ aiError }}</div>
+        <pre v-if="aiResult" class="ai-box">{{ aiSummary }}</pre>
+        <div v-if="aiResult" class="json-actions">
+          <button class="button secondary" type="button" @click="applyAiConditions">应用条件并检索</button>
         </div>
       </div>
-      <div v-if="aiResult" class="notice" style="margin-top: 12px">
-        <strong>AI 生成条件</strong>
-        <p style="margin: 8px 0 0">{{ aiSummary }}</p>
-        <button class="button" type="button" style="margin-top: 8px" @click="applyAiConditions">应用条件并检索</button>
-      </div>
-    </section>
+    </details>
 
     <!-- 结构化搜索表单 -->
-    <section class="card panel" style="margin-top: 16px">
-      <h2 class="section-title">条件检索</h2>
+    <details class="card panel collapsible-card" open style="margin-top: 16px">
+      <summary>
+        <span class="section-title">条件检索</span>
+        <span class="status info">点击折叠/展开</span>
+      </summary>
 
       <!-- 公开元数据 -->
       <div class="filter-block">
@@ -64,6 +70,14 @@
             <label for="searchTags">公开标签</label>
             <input id="searchTags" v-model="searchParams.tagIds" placeholder="多个标签用逗号分隔" />
           </div>
+          <div class="field">
+            <label for="searchFonds">所属全宗</label>
+            <input id="searchFonds" v-model="searchParams.fondsName" placeholder="全宗名称" />
+          </div>
+          <div class="field">
+            <label for="searchOrg">形成/移交单位</label>
+            <input id="searchOrg" v-model="searchParams.organizationName" placeholder="单位名称" />
+          </div>
         </div>
       </div>
 
@@ -97,13 +111,22 @@
               <option value="paper">纯纸质</option>
             </select>
           </div>
+          <div class="field">
+            <label for="searchRetention">保管期限</label>
+            <select id="searchRetention" v-model="searchParams.retentionPeriod">
+              <option value="">全部</option>
+              <option value="permanent">永久</option>
+              <option value="30y">30年</option>
+              <option value="10y">10年</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      <!-- 电子文件 -->
+      <!-- 电子文件与排序 -->
       <div class="filter-block">
         <div class="filter-block-head">
-          <strong>电子文件</strong>
+          <strong>电子文件与排序</strong>
           <span class="hint">下载需登录公众账号</span>
         </div>
         <div class="form-grid">
@@ -115,14 +138,26 @@
               <option value="false">仅公开元数据</option>
             </select>
           </div>
+          <div class="field">
+            <label for="searchFileExt">文件格式</label>
+            <input id="searchFileExt" v-model="searchParams.fileExt" placeholder="PDF / JPG..." />
+          </div>
+          <div class="field">
+            <label for="searchSort">排序</label>
+            <select id="searchSort" v-model="searchParams.sortBy">
+              <option value="">入库时间倒序</option>
+              <option value="formed_desc">形成日期倒序</option>
+              <option value="archiveNo_asc">档号升序</option>
+            </select>
+          </div>
         </div>
       </div>
 
       <div class="actions" style="margin-top: 12px">
-        <button class="button" type="button" @click="handleSearch">检索</button>
+        <button class="button" type="button" @click="searchFromFirstPage">检索</button>
         <button class="button ghost" type="button" @click="resetSearch">重置</button>
       </div>
-    </section>
+    </details>
 
     <!-- 搜索结果 -->
     <div v-if="searchLoading" class="notice" style="margin-top: 16px">正在检索…</div>
@@ -138,25 +173,31 @@
               <th>档案号</th>
               <th>标题</th>
               <th>责任者</th>
+              <th>全宗</th>
+              <th>单位</th>
               <th>分类</th>
               <th>年度</th>
               <th>载体</th>
               <th>来源</th>
+              <th>标签</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="searchResults.records.length === 0">
-              <td colspan="8"><div class="empty">没有符合条件的公开档案</div></td>
+              <td colspan="11"><div class="empty">没有符合条件的公开档案</div></td>
             </tr>
             <tr v-for="record in searchResults.records" :key="record.archiveId">
               <td class="mono">{{ record.archiveNo }}</td>
               <td>{{ record.title }}</td>
               <td>{{ record.responsibleText }}</td>
+              <td>{{ record.fondsName || '—' }}</td>
+              <td>{{ record.organizationName || '—' }}</td>
               <td>{{ record.categoryName }}</td>
               <td>{{ record.formedYear }}</td>
               <td>{{ carrierLabel(record.carrierStatus) }}</td>
               <td>{{ sourceLabel(record.sourceType) }}</td>
+              <td>{{ record.tags?.join('、') || '—' }}</td>
               <td>
                 <button class="button ghost" type="button" @click="showDetail(record.archiveId)">详情</button>
               </td>
@@ -164,10 +205,22 @@
           </tbody>
         </table>
       </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 12px">
+        <el-pagination
+          v-model:current-page="pageNo"
+          v-model:page-size="pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSearch"
+          @current-change="handleSearch"
+        />
+      </div>
     </template>
 
-    <!-- 详情面板 -->
-    <section v-if="detailData" class="card panel" style="margin-top: 16px">
+    <!-- 详情弹窗：居中展示，便于查看 -->
+    <el-dialog v-model="detailDialogVisible" title="档案详情" width="720px" align-center destroy-on-close>
+      <div v-if="detailData">
       <div class="detail-head">
         <div>
           <h2 class="section-title">{{ detailData.title }}</h2>
@@ -188,20 +241,27 @@
         <div v-for="file in detailData.files" :key="file.id" class="local-file">
           <div>
             <strong>{{ file.filename }}</strong>
-            <div class="hint">{{ file.fileFormat }}，{{ (file.fileSize / 1024 / 1024).toFixed(1) }} MB</div>
+            <div class="hint">{{ file.fileFormat }}，{{ file.fileSize < 1024 ? file.fileSize + ' B' : file.fileSize < 1048576 ? (file.fileSize / 1024).toFixed(1) + ' KB' : (file.fileSize / 1048576).toFixed(1) + ' MB' }}</div>
           </div>
-          <template v-if="file.canDownload">
-            <button class="button secondary" type="button" @click="handleDownload(file.id, file.filename)">下载</button>
-          </template>
-          <template v-else>
-            <span class="notice">下载需登录公众账号</span>
-          </template>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="button secondary" type="button" @click="handlePreview(file)">预览</button>
+            <button v-if="file.canDownload" class="button ghost" type="button" @click="handleDownload(file.id, file.filename)">下载</button>
+            <span v-else class="notice">下载需登录公众账号</span>
+          </div>
         </div>
+        <FilePreview
+          v-model:visible="previewVisible"
+          :file-id="previewFile?.id ?? null"
+          :file-name="previewFile?.name"
+          :mime="previewFile?.mime"
+          :fetcher="previewPublicArchiveFile"
+        />
       </div>
       <div v-else class="notice" style="margin-top: 12px">
         {{ detailData.carrierStatus === 'paper' ? '纯纸质档案，暂无电子文件可供下载。' : '暂无可下载的电子文件。' }}
       </div>
-    </section>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -213,7 +273,9 @@ import {
   getPublicArchiveDetail,
   generatePublicSearchQuery,
   downloadPublicArchiveFile,
+  previewPublicArchiveFile,
 } from '@/api/public'
+import FilePreview from '@/components/FilePreview/index.vue'
 import { getDictionariesApi } from '@/api/dictionary'
 import type { PublicSearchParams, PublicAiQueryResult, PublicArchive, PublicArchiveDetail } from '@/types/public'
 
@@ -222,6 +284,7 @@ const route = useRoute()
 const aiQueryText = ref('')
 const aiLoading = ref(false)
 const aiResult = ref<PublicAiQueryResult | null>(null)
+const aiError = ref('')
 
 // 档案门类字典（含 categoryId/categoryCode/categoryName），来源于全量字典
 interface CategoryOption {
@@ -248,25 +311,8 @@ const searchParams = reactive<PublicSearchParams>({})
 //   openStatus: 'open'|...    公开状态（公众端恒为 open）
 //   carrierStatus: string|null  载体状态
 const aiSummary = computed(() => {
-  const c = aiResult.value?.conditions as Record<string, unknown> | undefined
-  if (!c) return '已生成检索条件，点击下方按钮执行检索。'
-  const parts: string[] = []
-  const kws = Array.isArray(c.keywords) ? (c.keywords as unknown[]).filter(Boolean) : []
-  if (kws.length > 0) parts.push(`关键词：${kws.join(' / ')}`)
-  if (c.category) {
-    const matched = categoryOptions.value.find((o) => o.categoryCode === c.category)
-    parts.push(`门类：${matched?.categoryName ?? String(c.category)}`)
-  }
-  if (Array.isArray(c.formedDateRange)) {
-    const [s, e] = c.formedDateRange as [unknown, unknown]
-    const sy = s ? String(s).slice(0, 4) : ''
-    const ey = e ? String(e).slice(0, 4) : ''
-    if (sy || ey) parts.push(`年度：${sy || '不限'}-${ey || '至今'}`)
-  }
-  if (c.responsible) parts.push(`责任者：${c.responsible}`)
-  if (c.carrierStatus) parts.push(`载体：${carrierLabel(String(c.carrierStatus))}`)
-  if (parts.length === 0) return '已生成检索条件，点击下方按钮执行检索。'
-  return parts.join('　')
+  const c = aiResult.value?.conditions
+  return c ? JSON.stringify(c, null, 2) : ''
 })
 // hasElectronicFile 为布尔值，原生 select 以字符串代理写入
 const fileState = computed<string>({
@@ -278,8 +324,19 @@ const fileState = computed<string>({
 })
 const searchLoading = ref(false)
 const searchError = ref('')
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 const searchResults = ref<{ records: (PublicArchive & { openStatus: 'open' })[]; total: number }>({ records: [], total: 0 })
 const detailData = ref<PublicArchiveDetail | null>(null)
+const detailDialogVisible = computed({
+  get: () => !!detailData.value,
+  set: (v: boolean) => {
+    if (!v) detailData.value = null
+  },
+})
+const previewVisible = ref(false)
+const previewFile = ref<{ id: number; name?: string; mime?: string } | null>(null)
 // 后端 retentionPeriod 当前可能为 null（未填），为空时显示「—」避免详情面板出现空白
 const retentionPeriodLabel = computed(() => {
   const v = detailData.value?.retentionPeriod
@@ -302,9 +359,11 @@ function sourceLabel(sourceType?: string): string {
 async function handleAiQuery() {
   if (!aiQueryText.value.trim()) return
   aiLoading.value = true
+  aiError.value = ''
   try {
     aiResult.value = await generatePublicSearchQuery({ text: aiQueryText.value })
-  } catch {
+  } catch (e: unknown) {
+    aiError.value = e instanceof Error ? e.message : 'AI 生成失败，请改用普通检索'
     aiResult.value = null
   } finally {
     aiLoading.value = false
@@ -323,14 +382,14 @@ function applyAiConditions() {
   // 先清空旧条件，避免上一次的手动筛选混入
   Object.keys(searchParams).forEach((key) => delete (searchParams as Record<string, unknown>)[key])
 
-  // keywords 数组 → 取首个填入关键词框（满足"应用条件后表单填充"的视觉反馈）。
-  // 但 AI 应用条件的首次检索暂不下发 keyword：后端 keyword 是单字段 SQL like 连续子串匹配，
-  // AI 抽取的"老城改造"在数据中可能写作"老城区改造"，强制过滤会漏掉本应命中的档案。
-  // 结构化条件（门类/年度/责任者）更可靠，由它们兜底命中；关键词保留在表单框供用户
-  // 看见 AI 的抽词结果，用户若想用关键词缩小范围可自行点"检索"重新过滤。
+  // keywords 数组 → 取首个填入关键词框并随检索下发（W-H-2：应用条件与手动检索结果一致）。
   const kws = Array.isArray(c.keywords) ? (c.keywords as unknown[]).filter((x): x is string => typeof x === 'string' && x.trim() !== '') : []
   if (kws.length > 0) {
     searchParams.keyword = kws[0]
+  }
+  if (Array.isArray(c.tags)) {
+    const tagNames = (c.tags as unknown[]).filter((x): x is string => typeof x === 'string' && x.trim() !== '')
+    if (tagNames.length > 0) searchParams.tagIds = tagNames.join(',')
   }
   // category code → categoryId（通过门类字典反查；查不到则忽略，避免下发后端无法识别的字符串）
   if (typeof c.category === 'string' && c.category) {
@@ -351,12 +410,15 @@ function applyAiConditions() {
   if (typeof c.carrierStatus === 'string' && c.carrierStatus) {
     searchParams.carrierStatus = c.carrierStatus
   }
-  // 首次检索暂不下发 keyword（见上方注释），临时摘出后调 handleSearch，完成后再放回表单框显示。
-  const keywordToShow = searchParams.keyword
-  delete searchParams.keyword
-  handleSearch().finally(() => {
-    if (keywordToShow) searchParams.keyword = keywordToShow
-  })
+  // 下发完整条件（含 keyword），保证 AI 应用条件与手动检索结果一致（W-H-2 修复）。
+  pageNo.value = 1
+  handleSearch()
+}
+
+// 用户主动点「检索」/应用 AI 条件时回到第一页；分页器切换页码时直接走 handleSearch 保留当前页
+function searchFromFirstPage() {
+  pageNo.value = 1
+  return handleSearch()
 }
 
 async function handleSearch() {
@@ -365,8 +427,9 @@ async function handleSearch() {
   detailData.value = null
   try {
     const params = cleanParams(searchParams)
-    const result = await searchPublicArchives(params)
+    const result = await searchPublicArchives({ ...params, pageNo: pageNo.value, pageSize: pageSize.value })
     searchResults.value = { records: result.records, total: result.total }
+    total.value = result.total
   } catch (e: any) {
     searchError.value = e.message || '检索失败'
   } finally {
@@ -389,6 +452,8 @@ function resetSearch() {
   searchResults.value = { records: [], total: 0 }
   detailData.value = null
   aiResult.value = null
+  pageNo.value = 1
+  total.value = 0
 }
 
 async function showDetail(archiveId: number) {
@@ -397,6 +462,11 @@ async function showDetail(archiveId: number) {
   } catch {
     detailData.value = null
   }
+}
+
+function handlePreview(file: { id: number; filename?: string; fileFormat?: string }) {
+  previewFile.value = { id: file.id, name: file.filename, mime: file.fileFormat }
+  previewVisible.value = true
 }
 
 async function handleDownload(fileId: number, filename: string) {
@@ -445,6 +515,25 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.collapsible-card > summary {
+  display: flex; min-height: 34px; cursor: pointer; list-style: none;
+  align-items: center; justify-content: space-between; gap: 12px;
+}
+.collapsible-card > summary::-webkit-details-marker { display: none; }
+.collapsible-card[open] > summary { padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.ai-panel { display: grid; gap: 12px; }
+.ai-panel > summary {
+  display: flex; min-height: 34px; cursor: pointer; list-style: none;
+  align-items: center; justify-content: space-between; gap: 12px;
+}
+.ai-panel > summary::-webkit-details-marker { display: none; }
+.collapsible-body { display: grid; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.json-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-box {
+  white-space: pre-wrap; word-break: break-all; margin: 0;
+  background: #f5f7fa; padding: 10px; border-radius: 4px;
+  font-size: 13px; max-height: 260px; overflow: auto;
+}
 .filter-block {
   margin-top: 14px;
 }

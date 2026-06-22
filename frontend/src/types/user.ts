@@ -3,6 +3,10 @@ export interface UserInfo {
   id: number
   realName: string
   username?: string
+  loginName?: string
+  employeeNo?: string
+  phone?: string
+  departmentName?: string
   userType: 'internal' | 'public'
   roles: string[]
   organizationId: number

@@ -27,6 +27,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -57,6 +58,43 @@ class WarehouseServiceTest {
         service = new WarehouseService(warehouseRoomMapper, storageLocationMapper,
                 archiveBoxMapper, archiveBoxItemMapper, archiveMapper,
                 jdbcTemplate, boxNoUtil, auditService);
+    }
+
+    @Test
+    void deleteRoom_有活动档案盒_抛CONFLICT且不删() {
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(11L);
+        when(warehouseRoomMapper.selectById(11L)).thenReturn(room);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(11L))).thenReturn(3L);
+
+        assertThatThrownBy(() -> service.deleteRoom(11L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.BUSINESS_CONFLICT);
+        verify(warehouseRoomMapper, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void deleteRoom_无活动盒_清架位并物理删除() {
+        com.archive.entity.WarehouseRoom room = new com.archive.entity.WarehouseRoom();
+        room.setId(10L);
+        room.setRoomNo("K001");
+        room.setRoomName("1号库房");
+        when(warehouseRoomMapper.selectById(10L)).thenReturn(room);
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(10L))).thenReturn(0L);
+
+        service.deleteRoom(10L);
+
+        verify(jdbcTemplate).update(eq("DELETE FROM storage_locations WHERE room_id = ?"), eq(10L));
+        verify(warehouseRoomMapper).deleteById(10L);
+        verify(auditService).log(eq("M07"), eq("delete_room"), eq("warehouse_room"), eq(10L), any());
+    }
+
+    @Test
+    void deleteRoom_库房不存在_抛NOT_FOUND() {
+        when(warehouseRoomMapper.selectById(99L)).thenReturn(null);
+        assertThatThrownBy(() -> service.deleteRoom(99L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
     }
 
     @Test
@@ -336,7 +374,6 @@ class WarehouseServiceTest {
         ArchiveBoxCreateRequest req = new ArchiveBoxCreateRequest();
         req.setLocationId(10L);
         req.setCategoryId(3);
-        req.setYearLabel("2025");
         req.setCapacity(30);
 
         ArchiveBoxResponse resp = service.createBox(req);
@@ -523,5 +560,42 @@ class WarehouseServiceTest {
         assertThat(result.get(0).getRoomId()).isEqualTo(1L);
         assertThat(result.get(0).getOccupiedSlots()).isEqualTo(90);
         assertThat(result.get(0).getOccupancyRate()).isEqualByComparingTo(new BigDecimal("0.9000"));
+    }
+
+    @Test
+    void deleteBox_空档案盒_物理删除并释放架位() {
+        com.archive.entity.ArchiveBox box = new com.archive.entity.ArchiveBox();
+        box.setId(20L);
+        box.setBoxNo("BOX-000020");
+        box.setUsedCount(0);
+        when(archiveBoxMapper.selectById(20L)).thenReturn(box);
+
+        service.deleteBox(20L);
+
+        verify(archiveBoxMapper).deleteById(20L);
+        verify(auditService).log(eq("M07"), eq("delete_box"), eq("archive_box"), eq(20L), any());
+    }
+
+    @Test
+    void deleteBox_盒内仍有档案_抛CONFLICT且不删() {
+        com.archive.entity.ArchiveBox box = new com.archive.entity.ArchiveBox();
+        box.setId(21L);
+        box.setBoxNo("BOX-000021");
+        box.setUsedCount(3);
+        when(archiveBoxMapper.selectById(21L)).thenReturn(box);
+
+        assertThatThrownBy(() -> service.deleteBox(21L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.BUSINESS_CONFLICT);
+        verify(archiveBoxMapper, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void deleteBox_档案盒不存在_抛NOT_FOUND() {
+        when(archiveBoxMapper.selectById(99L)).thenReturn(null);
+
+        assertThatThrownBy(() -> service.deleteBox(99L))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.NOT_FOUND);
     }
 }

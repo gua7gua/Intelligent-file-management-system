@@ -16,6 +16,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 前台移交验收接口。
@@ -55,11 +57,18 @@ public class ReceptionController {
     }
 
     @GetMapping("/batches/{batchId}/receipt")
-    @Operation(summary = "导出接收回执（骨架）")
+    @Operation(summary = "导出接收回执")
     public ResponseEntity<byte[]> exportReceipt(@PathVariable Long batchId) {
         byte[] data = intakeBatchService.exportReceipt(batchId);
+        // 文件名带批次号中文化（P2-1）：接收回执-BAT-000012.pdf
+        String batchNo = String.valueOf(batchId);
+        try {
+            IntakeBatchResponse resp = intakeBatchService.getReceptionDetail(batchId);
+            if (resp != null && resp.getBatchNo() != null) batchNo = resp.getBatchNo();
+        } catch (Exception ignored) { }
+        String filename = URLEncoder.encode("接收回执-" + batchNo + ".pdf", StandardCharsets.UTF_8);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"receipt.pdf\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + filename)
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(data);
     }

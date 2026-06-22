@@ -42,6 +42,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -285,7 +286,7 @@ class BorrowServiceTest {
         when(borrowNoUtil.nextVoucherNo()).thenReturn("VCH-000001");
         when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
         when(userMapper.selectById(any())).thenReturn(new com.archive.entity.User());
-        when(pdfGenerator.generateBorrowVoucherPdf(any(), any(), any(), any()))
+        when(pdfGenerator.generateBorrowVoucherPdf(any(), any(), any(), any(), anyBoolean(), any()))
                 .thenReturn(new byte[]{1, 2, 3});
 
         asRole(RoleCode.internal_reader, 4L, () -> {
@@ -306,7 +307,7 @@ class BorrowServiceTest {
         when(borrowRequestMapper.selectById(1L)).thenReturn(b);
         when(archiveMapper.selectById(any())).thenReturn(borrowableArchive(2L));
         when(userMapper.selectById(any())).thenReturn(new com.archive.entity.User());
-        when(pdfGenerator.generateBorrowVoucherPdf(any(), any(), any(), any()))
+        when(pdfGenerator.generateBorrowVoucherPdf(any(), any(), any(), any(), anyBoolean(), any()))
                 .thenReturn(new byte[]{1});
 
         asRole(RoleCode.internal_reader, 4L, () -> service.exportVoucher(1L));

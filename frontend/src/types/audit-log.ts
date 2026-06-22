@@ -14,6 +14,8 @@ export interface AuditLog {
   /** 富字段：模块代号对应的中文标签（如 M14 -> 系统配置），便于展示 */
   moduleLabel?: string
   operationType: string
+  /** 富字段：操作类型对应的中文标签（如 approve -> 审批通过），便于展示 */
+  operationLabel?: string
   businessType?: string
   businessId?: number
   /** 富字段：当 businessType=archive 时关联档案的档号，便于展示 */

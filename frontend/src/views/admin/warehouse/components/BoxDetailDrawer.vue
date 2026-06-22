@@ -17,13 +17,6 @@
             <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
         </div>
-        <div class="field"><label>全宗</label>
-          <select v-model.number="form.fondsId">
-            <option v-for="f in fondsList" :key="f.id" :value="f.id">{{ f.fondsNo }} · {{ f.fondsName }}</option>
-          </select>
-        </div>
-        <div class="field"><label>年度</label><input v-model="form.yearLabel"></div>
-        <div class="field"><label>盒脊信息</label><input v-model="form.spineText"></div>
         <div class="field"><label>容量</label><input v-model.number="form.capacity" type="number"></div>
         <div class="actions">
           <button class="button" @click="onCreateBox">新增档案盒</button>
@@ -43,6 +36,10 @@
             </li>
           </ul>
         </template>
+        <div v-if="boxDetail && boxDetail.items.length === 0" class="actions" style="margin-top:12px">
+          <button class="button ghost" @click="onDeleteBox">删除空档案盒（释放架位）</button>
+        </div>
+        <p v-else-if="boxDetail && boxDetail.items.length > 0" class="hint" style="margin-top:8px">盒内有档案，需先迁出档案后才能删除档案盒释放架位。</p>
         <h3 class="section-title" style="margin-top:12px">移动档案盒</h3>
         <div class="field"><label>目标架位</label>
           <select v-model.number="moveTargetId">
@@ -67,12 +64,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { ArchiveBoxDetail, ArchiveBoxCreateData, StorageLocation } from '@/types/warehouse'
-import type { FondsItem } from '@/types/fonds'
-import { createArchiveBox, getArchiveBoxDetail, moveArchiveBox, updateLocationStatus } from '@/api/warehouse'
-import { getFonds } from '@/api/fonds'
+import { createArchiveBox, deleteArchiveBox, getArchiveBoxDetail, moveArchiveBox, updateLocationStatus } from '@/api/warehouse'
 
 const props = defineProps<{ location: StorageLocation | null; freeLocations: StorageLocation[] }>()
 const emit = defineEmits<{ (e: 'refresh'): void }>()
@@ -85,11 +80,9 @@ const categories = [
   { id: 4, name: '音像档案' },
   { id: 5, name: '人事档案' },
 ]
-const fondsList = ref<FondsItem[]>([])
-
 const boxDetail = ref<ArchiveBoxDetail | null>(null)
 const boxLoading = ref(false)
-const form = ref<ArchiveBoxCreateData>({ locationId: 0, categoryId: 1, fondsId: 1, yearLabel: '2026', spineText: '', capacity: 30 })
+const form = ref<ArchiveBoxCreateData>({ locationId: 0, categoryId: 1, capacity: 30 })
 const moveTargetId = ref(0)
 const moveReason = ref('')
 
@@ -115,22 +108,8 @@ watch(
   },
 )
 
-onMounted(async () => {
-  try {
-    const page = await getFonds({ pageSize: 100 })
-    fondsList.value = page.records
-    if (fondsList.value.length) form.value.fondsId = fondsList.value[0].id
-  } catch {
-    fondsList.value = []
-  }
-})
-
 async function onCreateBox() {
   if (!props.location) return
-  if (!form.value.spineText.trim()) {
-    ElMessage.warning('请填写盒脊信息')
-    return
-  }
   try {
     await createArchiveBox({ ...form.value, locationId: props.location.id })
     ElMessage.success('档案盒已新增，架位已占用。')
@@ -151,6 +130,21 @@ async function onMove() {
     emit('refresh')
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '移动失败')
+  }
+}
+async function onDeleteBox() {
+  if (!props.location?.currentBoxId) return
+  try {
+    await ElMessageBox.confirm('删除后该架位将释放、可重新建档；仅空档案盒可删，是否继续？', '删除档案盒', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await deleteArchiveBox(props.location.currentBoxId)
+    ElMessage.success('档案盒已删除，架位已释放。')
+    emit('refresh')
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
   }
 }
 async function onDisable() {

@@ -25,7 +25,21 @@ public class ArchiveSearchQuery {
 
     /** 内部版额外筛选 */
     private Integer securityLevel;
+    /** 密级上限（<=该值），与权限上限 maxSecurityLevel 取交集 */
+    private Integer securityLevelMax;
     private String openStatus;
+    /** 借阅状态：available / on_loan / not_on_shelf */
+    private String loanStatus;
+    /** 保管期限：10y / 30y / permanent */
+    private String retentionPeriod;
+    /** 形成/移交单位名称（模糊匹配 organizations.org_name） */
+    private String organizationName;
+    /** 所属全宗名称（模糊匹配 fonds.fonds_name） */
+    private String fondsName;
+    /** 文件格式（模糊匹配 archive_files.file_ext / original_filename） */
+    private String fileExt;
+    /** 排序：relevance / formed_desc / archived_desc / archiveNo_asc */
+    private String sortBy;
 
     private int pageNo = 1;
     private int pageSize = 20;

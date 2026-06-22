@@ -25,13 +25,13 @@
 
       <div v-if="detail.files.length > 0" style="margin-top: 12px">
         <h3 class="section-title">电子文件</h3>
-        <div v-for="file in detail.files" :key="file.id" class="local-file">
+        <div v-for="file in detail.files" :key="file.fileId" class="local-file">
           <div>
             <strong>{{ file.originalFilename }}</strong>
             <div class="hint">{{ file.fileFormat }}，{{ formatSize(file.fileSize) }}，{{ file.fileRole }}</div>
           </div>
           <div class="actions">
-            <button class="button secondary" type="button" :disabled="!file.canPreview || previewing" @click="handlePreview(file.id)">
+            <button class="button secondary" type="button" :disabled="!file.canPreview" @click="handlePreview(file)">
               预览
             </button>
             <button class="button ghost" type="button" :disabled="!file.canDownload || downloading" @click="handleDownload(file)">
@@ -39,10 +39,13 @@
             </button>
           </div>
         </div>
-        <div v-if="previewContent" class="notice" style="margin-top: 8px">
-          <strong>预览内容</strong>
-          <pre style="white-space: pre-wrap; font-size: 13px; margin-top: 4px">{{ previewContent }}</pre>
-        </div>
+        <FilePreview
+          v-model:visible="previewVisible"
+          :file-id="previewFile?.id ?? null"
+          :file-name="previewFile?.name"
+          :mime="previewFile?.mime"
+          :fetcher="previewInternalFile"
+        />
       </div>
       <div v-else class="notice" style="margin-top: 12px">
         {{ detail.carrierStatus === 'paper' ? '纯纸质档案，暂无电子文件可供预览/下载。' : '暂无可预览/下载的电子文件。' }}
@@ -90,6 +93,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import FilePreview from '@/components/FilePreview/index.vue'
 import {
   createBorrowRequest,
   downloadInternalFile,
@@ -107,8 +111,8 @@ const loading = ref(false)
 const error = ref('')
 const detail = ref<InternalArchiveDetail | null>(null)
 
-const previewing = ref(false)
-const previewContent = ref('')
+const previewVisible = ref(false)
+const previewFile = ref<{ id: number; name?: string; mime?: string } | null>(null)
 const downloading = ref(false)
 
 const showBorrowForm = ref(false)
@@ -164,7 +168,8 @@ async function loadDetail() {
   loading.value = true
   error.value = ''
   detail.value = null
-  previewContent.value = ''
+  previewVisible.value = false
+  previewFile.value = null
   showBorrowForm.value = false
   try {
     detail.value = await getInternalArchiveDetail(props.archiveId)
@@ -181,22 +186,19 @@ function toggleBorrowForm() {
   showBorrowForm.value = !showBorrowForm.value
 }
 
-async function handlePreview(fileId: number) {
-  previewing.value = true
-  previewContent.value = ''
-  try {
-    previewContent.value = await previewInternalFile(fileId)
-  } catch {
-    ElMessage.error('预览失败，请稍后重试')
-  } finally {
-    previewing.value = false
+function handlePreview(file: InternalFile) {
+  previewFile.value = {
+    id: file.fileId,
+    name: file.originalFilename,
+    mime: (file as { mimeType?: string }).mimeType || file.fileFormat,
   }
+  previewVisible.value = true
 }
 
 async function handleDownload(file: InternalFile) {
   downloading.value = true
   try {
-    const blob = await downloadInternalFile(file.id)
+    const blob = await downloadInternalFile(file.fileId)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

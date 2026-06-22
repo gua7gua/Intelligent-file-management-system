@@ -134,6 +134,16 @@ export function mockUpdateWarehouseRoom(id: number, data: WarehouseRoomUpdateDat
   return room
 }
 
+export function mockDeleteWarehouseRoom(roomId: number): void {
+  const idx = rooms.findIndex((r) => r.id === roomId)
+  if (idx < 0) throw new Error('库房不存在')
+  rooms.splice(idx, 1)
+  // 一并清理该库房的架位（mock 端简化，不做活动盒校验）
+  for (let i = locations.length - 1; i >= 0; i--) {
+    if (locations[i].roomId === roomId) locations.splice(i, 1)
+  }
+}
+
 export function mockStorageLocations(params?: StorageLocationParams): PageData<StorageLocation> {
   let list = locations.slice()
   if (params?.roomId) list = list.filter((l) => l.roomId === params.roomId)
@@ -188,10 +198,10 @@ export function mockCreateArchiveBox(data: ArchiveBoxCreateData): ArchiveBox {
   if (loc.occupied) throw new Error('架位已被占用')
   const room = rooms.find((r) => r.id === loc.roomId)
   const id = nextBoxId++
-  const boxNo = `BX-${data.yearLabel}-${String(id).padStart(3, '0')}`
+  const boxNo = `BOX-${String(id).padStart(3, '0')}`
   const box: ArchiveBoxDetail = {
     id, boxNo, locationId: loc.id, locationCode: loc.locationCode, roomNo: room?.roomNo ?? '',
-    categoryId: data.categoryId, fondsId: data.fondsId, yearLabel: data.yearLabel, spineText: data.spineText,
+    categoryId: data.categoryId, fondsId: 0, yearLabel: '', spineText: '',
     capacity: data.capacity, usedCount: 0, status: 'normal', items: [],
   }
   boxes.push(box)
@@ -231,4 +241,24 @@ export function mockMoveArchiveBox(id: number, data: ArchiveBoxMoveData): Archiv
   if (targetRoom && targetRoom !== sourceRoom) recomputeRoom(targetRoom)
   const { items, ...rest } = box
   return rest
+}
+
+export function mockDeleteArchiveBox(boxId: number): void {
+  const idx = boxes.findIndex((b) => b.id === boxId)
+  if (idx < 0) throw new Error('档案盒不存在')
+  if (boxes[idx].usedCount && boxes[idx].usedCount > 0) {
+    throw new Error('档案盒内仍有档案，请先迁出档案后再删除')
+  }
+  const box = boxes[idx]
+  // 释放所在架位
+  const loc = locations.find((l) => l.id === box.locationId)
+  if (loc) {
+    loc.occupied = false
+    loc.currentBoxId = undefined
+    loc.currentBoxNo = undefined
+    loc.boxItemCount = undefined
+  }
+  boxes.splice(idx, 1)
+  const room = loc ? rooms.find((r) => r.id === loc.roomId) : undefined
+  if (room) recomputeRoom(room)
 }

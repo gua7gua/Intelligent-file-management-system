@@ -4,6 +4,7 @@ import com.archive.common.ErrorCode;
 import com.archive.common.PageResult;
 import com.archive.dto.request.ArchiveUpdateRequest;
 import com.archive.dto.request.OpenAdjustRequest;
+import com.archive.dto.request.ArchivePlacementRequest;
 import com.archive.dto.request.SecurityAdjustRequest;
 import com.archive.dto.response.ArchiveResponse;
 import com.archive.dto.response.ArchiveFileResponse;
@@ -11,6 +12,7 @@ import com.archive.entity.*;
 import com.archive.enums.ApprovalStatus;
 import com.archive.enums.ApprovalType;
 import com.archive.enums.LifecycleStatus;
+import com.archive.enums.OpenStatus;
 import com.archive.exception.BusinessException;
 import com.archive.mapper.*;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -57,9 +59,20 @@ public class ArchiveService {
             Long organizationId, Long fondsId, Integer securityLevel,
             String openStatus, String carrierStatus, String lifecycleStatus,
             String loanStatus, String conditionStatus,
+            String sourceType, Boolean hasElectronicFile,
+            String retentionPeriod, Integer securityLevelMax, String fondsName,
+            String organizationName, String fileExt, String sortBy,
+            String tagKeyword,
+            boolean includeDestroyed,
             int pageNo, int pageSize) {
 
         QueryWrapper<Archive> w = new QueryWrapper<>();
+        // D2：已销毁档案保留元数据与销毁记录，列表默认隐藏；仅当显式筛选 lifecycleStatus=destroyed
+        // 或勾选「显示已销毁」时才展示。
+        boolean filteringLifecycle = lifecycleStatus != null && !lifecycleStatus.isBlank();
+        if (!filteringLifecycle && !includeDestroyed) {
+            w.ne("lifecycle_status", "destroyed");
+        }
         if (keyword != null && !keyword.isBlank()) {
             w.and(q -> q.like("title", keyword)
                     .or().like("archive_no", keyword)
@@ -101,7 +114,53 @@ public class ArchiveService {
         if (conditionStatus != null && !conditionStatus.isBlank()) {
             w.eq("condition_status", conditionStatus);
         }
-        w.orderByDesc("archived_at");
+        if (sourceType != null && !sourceType.isBlank()) {
+            w.eq("source_type", sourceType);
+        }
+        if (Boolean.TRUE.equals(hasElectronicFile)) {
+            w.inSql("id", "SELECT archive_id FROM archive_files WHERE file_status = 'normal'");
+        }
+        if (tagKeyword != null && !tagKeyword.isBlank()) {
+            // 按标签名模糊匹配：JOIN archive_tags + tags，转义单引号防注入
+            String escaped = tagKeyword.replace("'", "''");
+            w.inSql("id",
+                    "SELECT at.archive_id FROM archive_tags at " +
+                    "JOIN tags t ON t.id = at.tag_id " +
+                    "WHERE t.tag_name LIKE '%" + escaped + "%'");
+        }
+        if (retentionPeriod != null && !retentionPeriod.isBlank()) {
+            w.eq("retention_period", retentionPeriod);
+        }
+        if (securityLevelMax != null) {
+            w.le("security_level", securityLevelMax);
+        }
+        if (fondsName != null && !fondsName.isBlank()) {
+            String kw = fondsName.replace("'", "''");
+            w.inSql("fonds_id",
+                    "SELECT id FROM fonds WHERE deleted_at IS NULL AND fonds_name LIKE '%" + kw + "%'");
+        }
+        if (organizationName != null && !organizationName.isBlank()) {
+            String kw = organizationName.replace("'", "''");
+            w.inSql("organization_id",
+                    "SELECT id FROM organizations WHERE deleted_at IS NULL AND org_name LIKE '%" + kw + "%'");
+        }
+        if (fileExt != null && !fileExt.isBlank()) {
+            String kw = fileExt.replace("'", "''");
+            w.inSql("id",
+                    "SELECT archive_id FROM archive_files WHERE deleted_at IS NULL " +
+                    "AND (file_ext LIKE '%" + kw + "%' OR original_filename LIKE '%" + kw + "%')");
+        }
+        // 排序：默认入库时间倒序
+        if (sortBy == null || sortBy.isBlank() || "archived_desc".equals(sortBy)) {
+            w.orderByDesc("archived_at");
+        } else {
+            switch (sortBy) {
+                case "formed_desc" -> w.orderByDesc("formed_date");
+                case "formed_asc" -> w.orderByAsc("formed_date");
+                case "archiveNo_asc" -> w.orderByAsc("archive_no");
+                default -> w.orderByDesc("archived_at");
+            }
+        }
 
         Page<Archive> page = archiveMapper.selectPage(new Page<>(pageNo, pageSize), w);
         List<ArchiveResponse> records = page.getRecords().stream()
@@ -235,6 +294,68 @@ public class ArchiveService {
 
     // ==================== 10.4 发起密级调整审批 ====================
 
+    // ==================== 档案换盒（改 archive_box_items 归属） ====================
+
+    @Transactional
+    public void placeArchive(Long archiveId, ArchivePlacementRequest req) {
+        Archive archive = archiveMapper.selectById(archiveId);
+        if (archive == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "档案不存在");
+        }
+        ArchiveBox newBox = archiveBoxMapper.selectById(req.getBoxId());
+        if (newBox == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "目标档案盒不存在");
+        }
+        if (!"normal".equals(newBox.getStatus()) && !"full".equals(newBox.getStatus())) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "目标档案盒不可用");
+        }
+        // 同分类校验（盒分类须与档案分类一致，与入库上架规则一致）
+        if (newBox.getCategoryId() != null && archive.getCategoryId() != null
+                && !newBox.getCategoryId().equals(archive.getCategoryId())) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "目标档案盒分类与档案不一致");
+        }
+        // 当前盒关联
+        ArchiveBoxItem oldItem = archiveBoxItemMapper.selectOne(
+                new QueryWrapper<ArchiveBoxItem>().eq("archive_id", archiveId));
+        if (oldItem != null && req.getBoxId().equals(oldItem.getBoxId())) {
+            return; // 已在该盒，无需变动
+        }
+        // 换盒：校验新盒未满
+        if (newBox.getCapacity() != null && newBox.getUsedCount() != null
+                && newBox.getUsedCount() >= newBox.getCapacity()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "目标档案盒已满");
+        }
+        // 删旧关联 + 旧盒计数 -1
+        if (oldItem != null) {
+            archiveBoxItemMapper.deleteById(oldItem.getId());
+            ArchiveBox oldBox = archiveBoxMapper.selectById(oldItem.getBoxId());
+            if (oldBox != null && oldBox.getUsedCount() != null && oldBox.getUsedCount() > 0) {
+                oldBox.setUsedCount(oldBox.getUsedCount() - 1);
+                archiveBoxMapper.updateById(oldBox);
+            }
+        }
+        // 插新关联（保留页数/物理状态）
+        ArchiveBoxItem newItem = new ArchiveBoxItem();
+        newItem.setBoxId(req.getBoxId());
+        newItem.setArchiveId(archiveId);
+        newItem.setSortNo(nextBoxSortNoInArchive(req.getBoxId()));
+        newItem.setPageCount(oldItem != null ? oldItem.getPageCount() : null);
+        newItem.setPhysicalStatus(oldItem != null ? oldItem.getPhysicalStatus() : "normal");
+        archiveBoxItemMapper.insert(newItem);
+        // 新盒计数 +1
+        newBox.setUsedCount((newBox.getUsedCount() != null ? newBox.getUsedCount() : 0) + 1);
+        archiveBoxMapper.updateById(newBox);
+        auditService.log("M08", "place_archive", "archive", archiveId,
+                java.util.Map.of("boxId", String.valueOf(req.getBoxId())));
+    }
+
+    private int nextBoxSortNoInArchive(Long boxId) {
+        ArchiveBoxItem latest = archiveBoxItemMapper.selectOne(
+                new QueryWrapper<ArchiveBoxItem>().eq("box_id", boxId)
+                        .orderByDesc("sort_no").last("limit 1"));
+        return latest != null && latest.getSortNo() != null ? latest.getSortNo() + 1 : 1;
+    }
+
     @Transactional
     public ApprovalRequest createSecurityAdjustment(Long archiveId, SecurityAdjustRequest req) {
         Archive archive = archiveMapper.selectById(archiveId);
@@ -283,6 +404,13 @@ public class ArchiveService {
 
         if (req.getNewOpenStatus().equals(archive.getOpenStatus())) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "新开放状态与当前状态相同");
+        }
+
+        // 涉密档案（密级高于非密）不可设为公开，防止产生「公开的涉密档案」
+        if (OpenStatus.open.name().equals(req.getNewOpenStatus())
+                && archive.getSecurityLevel() != null && archive.getSecurityLevel() > 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED,
+                    "档案密级高于非密，不可设为公开；如需公开请先下调密级");
         }
 
         validateEvidenceArchive(req.getEvidenceArchiveNo(), archive);
@@ -440,6 +568,7 @@ public class ArchiveService {
         if (boxItem != null) {
             ArchiveBox box = archiveBoxMapper.selectById(boxItem.getBoxId());
             if (box != null) {
+                resp.setBoxId(box.getId());
                 resp.setBoxNo(box.getBoxNo());
                 if (box.getLocationId() != null) {
                     StorageLocation loc = storageLocationMapper.selectById(box.getLocationId());

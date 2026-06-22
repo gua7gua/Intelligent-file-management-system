@@ -17,10 +17,10 @@ import com.archive.mapper.UserMapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +32,7 @@ public class OrganizationService {
     private final FondsMapper fondsMapper;
     private final UserMapper userMapper;
     private final AuditService auditService;
+    private final JdbcTemplate jdbcTemplate;
 
     /** 17.4 查询组织 */
     public PageResult<OrganizationResponse> listOrganizations(OrganizationQuery query) {
@@ -124,12 +125,18 @@ public class OrganizationService {
                 new QueryWrapper<Fonds>().eq("organization_id", id).isNull("deleted_at"));
         long userCount = userMapper.selectCount(
                 new QueryWrapper<User>().eq("organization_id", id).isNull("deleted_at"));
-        if (fondsCount > 0 || userCount > 0) {
+        Long archiveRaw = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM archives WHERE organization_id = ?", Long.class, id);
+        long archiveCount = archiveRaw != null ? archiveRaw : 0L;
+        Long intakeRaw = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM intake_batches WHERE organization_id = ?", Long.class, id);
+        long intakeCount = intakeRaw != null ? intakeRaw : 0L;
+        if (fondsCount > 0 || userCount > 0 || archiveCount > 0 || intakeCount > 0) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT,
-                    "存在关联全宗或用户，无法删除，请改用停用");
+                    "存在关联全宗、用户、档案或移交批次，无法删除，请改用停用");
         }
-        existing.setDeletedAt(OffsetDateTime.now());
-        organizationMapper.updateById(existing);
+        // 硬删除（物理删除）：关联校验通过后真删，释放 org_name 唯一约束，便于同名组织重建
+        organizationMapper.deleteById(id);
         auditService.log("M06", "delete_organization", "organization", id,
                 Map.of("orgName", existing.getOrgName()));
     }

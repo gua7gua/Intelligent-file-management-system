@@ -40,6 +40,17 @@
             <span class="task-meta"><span>已核对 {{ t.checked }} 件</span><span class="status" :class="taskStatusClass(t.status)">{{ InventoryTaskStatusLabel[t.status] }}</span></span>
           </button>
         </div>
+        <div v-if="total > 0" style="display:flex;justify-content:flex-end;margin-top:12px">
+          <el-pagination
+            v-model:current-page="pageNo"
+            v-model:page-size="pageSize"
+            :total="total"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="loadTasks"
+            @current-change="loadTasks"
+          />
+        </div>
       </aside>
 
       <section class="card panel">
@@ -54,6 +65,7 @@
             </div>
             <div class="actions">
               <button v-if="detail.status === 'draft'" class="button" :disabled="detail.items.length === 0" @click="onStart">开始盘点</button>
+              <button v-if="detail.status === 'draft'" class="button ghost" @click="onDeleteTask">删除任务</button>
               <button v-if="detail.status === 'running'" class="button" @click="onComplete">提交盘点结果</button>
             </div>
           </div>
@@ -134,7 +146,7 @@ import {
 } from '@/types/enums'
 import type { InventoryCheckResultValue, InventoryTaskStatusValue } from '@/types/enums'
 import {
-  completeInventoryTask, createInventoryTask, getInventoryTaskDetail,
+  completeInventoryTask, createInventoryTask, deleteInventoryTask, getInventoryTaskDetail,
   getInventoryTasks, startInventoryTask, updateInventoryItem,
 } from '@/api/inventory'
 import { getWarehouseRooms } from '@/api/warehouse'
@@ -145,6 +157,11 @@ const allTasks = ref<InventoryTask[]>([])
 const listLoading = ref(false)
 const loadError = ref(false)
 const taskFilter = ref<InventoryTaskStatusValue>('running')
+
+// ── 分页（任务列表） ──
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
 const selectedId = ref<number | null>(null)
 const detail = ref<InventoryTaskDetail | null>(null)
@@ -224,8 +241,9 @@ async function loadTasks() {
   listLoading.value = true
   loadError.value = false
   try {
-    const page = await getInventoryTasks({ pageSize: 100 })
+    const page = await getInventoryTasks({ pageNo: pageNo.value, pageSize: pageSize.value })
     allTasks.value = page.records
+    total.value = page.total
   } catch {
     loadError.value = true
   } finally {
@@ -313,6 +331,24 @@ async function onComplete() {
     await loadTasks()
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '操作失败')
+  }
+}
+
+async function onDeleteTask() {
+  if (!detail.value) return
+  try {
+    await ElMessageBox.confirm('删除后不可恢复，仅草稿任务可删，是否继续？', '删除盘点任务', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await deleteInventoryTask(detail.value.id)
+    ElMessage.success('盘点任务已删除。')
+    selectedId.value = null
+    detail.value = null
+    await loadTasks()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
   }
 }
 

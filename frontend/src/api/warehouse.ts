@@ -32,6 +32,14 @@ export function updateWarehouseRoom(roomId: number, data: WarehouseRoomUpdateDat
   return request.put(`/admin/warehouse/rooms/${roomId}`, data)
 }
 
+/** 删除库房（§16.10，无活动档案盒时允许） */
+export function deleteWarehouseRoom(roomId: number): Promise<void> {
+  if (USE_MOCK) {
+    return import('@/mock/modules/warehouse').then((m) => m.mockDeleteWarehouseRoom(roomId))
+  }
+  return request.delete(`/admin/warehouse/rooms/${roomId}`)
+}
+
 /** 查询架位（§16.4） */
 export function getStorageLocations(params?: StorageLocationParams): Promise<PageData<StorageLocation>> {
   if (USE_MOCK) {
@@ -78,4 +86,12 @@ export function moveArchiveBox(boxId: number, data: ArchiveBoxMoveData): Promise
     return import('@/mock/modules/warehouse').then((m) => m.mockMoveArchiveBox(boxId, data))
   }
   return request.post(`/admin/warehouse/boxes/${boxId}/move`, data)
+}
+
+/** 删除空档案盒，释放所在架位（§16.10） */
+export function deleteArchiveBox(boxId: number): Promise<void> {
+  if (USE_MOCK) {
+    return import('@/mock/modules/warehouse').then((m) => m.mockDeleteArchiveBox(boxId))
+  }
+  return request.delete(`/admin/warehouse/boxes/${boxId}`)
 }

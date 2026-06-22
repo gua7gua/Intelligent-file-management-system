@@ -42,12 +42,12 @@
           </thead>
           <tbody>
             <tr v-for="l in records" :key="l.id">
-              <td class="mono">{{ l.operatedAt }}</td>
+              <td class="mono">{{ l.operatedAt ? new Date(l.operatedAt).toLocaleString('zh-CN') : '-' }}</td>
               <td>{{ l.actorName || `用户#${l.actorUserId}` }}</td>
               <td>{{ actorTypeLabel[l.actorType] || l.actorType }}</td>
               <td>{{ l.moduleLabel || l.moduleName }}</td>
-              <td>{{ l.operationType }}</td>
-              <td>{{ l.businessType || '-' }}</td>
+              <td>{{ l.operationLabel || operationTypeLabel[l.operationType] || l.operationType }}</td>
+              <td>{{ businessTypeLabel[l.businessType || ''] || l.businessType || '-' }}</td>
               <td>{{ l.archiveNo || (l.businessId != null ? `#${l.businessId}` : '-') }}</td>
               <td class="mono">{{ l.ipAddress || '-' }}</td>
               <td>
@@ -96,6 +96,21 @@ const actorTypeLabel: Record<ActorType, string> = {
   internal: '内部用户',
   public: '公众',
   system: '系统',
+}
+
+const operationTypeLabel: Record<string, string> = {
+  issue_voucher: '发放凭证',
+  generate_compilation: '生成编研',
+  upload: '上传',
+  destroy: '销毁',
+  upload_destruction_photo: '上传销毁照片',
+}
+
+const businessTypeLabel: Record<string, string> = {
+  borrow_request: '借阅',
+  compilation: '编研',
+  staging_file: '暂存文件',
+  destruction_list: '销毁清册',
 }
 
 // 将详情对象转为简短摘要，避免直接暴露原始 JSON
@@ -178,7 +193,7 @@ function exportLogs() {
     actor: l.actorName || `用户#${l.actorUserId}`,
     actorType: actorTypeLabel[l.actorType] || l.actorType,
     moduleName: l.moduleLabel || l.moduleName,
-    operationType: l.operationType,
+    operationType: l.operationLabel || operationTypeLabel[l.operationType] || l.operationType,
     businessType: l.businessType ?? '',
     businessRef: l.archiveNo || (l.businessId != null ? `#${l.businessId}` : ''),
     ipAddress: l.ipAddress ?? '',

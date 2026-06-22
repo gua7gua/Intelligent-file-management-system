@@ -70,12 +70,25 @@
                   <td>
                     <div class="actions" @click.stop>
                       <el-button size="small" @click="selectRow(f)">编辑</el-button>
-                      <el-button size="small" :type="f.status === 'active' ? 'warning' : 'danger'" :disabled="f.status === 'disabled'" @click="removeOrDisable(f)">{{ f.status === 'disabled' ? '已停用' : '停用' }}</el-button>
+                      <el-button v-if="f.status === 'active'" size="small" type="warning" @click="removeOrDisable(f)">停用</el-button>
+                      <el-button v-else size="small" type="success" @click="enableFonds(f)">启用</el-button>
+                      <el-button size="small" type="danger" @click="onDelete(f)">删除</el-button>
                     </div>
                   </td>
                 </tr>
               </tbody>
             </table>
+            <div v-if="total > 0" style="display:flex;justify-content:flex-end;margin-top:12px">
+              <el-pagination
+                v-model:current-page="pageNo"
+                v-model:page-size="pageSize"
+                :total="total"
+                :page-sizes="[10, 20, 50, 100]"
+                layout="total, sizes, prev, pager, next, jumper"
+                @size-change="loadAll"
+                @current-change="loadAll"
+              />
+            </div>
           </div>
         </div>
 
@@ -107,8 +120,8 @@
 
         <div class="field">
           <label>全宗号</label>
-          <input v-model="form.fondsNo" data-testid="fondsNo" :disabled="!isCreate" :placeholder="isCreate ? '手动输入，创建后不可改' : ''" />
-          <span class="hint">创建后不可修改；新建时手动输入并校验唯一。</span>
+          <input v-model="form.fondsNo" data-testid="fondsNo" :disabled="!isCreate" :placeholder="isCreate ? '留空自动生成（F### 续编）' : ''" />
+          <span class="hint">创建后不可修改；新建时留空则由后端按 F### 续编自动生成并校验唯一。</span>
         </div>
         <div class="field"><label>全宗名称</label><input v-model="form.fondsName" /></div>
         <div class="field">
@@ -137,8 +150,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { createFonds, getFonds, updateFonds } from '@/api/fonds'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { createFonds, getFonds, removeFonds, updateFonds } from '@/api/fonds'
 import { getOrganizations } from '@/api/organizations'
 import { validateFondsForm } from '@/utils/fondsValidation'
 import type { FondsItem } from '@/types/fonds'
@@ -150,6 +163,11 @@ const loading = ref(false)
 const loadError = ref(false)
 const saving = ref(false)
 
+// ── 分页 ──
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
 const filters = reactive({ keyword: '', orgFilter: '' as number | '', relation: '' as '' | 'linked' | 'empty' | 'disabled' })
 const applied = reactive({ keyword: '', orgFilter: '' as number | '', relation: '' as '' | 'linked' | 'empty' | 'disabled' })
 
@@ -158,7 +176,7 @@ const selectedId = ref<number | null>(null)
 const form = reactive({ fondsNo: '', fondsName: '', organizationId: undefined as number | undefined, description: '' })
 
 const metrics = computed(() => ({
-  total: list.value.length,
+  total: total.value,
   active: list.value.filter((f) => f.status === 'active').length,
   archiveSum: list.value.reduce((s, f) => s + f.archiveCount, 0),
   boxSum: list.value.reduce((s, f) => s + f.boxCount, 0),
@@ -183,10 +201,11 @@ async function loadAll() {
   loadError.value = false
   try {
     const [f, o] = await Promise.all([
-      getFonds({ keyword: applied.keyword || undefined, organizationId: applied.orgFilter || undefined, relation: applied.relation || undefined }),
+      getFonds({ pageNo: pageNo.value, pageSize: pageSize.value, keyword: applied.keyword || undefined, organizationId: applied.orgFilter || undefined, relation: applied.relation || undefined }),
       getOrganizations(),
     ])
     list.value = f.records
+    total.value = f.total
     orgs.value = o.records
     if (!selectedId.value && list.value.length) selectRow(list.value[0])
   } catch {
@@ -201,6 +220,7 @@ function applyFilter() {
   applied.keyword = filters.keyword
   applied.orgFilter = filters.orgFilter
   applied.relation = filters.relation
+  pageNo.value = 1
   loadAll()
 }
 function resetFilter() {
@@ -210,6 +230,7 @@ function resetFilter() {
   applied.keyword = ''
   applied.orgFilter = ''
   applied.relation = ''
+  pageNo.value = 1
   loadAll()
 }
 
@@ -266,12 +287,44 @@ async function save() {
 
 async function removeOrDisable(f: FondsItem) {
   try {
-    // 接口文档 §17.4 明确全宗不做物理删除；无论是否有关联数据，统一通过 status=disabled 停用，保留历史档案归属
+    // 停用：仅置 status=disabled，保留全宗与历史归属；如需彻底清理误建全宗，使用「删除」（onDelete，关联 fonds_id 置空）
     await updateFonds(f.id, { status: 'disabled' })
     ElMessage.success(isLinked(f) ? '该全宗已有归档档案或档案盒，已停用。' : '无关联数据的全宗已停用。')
     await loadAll()
   } catch (e) {
     ElMessage.error((e as Error).message || '操作失败')
+  }
+}
+
+async function enableFonds(f: FondsItem) {
+  try {
+    await updateFonds(f.id, { status: 'active' })
+    ElMessage.success('全宗已启用')
+    await loadAll()
+  } catch (e) {
+    ElMessage.error((e as Error).message || '启用失败')
+  }
+}
+
+async function onDelete(f: FondsItem) {
+  const linked = isLinked(f)
+  const tip = linked
+    ? `该全宗关联 ${f.archiveCount} 件档案 / ${f.boxCount} 个档案盒，删除后这些记录的全宗字段将被清空，且不可恢复。确认删除？`
+    : '删除全宗不可恢复，确认删除？'
+  try {
+    await ElMessageBox.confirm(tip, '删除全宗', {
+      type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消',
+    })
+  } catch {
+    return // 用户取消
+  }
+  try {
+    await removeFonds(f.id)
+    ElMessage.success('全宗已删除')
+    if (selectedId.value === f.id) selectedId.value = null
+    await loadAll()
+  } catch (e) {
+    ElMessage.error((e as Error).message || '删除失败')
   }
 }
 

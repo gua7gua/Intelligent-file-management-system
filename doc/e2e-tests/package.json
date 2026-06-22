@@ -1,0 +1,15 @@
+{
+  "name": "archive-e2e-tests",
+  "private": true,
+  "version": "0.1.0",
+  "description": "智能档案管理系统 — Playwright 前端 E2E 测试套件",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0"
+  }
+}

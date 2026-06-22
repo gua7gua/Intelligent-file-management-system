@@ -72,24 +72,11 @@ class AppraisalServiceTest {
     }
 
     @Test
-    void createBatch_年度范围反了抛校验失败() {
-        AppraisalBatchCreateRequest req = new AppraisalBatchCreateRequest();
-        req.setBatchName("批次");
-        req.setFormedYearStart(2020);
-        req.setFormedYearEnd(2019);
-
-        assertThatThrownBy(() -> service.createBatch(req))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_FAILED);
-    }
-
-    @Test
     void createBatch_生成批次号并命中到期档案写入明细() {
         AppraisalBatchCreateRequest req = new AppraisalBatchCreateRequest();
         req.setBatchName("2026 到期会计鉴定");
         req.setCategoryId(3);
-        req.setFormedYearStart(2014);
-        req.setFormedYearEnd(2014);
+        req.setDueDays(365);
         when(appraisalNoUtil.generate()).thenReturn("APP-000001");
 
         Archive a1 = archive(10L, "ARC-000010", "凭证A", 2014, RetentionPeriod._10y, LocalDate.of(2024, 12, 31));

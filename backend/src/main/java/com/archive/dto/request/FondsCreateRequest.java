@@ -7,7 +7,6 @@ import lombok.Data;
 
 @Data
 public class FondsCreateRequest {
-    @NotBlank(message = "全宗号不能为空")
     @Size(max = 64, message = "全宗号长度不能超过 64")
     private String fondsNo;
 

@@ -41,7 +41,7 @@
           </thead>
           <tbody>
             <tr v-for="l in records" :key="l.id">
-              <td class="mono">{{ l.accessedAt }}</td>
+              <td class="mono">{{ l.accessedAt ? new Date(l.accessedAt).toLocaleString('zh-CN') : '-' }}</td>
               <td>{{ l.userName || l.actorName || (l.userId ? `用户#${l.userId}` : '匿名') }}</td>
               <td>{{ l.userType }}</td>
               <td>{{ l.archiveNo || `档案#${l.archiveId}` }}</td>

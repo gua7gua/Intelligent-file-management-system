@@ -5,6 +5,11 @@
       <p class="page-subtitle">
         跟踪本单位移交清单从编制到上架的全过程。
       </p>
+      <p v-if="authStore.user" class="page-subtitle">
+        当前账号：<strong>{{ authStore.user.realName }}</strong>
+        <span v-if="authStore.user.departmentName"> · 部门：{{ authStore.user.departmentName }}</span>
+        <span v-if="authStore.user.phone"> · 电话：{{ authStore.user.phone }}</span>
+      </p>
     </section>
 
     <!-- 加载状态 -->
@@ -111,6 +116,8 @@
                   v-for="batch in filteredBatches"
                   :key="batch.id"
                   :class="['batch-row', { active: selectedBatchId === batch.id }]"
+                  style="cursor: pointer"
+                  @click="selectedBatchId = batch.id"
                 >
                   <td>
                     <button type="button" @click="selectedBatchId = batch.id">
@@ -156,14 +163,14 @@
               <span>经办人</span><strong>{{ selectedBatch.contactName }} {{ selectedBatch.contactPhone }}</strong>
             </div>
             <div class="meta-item">
-              <span>提交时间</span><strong>{{ selectedBatch.submittedAt || '未提交' }}</strong>
+              <span>提交时间</span><strong>{{ selectedBatch.submittedAt ? new Date(selectedBatch.submittedAt).toLocaleString('zh-CN') : '未提交' }}</strong>
             </div>
             <div class="meta-item">
-              <span>接收时间</span><strong>{{ selectedBatch.receivedAt || '未接收' }}</strong>
+              <span>接收时间</span><strong>{{ selectedBatch.receivedAt ? new Date(selectedBatch.receivedAt).toLocaleString('zh-CN') : '未接收' }}</strong>
             </div>
             <div class="meta-item">
               <span>入库 / 上架</span
-              ><strong>{{ selectedBatch.archivedAt || '未入库' }} / {{ selectedBatch.shelvedAt || '未上架' }}</strong>
+              ><strong>{{ selectedBatch.archivedAt ? new Date(selectedBatch.archivedAt).toLocaleString('zh-CN') : '未入库' }} / {{ selectedBatch.shelvedAt ? new Date(selectedBatch.shelvedAt).toLocaleString('zh-CN') : '未上架' }}</strong>
             </div>
           </div>
 
@@ -238,6 +245,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getTransferDashboard, getTransferBatches, getTransferBatchDetail, exportTransferBatch } from '@/api/transfer'
 import type { TransferDashboard, TransferBatch, TransferBatchDetail } from '@/types/transfer'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 const tabs = [
   { label: '全部', value: 'all' },
@@ -340,6 +350,7 @@ function itemStatusLabel(status: string): string {
     accepted: '已接收',
     rejected: '已回退',
     archived: '已入库',
+    pending_archive: '待入库',
   }
   return map[status] || status
 }
@@ -387,9 +398,15 @@ async function loadData() {
   }
 }
 
-watch(selectedBatch, () => {
-  loadDetail()
-})
+// 直接监听原始 id 而非 computed 对象，确保切换清单立即重载详情，
+// 避免对象引用比较导致的偶发不触发；immediate 保证初始化也加载首个批次
+watch(
+  selectedBatchId,
+  () => {
+    loadDetail()
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   loadData()

@@ -36,4 +36,11 @@ public class AnalysisTaskResponse {
     private double progress;
     /** 创建时间。 */
     private OffsetDateTime createdAt;
+
+    /** AI 建议执行状态：success(全成功)/partial(部分失败)/failed(全失败或异常)/skipped(未启用AI)。 */
+    private String aiStatus;
+    /** AI 批次总数。 */
+    private long aiTotalBatches;
+    /** AI 失败批次数。 */
+    private long aiFailedBatches;
 }

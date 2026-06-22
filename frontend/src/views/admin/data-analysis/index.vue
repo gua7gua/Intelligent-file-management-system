@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  createAnalysisTask, getAnalysisTaskDetail, getAnalysisTasks, handleAnalysisItem,
+  createAnalysisTask, deleteAnalysisItem, deleteAnalysisTask, getAnalysisTaskDetail, getAnalysisTasks, handleAnalysisItem,
 } from '@/api/data-analysis'
 import type { AnalysisItem, AnalysisTask, AnalysisTaskDetail } from '@/types/data-analysis'
 import type { AnalysisTaskTypeValue } from '@/types/enums'
@@ -19,6 +19,11 @@ const newTaskType = ref<AnalysisTaskTypeValue>('mixed')
 const newIncludeAi = ref(true)
 const filterStatus = ref<'' | 'running' | 'completed' | 'failed'>('')
 
+// ── 分页（任务列表） ──
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
 // 扫描范围：档案门类多选 + 形成年度范围。
 // 门类 id 与档案管理页 categoryTree 一致（1=文书 2=科技 3=会计 4=音像 5=人事）。
 const scanCategories = [
@@ -33,14 +38,21 @@ const newYearStart = ref<number>(2010)
 const newYearEnd = ref<number>(2026)
 
 const filteredTasks = computed(() => filterStatus.value ? tasks.value.filter((t) => t.status === filterStatus.value) : tasks.value)
-const adoptedQueue = computed(() => current.value?.items.filter((i) => i.status === 'adopted') ?? [])
+// 异常建议列表状态筛选：默认只看待处理；采纳/不采纳后项移出当前视图，删除则彻底软删移除
+const itemFilterStatus = ref<'all' | 'pending' | 'adopted' | 'rejected'>('pending')
+const filteredItems = computed(() => {
+  const items = current.value?.items ?? []
+  if (itemFilterStatus.value === 'all') return items
+  return items.filter((i) => i.status === itemFilterStatus.value)
+})
 
 async function load() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const page = await getAnalysisTasks({ pageSize: 50 })
+    const page = await getAnalysisTasks({ pageNo: pageNo.value, pageSize: pageSize.value })
     tasks.value = page.records
+    total.value = page.total
     if (tasks.value.length) await selectTask(tasks.value[0].id)
   } catch (e) {
     errorMsg.value = (e as Error).message || '研判任务加载失败'
@@ -49,12 +61,108 @@ async function load() {
   }
 }
 
+// running 任务轮询：完成后自动刷新详情并停止，并根据 AI 执行状态分级提示
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollRetry = 0
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+}
+function startPolling(taskId: number) {
+  stopPolling()
+  pollRetry = 0
+  pollTimer = setInterval(async () => {
+    if (!current.value) { stopPolling(); return }
+    try {
+      const fresh = await getAnalysisTaskDetail(taskId)
+      current.value = fresh
+      if (fresh.status !== 'running') {
+        stopPolling()
+        notifyTaskDone(fresh)
+        // 完成后刷新任务列表，让列表状态徽标同步
+        refreshTaskList()
+      } else {
+        pollRetry = 0
+      }
+    } catch {
+      // 单次失败不立即停止，退避重试几次（避免网络抖动导致永久停止需手动刷新）
+      pollRetry++
+      if (pollRetry > 3) stopPolling()
+    }
+  }, 3000)
+}
+
+// 按 AI 执行状态分级提示：失败/部分失败时 warning，避免伪装成完全成功
+function notifyTaskDone(t: AnalysisTaskDetail) {
+  const ai = t.aiStatus
+  if (ai === 'failed') {
+    ElMessage.warning('AI 建议获取失败，仅展示规则结果。')
+  } else if (ai === 'partial') {
+    ElMessage.warning('部分 AI 建议获取失败，结果可能不完整。')
+  } else {
+    ElMessage.success('研判任务已完成，结果已刷新。')
+  }
+}
+
+async function refreshTaskList() {
+  try {
+    const page = await getAnalysisTasks({ pageNo: pageNo.value, pageSize: pageSize.value })
+    tasks.value = page.records
+    total.value = page.total
+  } catch {
+    // 列表刷新失败不影响已展示的详情
+  }
+}
+
 async function selectTask(id: number) {
   try {
     current.value = await getAnalysisTaskDetail(id)
     selectedItem.value = current.value.items[0] ?? null
+    if (current.value.status === 'running') startPolling(id)
+    else stopPolling()
   } catch (e) {
     ElMessage.warning((e as Error).message)
+  }
+}
+
+// 删除研判任务（仅 completed/failed 可删，running 不可删）
+async function deleteTask(t: AnalysisTask) {
+  try {
+    await ElMessageBox.confirm(
+      '删除该研判任务及全部异常项，不可恢复？',
+      '提示',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteAnalysisTask(t.id)
+    ElMessage.success('研判任务已删除。')
+    if (current.value?.id === t.id) current.value = null
+    await load()
+  } catch (e) {
+    ElMessage.error((e as Error).message || '删除研判任务失败')
+  }
+}
+
+// 删除单条异常项（R3-C2：走完闭环——可扫描产生/采纳不采纳/删除；软删保留留痕）
+async function deleteItem(item: AnalysisItem) {
+  try {
+    await ElMessageBox.confirm('删除该异常项？删除后列表不再展示（数据软删保留留痕）。', '提示', {
+      type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消',
+    })
+  } catch {
+    return
+  }
+  try {
+    await deleteAnalysisItem(item.id)
+    ElMessage.success('异常项已删除。')
+    if (current.value) {
+      await selectTask(current.value.id)
+      // 删掉的恰好是当前选中项时，selectTask 会重置为 items[0]
+    }
+  } catch (e) {
+    ElMessage.error((e as Error).message || '删除异常项失败')
   }
 }
 
@@ -72,7 +180,7 @@ async function doHandle(action: 'adopted' | 'rejected') {
   if (!selectedItem.value) return
   try {
     await handleAnalysisItem(selectedItem.value.id, { action })
-    ElMessage.success(action === 'adopted' ? '已采纳，加入待处理队列' : '已不采纳')
+    ElMessage.success(action === 'adopted' ? '已采纳' : '已不采纳，该档案下次扫描将永久跳过')
     if (current.value) await selectTask(current.value.id)
   } catch (e) {
     ElMessage.warning((e as Error).message)
@@ -106,15 +214,13 @@ async function startScan() {
   }
 }
 
-function generateList() {
-  if (!adoptedQueue.value.length) {
-    ElMessage.warning('请先采纳建议，再生成待补充清单')
-    return
-  }
-  ElMessage.success(`已生成待补充清单（${adoptedQueue.value.length} 条），请前往档案管理页人工处理`)
+async function onDelete() {
+  if (!selectedItem.value) return
+  await deleteItem(selectedItem.value)
 }
 
 onMounted(load)
+onUnmounted(stopPolling)
 </script>
 
 <template>
@@ -126,7 +232,6 @@ onMounted(load)
       </div>
       <div class="actions">
         <button class="button secondary scan-start" id="startScan" @click="startScan"><span class="icon">S</span>开始扫描</button>
-        <button class="button" id="makeQueue" @click="generateList"><span class="icon">Q</span>生成待补充清单</button>
       </div>
     </div>
 
@@ -208,13 +313,40 @@ onMounted(load)
               <span class="muted">{{ AnalysisTaskTypeLabel[t.scanMethod ?? 'mixed'] }}</span>
               <span class="status">{{ AnalysisTaskStatusLabel[t.status] }}</span>
               <span class="muted">{{ t.abnormalCount }} 项</span>
+              <span class="task-action">
+                <el-button
+                  v-if="t.status === 'completed' || t.status === 'failed'"
+                  size="small"
+                  type="danger"
+                  @click.stop="deleteTask(t)"
+                >删除</el-button>
+              </span>
             </li>
           </ul>
+          <div v-if="total > 0" style="display:flex;justify-content:flex-end;margin-top:12px">
+            <el-pagination
+              v-model:current-page="pageNo"
+              v-model:page-size="pageSize"
+              :total="total"
+              :page-sizes="[10, 20, 50, 100]"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="load"
+              @current-change="load"
+            />
+          </div>
         </div>
 
         <div class="card panel">
-          <h2 class="section-title">异常建议列表</h2>
-          <div class="table-wrap">
+          <div class="toolbar" style="margin-top:0">
+            <h2 class="section-title">异常建议列表</h2>
+            <div class="tabs" style="margin-left:auto">
+              <button class="tab" :class="{ active: itemFilterStatus === 'pending' }" @click="itemFilterStatus = 'pending'">待处理</button>
+              <button class="tab" :class="{ active: itemFilterStatus === 'adopted' }" @click="itemFilterStatus = 'adopted'">已采纳</button>
+              <button class="tab" :class="{ active: itemFilterStatus === 'rejected' }" @click="itemFilterStatus = 'rejected'">已不采纳</button>
+              <button class="tab" :class="{ active: itemFilterStatus === 'all' }" @click="itemFilterStatus = 'all'">全部</button>
+            </div>
+          </div>
+          <div class="table-wrap item-table-wrap">
             <table>
               <thead>
                 <tr>
@@ -228,7 +360,7 @@ onMounted(load)
               </thead>
               <tbody>
                 <tr
-                  v-for="i in current?.items ?? []"
+                  v-for="i in filteredItems"
                   :key="i.id"
                   :class="{ active: selectedItem?.id === i.id }"
                   style="cursor:pointer"
@@ -241,8 +373,8 @@ onMounted(load)
                   <td>{{ i.suggestedAction }}</td>
                   <td><span class="status">{{ AnalysisItemStatusLabel[i.status] }}</span></td>
                 </tr>
-                <tr v-if="!current || !current.items.length">
-                  <td colspan="6" class="muted" style="text-align:center;padding:16px;">暂无异常建议。</td>
+                <tr v-if="!filteredItems.length">
+                  <td colspan="6" class="muted" style="text-align:center;padding:16px;">当前筛选下暂无异常建议。</td>
                 </tr>
               </tbody>
             </table>
@@ -258,26 +390,28 @@ onMounted(load)
             <div class="detail-line"><span>题名</span><strong>{{ selectedItem.title }}</strong></div>
             <div class="detail-line"><span>问题</span><strong>{{ selectedItem.problemDesc }}</strong></div>
             <div class="detail-line"><span>建议</span><strong>{{ selectedItem.suggestedAction }}</strong></div>
+            <div v-if="selectedItem.suggestion?.candidates?.length" class="candidates">
+              <div class="candidates-title">AI 候选明细（字段 / 原值 / 建议值 / 置信度）</div>
+              <div v-for="(c, idx) in selectedItem.suggestion.candidates" :key="idx" class="candidate">
+                <div class="cand-row"><span>字段</span><strong>{{ c.field }}</strong></div>
+                <div class="cand-row"><span>原值</span><strong>{{ c.currentValue || '（空）' }}</strong></div>
+                <div class="cand-row"><span>建议值</span><strong>{{ (c.suggestedValue || []).join('、') || '—' }}</strong></div>
+                <div class="cand-row"><span>置信度</span><strong>{{ Math.round((c.confidence || 0) * 100) }}%</strong></div>
+              </div>
+            </div>
             <div class="actions" style="margin-top:12px">
               <button class="button secondary" :disabled="selectedItem.status !== 'pending'" @click="onAdopt">采纳</button>
               <button class="button ghost" :disabled="selectedItem.status !== 'pending'" @click="onReject">不采纳</button>
+              <el-button size="small" type="danger" @click="onDelete">删除</el-button>
               <span class="status">{{ AnalysisItemStatusLabel[selectedItem.status] }}</span>
             </div>
           </template>
           <p v-else class="muted">请从左侧列表选择一条异常建议。</p>
         </div>
 
-        <div class="card panel">
-          <h2 class="section-title">待处理队列</h2>
-          <ul class="queue">
-            <li v-for="q in adoptedQueue" :key="q.id"><span class="mono">{{ q.archiveNo }}</span> {{ q.title }}</li>
-            <li v-if="!adoptedQueue.length" class="muted">暂无已采纳建议。</li>
-          </ul>
-        </div>
-
         <div class="notice">
-          <strong>处理边界</strong>
-          <div>采纳或不采纳只更新建议状态；正式档案字段需在档案管理页人工确认。</div>
+          <strong>处理说明</strong>
+          <div>采纳：进入档案管理页人工处理；不采纳：认定该档案无问题，下次扫描永久跳过；删除：本次建议有误但可能仍有问题，软删本次建议，下次扫描仍会检查。</div>
         </div>
       </aside>
     </div>
@@ -289,7 +423,7 @@ onMounted(load)
 .stack { display: grid; gap: 16px; }
 .form-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
 .field { display: grid; gap: 4px; }
-.field select { padding: 6px 8px; }
+.field select { padding: 6px 8px; height: 32px; box-sizing: border-box; line-height: 1.4; }
 .check { display: flex; align-items: center; gap: 6px; }
 .check input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; }
 .scope-checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
@@ -302,10 +436,18 @@ onMounted(load)
 .progress { height: 8px; background: #f0f2f5; border-radius: 4px; overflow: hidden; }
 .progress span { display: block; height: 100%; background: var(--primary, #1f6f78); transition: width .3s; }
 .task-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; max-height: 180px; overflow: auto; }
-.task-item { display: grid; grid-template-columns: 120px minmax(0,1fr) 70px 70px 60px; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; }
+.task-item { display: grid; grid-template-columns: 120px minmax(0,1fr) 70px 70px 60px 64px; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; }
+.task-action { display: flex; justify-content: flex-end; }
+.task-action :deep(.el-button) { margin-left: 0; }
 .task-item:hover { border-color: var(--primary, #1f6f78); }
 .task-item.active { border-color: var(--primary, #1f6f78); background: rgba(31,111,120,0.06); }
 .detail-line { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.candidates { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); display: grid; gap: 8px; max-height: 220px; overflow-y: auto; }
+.item-table-wrap { max-height: 480px; overflow-y: auto; }
+.candidates-title { font-size: 12px; color: var(--muted, #909399); font-weight: 700; }
+.candidate { padding: 8px 10px; border: 1px solid var(--border, #ebeef5); border-radius: 6px; background: #f7f9fc; display: grid; gap: 4px; }
+.cand-row { display: grid; grid-template-columns: 56px minmax(0,1fr); gap: 8px; font-size: 13px; }
+.cand-row span { color: #909399; }
 .queue { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .actions { display: flex; align-items: center; gap: 8px; }
 .tabs { display: flex; gap: 4px; }

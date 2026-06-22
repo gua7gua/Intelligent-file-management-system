@@ -29,7 +29,8 @@ export interface AnalysisTaskParams extends PageParams {
 export interface AnalysisSuggestionCandidate {
   field: string
   currentValue?: string
-  suggestedValue: string
+  /** 建议值；field 为 tags 时为标签字符串数组。 */
+  suggestedValue: string[]
   confidence: number
 }
 
@@ -73,6 +74,10 @@ export interface AnalysisTask {
   startedAt?: string
   completedAt?: string
   createdAt: string
+  /** AI 建议执行状态：success(全成功)/partial(部分失败)/failed(全失败或异常)/skipped(未启用AI) */
+  aiStatus?: 'success' | 'partial' | 'failed' | 'skipped'
+  aiTotalBatches?: number
+  aiFailedBatches?: number
 }
 
 /** 研判任务详情（§20.6） */

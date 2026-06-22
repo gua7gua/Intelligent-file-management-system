@@ -494,6 +494,7 @@ export const AnalysisProblemType = {
   MISSING_FIELD: 'missing_field',
   CATEGORY_CONFLICT: 'category_conflict',
   TAG_SUGGESTION: 'tag_suggestion',
+  TAG_WRONG: 'tag_wrong',
   DATE_ABNORMAL: 'date_abnormal',
   DUPLICATE: 'duplicate',
 } as const
@@ -521,6 +522,7 @@ export const CompilationStatusLabel: Record<string, string> = {
 export const AnalysisTaskStatusLabel: Record<string, string> = {
   running: '执行中',
   completed: '已完成',
+  partial_completed: '部分完成',
   failed: '失败',
 }
 export const AnalysisTaskTypeLabel: Record<string, string> = {
@@ -537,6 +539,7 @@ export const AnalysisProblemTypeLabel: Record<string, string> = {
   missing_field: '缺失字段',
   category_conflict: '分类冲突',
   tag_suggestion: '标签建议',
+  tag_wrong: '标签错配',
   date_abnormal: '日期异常',
   duplicate: '疑似重复',
 }

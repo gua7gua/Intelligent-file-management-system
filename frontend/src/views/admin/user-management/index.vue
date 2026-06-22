@@ -54,13 +54,24 @@
                   <td>
                     <div class="actions">
                       <el-button size="small" @click="editUser(u)">编辑</el-button>
-                      <el-button size="small" type="warning" @click="resetPwd(u)">重置</el-button>
                       <el-button size="small" :type="u.status === 'active' ? 'danger' : 'success'" @click="toggleStatus(u)">{{ u.status === 'active' ? '禁用' : '启用' }}</el-button>
+                      <el-button size="small" type="danger" :disabled="u.status !== 'disabled'" :title="u.status !== 'disabled' ? '仅已禁用且无业务关联的账号可删除' : ''" @click="deleteUsr(u)">删除</el-button>
                     </div>
                   </td>
                 </tr>
               </tbody>
             </table>
+          </div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 12px">
+            <el-pagination
+              v-model:current-page="pageNo"
+              v-model:page-size="pageSize"
+              :total="total"
+              :page-sizes="[10, 20, 50, 100]"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="loadUsersPage"
+              @current-change="loadUsersPage"
+            />
           </div>
         </div>
 
@@ -71,18 +82,12 @@
               <li v-for="o in organizations" :key="o.id">
                 <strong>{{ o.orgName }}</strong>
                 <span class="muted">{{ orgTypeLabel[o.orgType] || o.orgType }} · 全宗 {{ o.fondsCount }} · 用户 {{ o.userCount }} · {{ o.status === 'active' ? '正常' : '停用' }}</span>
-                <el-button
-                  v-if="o.status === 'active'"
-                  size="small"
-                  :type="isOrgLinked(o) ? 'warning' : 'danger'"
-                  @click="removeOrDisableOrg(o)"
-                >{{ isOrgLinked(o) ? '停用' : '删除' }}</el-button>
-                <el-button
-                  v-else
-                  size="small"
-                  type="success"
-                  @click="toggleOrgStatus(o)"
-                >启用</el-button>
+                <div class="actions">
+                <el-button size="small" @click="openEditOrgDialog(o)">编辑</el-button>
+                <el-button v-if="o.status === 'active'" size="small" type="warning" @click="toggleOrgStatus(o)">停用</el-button>
+                <el-button v-else size="small" type="success" @click="toggleOrgStatus(o)">启用</el-button>
+                <el-button size="small" type="danger" :disabled="isOrgLinked(o)" :title="isOrgLinked(o) ? '存在关联全宗或用户，请先解除关联或改用停用' : ''" @click="onDeleteOrg(o)">删除</el-button>
+                </div>
               </li>
             </ul>
           </div>
@@ -129,6 +134,14 @@
           </div>
           <div v-if="isCreate" class="field" style="margin-top:10px"><label>初始密码</label><input v-model="form.initialPassword" type="text" /></div>
 
+          <div v-if="!isCreate" class="field" style="margin-top:10px">
+            <label>重置密码</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input v-model="form.resetPassword" type="password" placeholder="输入新密码（≥6位），点右侧按钮重置" autocomplete="new-password" />
+              <el-button size="small" type="warning" :loading="resetting" @click="applyResetPwd">重置密码</el-button>
+            </div>
+          </div>
+
           <h3 class="section-title" style="margin-top:16px">预设角色</h3>
           <div class="role-grid">
             <label class="role-check" v-for="r in internalRoles" :key="r.roleCode">
@@ -152,7 +165,7 @@
       </aside>
     </div>
 
-    <el-dialog v-if="orgDialogVisible" v-model="orgDialogVisible" title="新增组织" width="420px" :append-to-body="false">
+    <el-dialog v-if="orgDialogVisible" v-model="orgDialogVisible" :title="editingOrg ? '编辑组织' : '新增组织'" width="420px" :append-to-body="false">
       <div class="form-grid" style="grid-template-columns:1fr">
         <div class="field"><label>组织名称</label><input v-model="orgForm.orgName" data-testid="orgName" placeholder="组织名称" /></div>
         <div class="field">
@@ -178,7 +191,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { createUser, getRoles, getUserDetail, getUsers, resetUserPassword, updateUser, updateUserStatus } from '@/api/user-management'
+import { createUser, deleteUser, getRoles, getUserDetail, getUsers, resetUserPassword, updateUser, updateUserStatus } from '@/api/user-management'
 import { createOrganization, deleteOrganization, getOrganizations, updateOrganization } from '@/api/organizations'
 import { getFonds } from '@/api/fonds'
 import type { Role, User } from '@/types/user-management'
@@ -194,8 +207,13 @@ const organizations = ref<Organization[]>([])
 const fonds = ref<FondsReference[]>([])
 const loading = ref(false)
 const loadError = ref(false)
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 const saving = ref(false)
+const resetting = ref(false)
 const orgDialogVisible = ref(false)
+const editingOrg = ref<Organization | null>(null)
 const orgSaving = ref(false)
 const orgForm = reactive({
   orgName: '',
@@ -219,6 +237,7 @@ const form = reactive({
   maxSecurityLevel: 0,
   roleCodes: [] as string[],
   initialPassword: '123456',
+  resetPassword: '',
 })
 
 const internalRoles = computed(() => roles.value.filter((r) => r.roleCode !== 'public_user'))
@@ -245,8 +264,14 @@ async function loadAll() {
   loading.value = true
   loadError.value = false
   try {
-    const [u, r, o, f] = await Promise.all([getUsers({ roleCode: appliedRoleFilter.value || undefined }), getRoles(), getOrganizations(), getFonds()])
+    const [u, r, o, f] = await Promise.all([
+      getUsers({ roleCode: appliedRoleFilter.value || undefined, pageNo: pageNo.value, pageSize: pageSize.value }),
+      getRoles(),
+      getOrganizations(),
+      getFonds(),
+    ])
     users.value = u.records
+    total.value = u.total
     roles.value = r
     organizations.value = o.records
     fonds.value = f.records
@@ -258,8 +283,25 @@ async function loadAll() {
   }
 }
 
+// 仅刷新用户分页列表（翻页/改每页条数时调用，避免重复拉取角色/组织/全宗）
+async function loadUsersPage() {
+  loading.value = true
+  loadError.value = false
+  try {
+    const u = await getUsers({ roleCode: appliedRoleFilter.value || undefined, pageNo: pageNo.value, pageSize: pageSize.value })
+    users.value = u.records
+    total.value = u.total
+  } catch {
+    loadError.value = true
+    ElMessage.error('用户数据加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
 function applyFilter() {
   appliedRoleFilter.value = roleFilter.value
+  pageNo.value = 1
   loadAll()
 }
 
@@ -292,6 +334,7 @@ async function editUser(u: User) {
   form.dataScope = detail.dataScope
   form.maxSecurityLevel = detail.maxSecurityLevel
   form.roleCodes = [...detail.roleCodes]
+  form.resetPassword = ''
   ElMessage.success('已载入账号：' + detail.loginName)
 }
 
@@ -330,13 +373,25 @@ async function saveUser() {
   }
 }
 
-async function resetPwd(u: User) {
+async function applyResetPwd() {
+  if (!editingId.value) return
+  const pwd = (form.resetPassword || '').trim()
+  if (!pwd) { ElMessage.error('请输入新密码'); return }
+  if (pwd.length < 6) { ElMessage.error('密码至少 6 位'); return }
   try {
-    await ElMessageBox.confirm(`确认重置用户「${u.realName}」的密码？`, '重置密码', { type: 'warning' })
-    await resetUserPassword(u.id, { newPassword: '123456' })
-    ElMessage.success('已生成密码重置记录，需通知用户首次登录修改。')
+    await ElMessageBox.confirm(`确认将账号「${form.loginName}」的密码重置为新输入的密码？`, '重置密码', { type: 'warning' })
   } catch {
-    // 用户取消
+    return // 用户取消
+  }
+  resetting.value = true
+  try {
+    await resetUserPassword(editingId.value, { newPassword: pwd })
+    ElMessage.success('密码已重置，请通知用户。')
+    form.resetPassword = ''
+  } catch (e) {
+    ElMessage.error((e as Error).message || '重置失败')
+  } finally {
+    resetting.value = false
   }
 }
 
@@ -362,11 +417,41 @@ async function toggleStatus(u: User) {
   await loadAll()
 }
 
+// 删除账号（仅已禁用账号可删，后端校验无 borrow/approval/transfer 等业务关联）
+async function deleteUsr(u: User) {
+  try {
+    await ElMessageBox.confirm(
+      '删除后不可恢复。仅已禁用且无 borrow/approval/transfer 等业务关联的账号可删除，是否继续？',
+      '提示',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteUser(u.id)
+    ElMessage.success('账号已删除。')
+    await loadAll()
+  } catch (e) {
+    ElMessage.error((e as Error).message || '删除账号失败')
+  }
+}
+
 function openOrgDialog() {
+  editingOrg.value = null
   orgForm.orgName = ''
   orgForm.orgType = 'government'
   orgForm.contactName = ''
   orgForm.contactPhone = ''
+  orgDialogVisible.value = true
+}
+
+function openEditOrgDialog(o: Organization) {
+  editingOrg.value = o
+  orgForm.orgName = o.orgName
+  orgForm.orgType = o.orgType as typeof orgForm.orgType
+  orgForm.contactName = o.contactName ?? ''
+  orgForm.contactPhone = o.contactPhone ?? ''
   orgDialogVisible.value = true
 }
 
@@ -377,13 +462,19 @@ async function submitOrg() {
   }
   orgSaving.value = true
   try {
-    await createOrganization({ orgName: orgForm.orgName, orgType: orgForm.orgType, contactName: orgForm.contactName, contactPhone: orgForm.contactPhone })
-    ElMessage.success('组织已新增。')
+    if (editingOrg.value) {
+      await updateOrganization(editingOrg.value.id, { orgName: orgForm.orgName, orgType: orgForm.orgType, contactName: orgForm.contactName, contactPhone: orgForm.contactPhone })
+      ElMessage.success('组织已更新。')
+    } else {
+      await createOrganization({ orgName: orgForm.orgName, orgType: orgForm.orgType, contactName: orgForm.contactName, contactPhone: orgForm.contactPhone })
+      ElMessage.success('组织已新增。')
+    }
     orgDialogVisible.value = false
+    editingOrg.value = null
     const o = await getOrganizations()
     organizations.value = o.records
   } catch (e) {
-    ElMessage.error((e as Error).message || '新增组织失败')
+    ElMessage.error((e as Error).message || '保存组织失败')
   } finally {
     orgSaving.value = false
   }
@@ -394,32 +485,25 @@ function isOrgLinked(o: Organization): boolean {
   return (o.fondsCount ?? 0) > 0 || (o.userCount ?? 0) > 0
 }
 
-// 组织删除/停用（§17.8）：无关联全宗和用户时可删除，有关联则停用
-async function removeOrDisableOrg(o: Organization) {
-  const linked = isOrgLinked(o)
-  const action = linked ? '停用' : '删除'
+// 组织删除（独立按钮，§17.8）：有关联全宗/用户/档案/移交批次时按钮禁用并提示；
+// 无关联时二次确认后软删除。
+async function onDeleteOrg(o: Organization) {
   try {
     await ElMessageBox.confirm(
-      linked
-        ? `组织「${o.orgName}」存在关联全宗或用户，将改为停用？`
-        : `确认删除组织「${o.orgName}」？删除后不可恢复。`,
-      `${action}组织`,
-      { type: 'warning' },
+      `确认删除组织「${o.orgName}」？删除后不可恢复。`,
+      '删除组织',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' },
     )
   } catch {
     return
   }
   try {
-    if (linked) {
-      await updateOrganization(o.id, { status: 'disabled' })
-    } else {
-      await deleteOrganization(o.id)
-    }
-    ElMessage.success(`已${action}组织。`)
+    await deleteOrganization(o.id)
+    ElMessage.success('组织已删除。')
     const res = await getOrganizations()
     organizations.value = res.records
   } catch (e) {
-    ElMessage.error((e as Error).message || `${action}组织失败`)
+    ElMessage.error((e as Error).message || '删除组织失败')
   }
 }
 

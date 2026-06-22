@@ -43,3 +43,8 @@ export function exportTransferBatch(batchId: number): Promise<Blob> {
   if (USE_MOCK) return import('@/mock/modules/transfer').then((m) => m.mockExportTransferBatch(batchId))
   return request.get(`/transfer/batches/${batchId}/export`, { responseType: 'blob' })
 }
+
+/** 删除草稿清单（仅未提交的草稿可删） */
+export function deleteTransferBatch(batchId: number): Promise<void> {
+  return request.delete(`/transfer/batches/${batchId}`)
+}

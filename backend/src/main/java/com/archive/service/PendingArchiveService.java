@@ -212,7 +212,6 @@ public class PendingArchiveService {
                     s.setId(b.getId());
                     s.setBoxNo(b.getBoxNo());
                     s.setCategoryId(b.getCategoryId());
-                    s.setFondsId(b.getFondsId());
                     s.setUsedCount(b.getUsedCount());
                     s.setCapacity(b.getCapacity());
                     return s;
@@ -247,6 +246,7 @@ public class PendingArchiveService {
                 .orderByDesc("started_at")
                 .last("limit 1"));
         resp.setLatestAiTaskStatus(latestAiTaskInDetail != null ? latestAiTaskInDetail.getStatus() : null);
+        resp.setLatestAiTaskId(latestAiTaskInDetail != null ? latestAiTaskInDetail.getId() : null);
 
         return resp;
     }
@@ -343,16 +343,17 @@ public class PendingArchiveService {
         archive.setSecurityLevel(item.getSecurityLevel() != null ? item.getSecurityLevel() : 0);
         archive.setOpenStatus(item.getOpenStatus() != null ? item.getOpenStatus() : "open");
         archive.setAllowDigitization(item.getAllowDigitization() != null ? item.getAllowDigitization() : false);
-        archive.setLoanStatus(LoanStatus.available);
         archive.setConditionStatus(ConditionStatus.normal);
         archive.setArchivedAt(OffsetDateTime.now());
 
-        // 生命周期：纯电子 → normal，纸质相关 → pending_shelf
+        // 生命周期 + 借阅状态：纯电子 → normal/可借；纸质相关 → pending_shelf/未上架不可借（P2-3）
         boolean isElectronic = item.getCarrierStatus() == CarrierStatus.electronic;
         if (isElectronic) {
             archive.setLifecycleStatus(LifecycleStatus.normal);
+            archive.setLoanStatus(LoanStatus.available);
         } else {
             archive.setLifecycleStatus(LifecycleStatus.pending_shelf);
+            archive.setLoanStatus(LoanStatus.not_on_shelf);
         }
 
         // 计算 retention_until
@@ -385,16 +386,11 @@ public class PendingArchiveService {
                         "档案盒已满，请选择其他档案盒");
             }
 
-            // 校验同盒分类/全宗一致
+            // 校验同盒分类一致
             if (box.getCategoryId() != null && item.getConfirmedCategoryId() != null
                     && !box.getCategoryId().equals(item.getConfirmedCategoryId())) {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED,
                         "同盒档案分类必须一致");
-            }
-            if (box.getFondsId() != null && req.getFondsId() != null
-                    && !box.getFondsId().equals(req.getFondsId())) {
-                throw new BusinessException(ErrorCode.VALIDATION_FAILED,
-                        "同盒档案全宗必须一致");
             }
 
             // 创建盒内关系
@@ -498,6 +494,7 @@ public class PendingArchiveService {
             Archive archive = archiveMapper.selectById(archiveId);
             if (archive != null && archive.getLifecycleStatus() == LifecycleStatus.pending_shelf) {
                 archive.setLifecycleStatus(LifecycleStatus.normal);
+                archive.setLoanStatus(LoanStatus.available); // P2-3：上架恢复可借
                 archive.setShelvedAt(now);
                 archiveMapper.updateById(archive);
             }

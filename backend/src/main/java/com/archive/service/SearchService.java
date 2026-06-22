@@ -8,6 +8,7 @@ import com.archive.dto.response.ArchiveSummaryResponse;
 import com.archive.entity.Archive;
 import com.archive.entity.ArchiveFile;
 import com.archive.enums.DataScope;
+import com.archive.enums.SecurityLevel;
 import com.archive.exception.BusinessException;
 import com.archive.mapper.ArchiveAccessLogMapper;
 import com.archive.mapper.ArchiveFileMapper;
@@ -105,8 +106,15 @@ public class SearchService {
         if (query.getSecurityLevel() != null) {
             w.eq("security_level", query.getSecurityLevel());
         }
+        if (query.getSecurityLevelMax() != null) {
+            // 与权限上限 maxSecurityLevel 取交集（更严者生效）
+            w.le("security_level", query.getSecurityLevelMax());
+        }
         if (query.getOpenStatus() != null && !query.getOpenStatus().isBlank()) {
             w.eq("open_status", query.getOpenStatus());
+        }
+        if (query.getLoanStatus() != null && !query.getLoanStatus().isBlank()) {
+            w.eq("loan_status", query.getLoanStatus());
         }
         return w;
     }
@@ -125,10 +133,30 @@ public class SearchService {
         if (q.getResponsibleText() != null && !q.getResponsibleText().isBlank())
             w.like("responsible_text", q.getResponsibleText());
         if (q.getTagIds() != null && !q.getTagIds().isBlank()) {
-            List<Long> tagIdList = parseLongCsv(q.getTagIds());
-            if (!tagIdList.isEmpty()) {
-                String idList = tagIdList.stream().map(String::valueOf).collect(Collectors.joining(","));
-                w.inSql("id", "SELECT archive_id FROM archive_tags WHERE tag_id IN (" + idList + ")");
+            // 支持标签 ID（数字）与标签名（文字）混合：数字按 ID 精确，文字按 tag_name 模糊匹配
+            String[] tokens = q.getTagIds().split(",");
+            List<Long> idList = new ArrayList<>();
+            List<String> nameList = new ArrayList<>();
+            for (String tok : tokens) {
+                String t = tok.trim();
+                if (t.isEmpty()) continue;
+                try {
+                    idList.add(Long.parseLong(t));
+                } catch (NumberFormatException e) {
+                    nameList.add(t.replace("'", "''"));
+                }
+            }
+            if (!idList.isEmpty() || !nameList.isEmpty()) {
+                List<String> ors = new ArrayList<>();
+                if (!idList.isEmpty()) {
+                    String ids = idList.stream().map(String::valueOf).collect(Collectors.joining(","));
+                    ors.add("at.tag_id IN (" + ids + ")");
+                }
+                for (String n : nameList) {
+                    ors.add("t.tag_name LIKE '%" + n + "%'");
+                }
+                w.inSql("id", "SELECT at.archive_id FROM archive_tags at JOIN tags t ON t.id = at.tag_id WHERE "
+                        + String.join(" OR ", ors));
             }
         }
         if (q.getSourceType() != null && !q.getSourceType().isBlank()) w.eq("source_type", q.getSourceType());
@@ -137,13 +165,46 @@ public class SearchService {
         if (Boolean.TRUE.equals(q.getHasElectronicFile())) {
             w.inSql("id", "SELECT archive_id FROM archive_files WHERE file_status = 'normal'");
         }
+        if (q.getRetentionPeriod() != null && !q.getRetentionPeriod().isBlank()) {
+            w.eq("retention_period", q.getRetentionPeriod());
+        }
+        if (q.getOrganizationName() != null && !q.getOrganizationName().isBlank()) {
+            String kw = q.getOrganizationName().replace("'", "''");
+            w.inSql("organization_id",
+                    "SELECT id FROM organizations WHERE deleted_at IS NULL AND org_name LIKE '%" + kw + "%'");
+        }
+        if (q.getFondsName() != null && !q.getFondsName().isBlank()) {
+            String kw = q.getFondsName().replace("'", "''");
+            w.inSql("fonds_id",
+                    "SELECT id FROM fonds WHERE deleted_at IS NULL AND fonds_name LIKE '%" + kw + "%'");
+        }
+        if (q.getFileExt() != null && !q.getFileExt().isBlank()) {
+            String kw = q.getFileExt().replace("'", "''");
+            w.inSql("id",
+                    "SELECT archive_id FROM archive_files WHERE deleted_at IS NULL " +
+                    "AND (file_ext LIKE '%" + kw + "%' OR original_filename LIKE '%" + kw + "%')");
+        }
+        // 排序：默认按 archived_at 倒序，relevance 也走默认
+        String sortBy = q.getSortBy();
+        if (sortBy != null && !sortBy.isBlank()) {
+            switch (sortBy) {
+                case "formed_desc" -> w.orderByDesc("formed_date");
+                case "archived_desc" -> w.orderByDesc("archived_at");
+                case "archiveNo_asc" -> w.orderByAsc("archive_no");
+                default -> { }
+            }
+        }
     }
 
     /** 内部数据范围过滤（不按 open_status 硬过滤）。 */
     private void applyDataScope(QueryWrapper<Archive> w, DataScope scope, Long organizationId) {
         if (scope == DataScope.all || organizationId == null) return;
         if (scope == DataScope.own_org) {
-            w.eq("organization_id", organizationId);
+            // 内部查阅者：本单位（受外层 security_level<=maxSL 约束）+ 其他单位仅非密
+            w.and(inner -> inner
+                    .eq("organization_id", organizationId)
+                    .or(o -> o.ne("organization_id", organizationId)
+                              .eq("security_level", SecurityLevel.NONE.getLevel())));
         } else if (scope == DataScope.own_fonds) {
             w.inSql("fonds_id", "SELECT id FROM fonds WHERE organization_id = " + organizationId);
         }
@@ -153,13 +214,23 @@ public class SearchService {
         Map<Integer, String> categoryNameById = loadCategoryNames();
         Page<Archive> page = new Page<>(pageNo, pageSize);
         archiveMapper.selectPage(page, w);
-        List<ArchiveSummaryResponse> records = page.getRecords().stream()
-                .map(a -> toSummary(a, categoryNameById))
+        List<Archive> archives = page.getRecords();
+        // 批量加载标签/全宗/单位名，避免逐条 N+1 查询
+        Map<Long, List<String>> tagNamesByArchive = loadTagNamesByArchive(archives);
+        Map<Long, String> fondsNameById = loadFondsNamesById(archives);
+        Map<Long, String> organizationNameById = loadOrganizationNamesById(archives);
+        List<ArchiveSummaryResponse> records = archives.stream()
+                .map(a -> toSummary(a, categoryNameById,
+                        tagNamesByArchive.getOrDefault(a.getId(), List.of()),
+                        fondsNameById, organizationNameById))
                 .toList();
         return new PageResult<>(records, pageNo, pageSize, page.getTotal());
     }
 
-    private ArchiveSummaryResponse toSummary(Archive a, Map<Integer, String> categoryNameById) {
+    private ArchiveSummaryResponse toSummary(Archive a, Map<Integer, String> categoryNameById,
+                                             List<String> tagNames,
+                                             Map<Long, String> fondsNameById,
+                                             Map<Long, String> organizationNameById) {
         Long fileCount = archiveFileMapper.selectCount(new QueryWrapper<ArchiveFile>()
                 .eq("archive_id", a.getId()).eq("file_status", "normal"));
         return new ArchiveSummaryResponse(
@@ -168,7 +239,54 @@ public class SearchService {
                 a.getCarrierStatus() == null ? null : a.getCarrierStatus().name(),
                 fileCount != null && fileCount > 0,
                 a.getSourceType() == null ? null : a.getSourceType().name(),
-                a.getSecurityLevel());
+                a.getSecurityLevel(),
+                tagNames,
+                a.getFondsId() == null ? null : fondsNameById.get(a.getFondsId()),
+                a.getOrganizationId() == null ? null : organizationNameById.get(a.getOrganizationId()));
+    }
+
+    /** 批量查询给定档案集合的标签名（archive_id → tag_name 列表）。ids 来自库内记录，非用户输入。 */
+    private Map<Long, List<String>> loadTagNamesByArchive(List<Archive> archives) {
+        if (archives == null || archives.isEmpty()) {
+            return Map.of();
+        }
+        String inClause = archives.stream().map(a -> String.valueOf(a.getId()))
+                .collect(Collectors.joining(","));
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT at.archive_id AS aid, t.tag_name AS name FROM archive_tags at " +
+                        "JOIN tags t ON t.id = at.tag_id " +
+                        "WHERE at.archive_id IN (" + inClause + ")");
+        Map<Long, List<String>> map = new HashMap<>();
+        for (Map<String, Object> r : rows) {
+            Long aid = ((Number) r.get("aid")).longValue();
+            String name = (String) r.get("name");
+            map.computeIfAbsent(aid, k -> new ArrayList<>()).add(name);
+        }
+        return map;
+    }
+
+    /** 批量查询档案集合涉及的全宗名（fonds_id → fonds_name），ids 来自库内记录。 */
+    private Map<Long, String> loadFondsNamesById(List<Archive> archives) {
+        String ids = archives.stream().map(Archive::getFondsId)
+                .filter(Objects::nonNull).map(String::valueOf)
+                .distinct().collect(Collectors.joining(","));
+        if (ids.isEmpty()) return Map.of();
+        Map<Long, String> map = new HashMap<>();
+        jdbcTemplate.queryForList("SELECT id, fonds_name FROM fonds WHERE id IN (" + ids + ")")
+                .forEach(r -> map.put(((Number) r.get("id")).longValue(), (String) r.get("fonds_name")));
+        return map;
+    }
+
+    /** 批量查询档案集合涉及的单位名（organization_id → org_name），ids 来自库内记录。 */
+    private Map<Long, String> loadOrganizationNamesById(List<Archive> archives) {
+        String ids = archives.stream().map(Archive::getOrganizationId)
+                .filter(Objects::nonNull).map(String::valueOf)
+                .distinct().collect(Collectors.joining(","));
+        if (ids.isEmpty()) return Map.of();
+        Map<Long, String> map = new HashMap<>();
+        jdbcTemplate.queryForList("SELECT id, org_name FROM organizations WHERE id IN (" + ids + ")")
+                .forEach(r -> map.put(((Number) r.get("id")).longValue(), (String) r.get("org_name")));
+        return map;
     }
 
     private Map<Integer, String> loadCategoryNames() {
@@ -228,9 +346,10 @@ public class SearchService {
     private ArchiveSearchDetailResponse toDetail(Archive a, boolean includeSensitive) {
         List<ArchiveFile> files = archiveFileMapper.selectList(new QueryWrapper<ArchiveFile>()
                 .eq("archive_id", a.getId()).eq("file_status", "normal"));
-        // 电子件预览/下载要求档案 open_status=open；公众版 includeSensitive=false 时 a 已经过 open 过滤，
-        // 内部版需要按 open_status 单独判定（closed 档案只允许查看元数据）。
-        boolean accessible = "open".equals(a.getOpenStatus());
+        // 电子件可访问性：内部版（includeSensitive=true）已在 internalDetail 按 maxSecurityLevel+数据范围
+        // 校验过权限，故内部用户对权限内档案（含 closed）均可预览/下载；公众版仅 open 档案可访问。
+        // （open_status 表示"是否对外开放"，约束公众；不约束内部在密级+数据范围权限内的访问。）
+        boolean accessible = includeSensitive || "open".equals(a.getOpenStatus());
         List<ArchiveSearchDetailResponse.FileSummary> fileSummaries = files.stream()
                 .map(f -> new ArchiveSearchDetailResponse.FileSummary(
                         f.getId(), f.getOriginalFilename(), f.getFileExt(),
@@ -298,8 +417,8 @@ public class SearchService {
         return file;
     }
 
-    /** 加载内部可见文件：文件存在 + 所属档案在当前用户权限范围 + 公开 + file_status=normal。
-     *  电子件预览/下载要求 open_status=open（与公众一致），closed 档案只允许查看元数据。 */
+    /** 加载内部可见文件：文件存在 + 所属档案在当前用户密级上限+数据范围权限内 + file_status=normal。
+     *  open_status 仅约束公众开放，不约束内部在权限内的访问（closed 档案内部可见元数据+电子件）。 */
     ArchiveFile loadVisibleInternalFile(Long fileId, int maxSecurityLevel, DataScope dataScope, Long organizationId) {
         ArchiveFile file = archiveFileMapper.selectById(fileId);
         if (file == null) {
@@ -307,11 +426,11 @@ public class SearchService {
         }
         QueryWrapper<Archive> w = new QueryWrapper<>();
         w.eq("id", file.getArchiveId()).eq("lifecycle_status", "normal")
-                .le("security_level", maxSecurityLevel).eq("open_status", "open");
+                .le("security_level", maxSecurityLevel);
         applyDataScope(w, dataScope, organizationId);
         Archive a = archiveMapper.selectOne(w);
         if (a == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "档案不存在或不公开");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "档案不存在或无权访问");
         }
         if (file.getFileStatus() != FileStatus.normal) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "文件不可用");
@@ -388,24 +507,24 @@ public class SearchService {
                 你是档案管理系统的 AI 助手，将用户的自然语言检索需求转换为结构化查询条件。
 
                 约束：
-                - 分类必须从系统给定分类中选择（document/technology/accounting/audio_video/personnel）。
-                - 标签必须优先从系统给定的可见标签集合中选择。
+                - 分类必须从系统给定分类中选择（document/technology/accounting/audio_video/personnel），用户未提及时不输出 category 字段。
+                - 标签必须优先从系统给定的可见标签集合中选择，无匹配则返回空数组。
                 - 日期格式统一为 yyyy-MM-dd。
-                - 如用户为公众用户，必须附加 securityLevelMax = 0 且 openStatus = "open"。
+                - 只输出用户明确表达的条件，未提及的字段不要臆造输出。
                 - 你只生成查询条件，不执行查询。
 
-                输出格式：
-                <JSON>
+                输出格式（用 <JSON></JSON> 包裹）：
                 {
                   "ruleType": "query",
                   "conditions": {
                     "keywords": ["关键词"],
-                    "category": "分类code",
-                    "formedDateRange": ["yyyy-MM-dd","yyyy-MM-dd"],
-                    "responsible": "责任者",
-                    "securityLevelMax": 0,
-                    "openStatus": "open",
-                    "carrierStatus": "electronic / paper_electronic / paper"
+                    "tags": ["从可见标签集合中选出的标签名，0~3 个，无匹配返回空数组"],
+                    "category": "可选；分类code，用户未提及时不输出",
+                    "formedDateRange": ["可选；yyyy-MM-dd","yyyy-MM-dd"],
+                    "responsible": "可选；责任者",
+                    "securityLevelMax": "可选；用户明确密级上限时填数字(0=非密,1=内部,2=秘密)，未提及不输出",
+                    "openStatus": "可选；用户明确公开状态时填 open 或 closed，未提及不输出",
+                    "carrierStatus": "可选；用户明确载体时填 electronic/paper_electronic/paper，未提及不输出"
                   }
                 }
                 </JSON>
@@ -456,7 +575,7 @@ public class SearchService {
                     toLong(row.get("archiveId")),
                     (String) row.get("archiveNo"),
                     (String) row.get("title"),
-                    row.get("accessedAt") instanceof OffsetDateTime odt ? odt : null));
+                    row.get("accessedAt") instanceof java.sql.Timestamp t ? t.toInstant().atOffset(java.time.ZoneOffset.ofHours(8)) : (row.get("accessedAt") instanceof OffsetDateTime odt ? odt : null)));
         }
         return new InternalDashboardResponse(
                 recentViews,

@@ -54,3 +54,9 @@ export function completeInventoryTask(taskId: number, data: InventoryCompleteDat
   }
   return request.post(`/admin/inventory-tasks/${taskId}/complete`, data)
 }
+
+/** 删除草稿盘点任务（§18.7，仅 draft 可删） */
+export function deleteInventoryTask(taskId: number): Promise<void> {
+  if (USE_MOCK) return Promise.resolve()
+  return request.delete(`/admin/inventory-tasks/${taskId}`)
+}

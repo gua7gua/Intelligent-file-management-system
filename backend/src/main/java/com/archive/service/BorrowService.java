@@ -132,6 +132,22 @@ public class BorrowService {
         return toResponse(b, false, false);
     }
 
+    // ==================== 12.2.1 撤回借阅申请（仅本人 + applied 状态，撤回即删除） ====================
+
+    @Transactional
+    public void cancelRequest(Long requestId) {
+        requireRole(RoleCode.internal_reader);
+        BorrowRequest b = mustGet(requestId);
+        if (!b.getBorrowerId().equals(AuthContext.getCurrentUserId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "只能撤回本人的借阅申请");
+        }
+        if (b.getStatus() != BorrowStatus.applied) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "仅待审批（已申请）状态可撤回");
+        }
+        borrowRequestMapper.deleteById(requestId);
+        auditService.log("M09", "cancel_borrow", "borrow_request", requestId, Map.of());
+    }
+
     // ==================== 12.3 审批借阅申请 ====================
 
     @Transactional
@@ -154,9 +170,15 @@ public class BorrowService {
         if (Boolean.TRUE.equals(req.getApproved())) {
             b.setStatus(BorrowStatus.approved);
             b.setRejectReason(null);
+            // 审批通过即自动生成凭证号：借阅人「我的借阅申请」详情立即可见，前台出库时凭证号只读无需手填
+            if (b.getVoucherNo() == null) {
+                b.setVoucherNo(borrowNoUtil.nextVoucherNo());
+                b.setVoucherIssuedAt(now);
+            }
             borrowRequestMapper.updateById(b);
             auditService.log("M09", "approve", "borrow_request", b.getId(),
-                    Map.of("opinion", req.getOpinion() != null ? req.getOpinion() : ""));
+                    Map.of("opinion", req.getOpinion() != null ? req.getOpinion() : "",
+                            "voucherNo", b.getVoucherNo() != null ? b.getVoucherNo() : ""));
         } else {
             // 接口文档 §12.3：拒绝时 opinion 或 rejectReason 二选一必填
             String reason = req.getOpinion();
@@ -186,15 +208,15 @@ public class BorrowService {
         }
 
         BorrowStatus st = b.getStatus();
+        // returned 也允许补打凭证（归还后作历史/报销凭据）；此时 voucher_no 已发，仅补打不改状态
         if (st != BorrowStatus.approved && st != BorrowStatus.voucher_issued
-                && st != BorrowStatus.checked_out) {
+                && st != BorrowStatus.checked_out && st != BorrowStatus.returned) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "申请尚未审批通过，无法导出凭证");
         }
 
-        boolean firstIssue = b.getVoucherNo() == null;
+        // 凭证号在审批通过时已生成；此处为首次打印凭证 PDF：把状态从 approved 推进到 voucher_issued
+        boolean firstIssue = b.getStatus() == BorrowStatus.approved;
         if (firstIssue) {
-            b.setVoucherNo(borrowNoUtil.nextVoucherNo());
-            b.setVoucherIssuedAt(OffsetDateTime.now());
             b.setStatus(BorrowStatus.voucher_issued);
             borrowRequestMapper.updateById(b);
             auditService.log("M09", "issue_voucher", "borrow_request", b.getId(),
@@ -208,7 +230,16 @@ public class BorrowService {
         User borrower = userMapper.selectById(b.getBorrowerId());
         Organization org = (borrower != null && borrower.getOrganizationId() != null)
                 ? organizationMapper.selectById(borrower.getOrganizationId()) : null;
-        return pdfGenerator.generateBorrowVoucherPdf(b, archive, borrower, org);
+        // 跨单位纸质借阅：档案所属单位 ≠ 借阅人单位 → 凭证改由档案馆代原单位盖章
+        boolean crossOrg = archive != null && archive.getOrganizationId() != null
+                && borrower != null && borrower.getOrganizationId() != null
+                && !archive.getOrganizationId().equals(borrower.getOrganizationId());
+        String archiveOrgName = null;
+        if (crossOrg) {
+            Organization archiveOrg = organizationMapper.selectById(archive.getOrganizationId());
+            archiveOrgName = archiveOrg != null ? archiveOrg.getOrgName() : null;
+        }
+        return pdfGenerator.generateBorrowVoucherPdf(b, archive, borrower, org, crossOrg, archiveOrgName);
     }
 
     // ==================== 12.4 核验凭证并确认出库 ====================
@@ -226,7 +257,12 @@ public class BorrowService {
         if (b.getVoucherNo() == null || !b.getVoucherNo().equals(req.getVoucherNo())) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "凭证号不匹配");
         }
-        if (req.getDueAt() == null || !req.getDueAt().isAfter(OffsetDateTime.now())) {
+        // 应还时间：前端未填则按借阅时长自动计算（出库时刻 + expectedDays 天），再校验晚于当前时间
+        OffsetDateTime dueAt = req.getDueAt();
+        if (dueAt == null && b.getExpectedDays() != null && b.getExpectedDays() > 0) {
+            dueAt = OffsetDateTime.now().plusDays(b.getExpectedDays());
+        }
+        if (dueAt == null || !dueAt.isAfter(OffsetDateTime.now())) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "应还时间必须晚于当前时间");
         }
 
@@ -236,7 +272,7 @@ public class BorrowService {
         OffsetDateTime now = OffsetDateTime.now();
         b.setCheckedOutBy(operator);
         b.setCheckedOutAt(now);
-        b.setDueAt(req.getDueAt());
+        b.setDueAt(dueAt);
         b.setStatus(BorrowStatus.checked_out);
         borrowRequestMapper.updateById(b);
 
@@ -252,7 +288,7 @@ public class BorrowService {
 
         auditService.log("M09", "checkout", "borrow_request", b.getId(),
                 Map.of("voucherNo", req.getVoucherNo(),
-                        "dueAt", String.valueOf(req.getDueAt()),
+                        "dueAt", String.valueOf(dueAt),
                         "note", req.getNote() != null ? req.getNote() : ""));
 
         return toResponse(b, true, true, true);

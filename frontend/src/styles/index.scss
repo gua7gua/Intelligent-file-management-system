@@ -40,3 +40,11 @@
   display: flex;
   justify-content: flex-end;
 }
+
+/* 分页器：窄容器（如左侧 aside 列表栏）下自动换行，避免 total/sizes/jumper
+   被挤出容器左边（"每页多少条"溢出问题）；宽容器一行放得下则不换行、不受影响 */
+.el-pagination {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 6px;
+}

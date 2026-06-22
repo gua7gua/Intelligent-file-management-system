@@ -7,6 +7,7 @@ import com.archive.dto.request.AppraisalBatchCreateRequest;
 import com.archive.dto.request.AppraisalItemSaveRequest;
 import com.archive.dto.response.AppraisalBatchDetailResponse;
 import com.archive.dto.response.AppraisalBatchResponse;
+import com.archive.dto.response.AppraisalStatsResponse;
 import com.archive.entity.AppraisalBatch;
 import com.archive.entity.AppraisalItem;
 import com.archive.entity.Archive;
@@ -70,22 +71,16 @@ public class AppraisalService {
 
     @Transactional
     public AppraisalBatchDetailResponse createBatch(AppraisalBatchCreateRequest req) {
-        if (req.getFormedYearStart() != null && req.getFormedYearEnd() != null
-                && req.getFormedYearStart() > req.getFormedYearEnd()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "年度起不能大于年度止");
-        }
-
+        // D4：废弃形成年度起/止筛选，改按保管期限到期窗口（retention_until <= 今天 + dueDays）圈定档案
         AppraisalBatch batch = new AppraisalBatch();
         batch.setBatchNo(appraisalNoUtil.generate());
         batch.setBatchName(req.getBatchName());
         batch.setCategoryId(req.getCategoryId());
-        batch.setFormedYearStart(req.getFormedYearStart());
-        batch.setFormedYearEnd(req.getFormedYearEnd());
+        batch.setDueDays(req.getDueDays());
         batch.setStatus(AppraisalBatchStatus.draft);
         batchMapper.insert(batch);
 
-        List<Archive> hits = findDueArchives(req.getCategoryId(),
-                req.getFormedYearStart(), req.getFormedYearEnd());
+        List<Archive> hits = findDueArchives(req.getCategoryId(), req.getDueDays());
         for (Archive a : hits) {
             AppraisalItem item = new AppraisalItem();
             item.setBatchId(batch.getId());
@@ -94,28 +89,43 @@ public class AppraisalService {
         }
 
         auditService.log("M10", "create_appraisal_batch", "appraisal_batch", batch.getId(),
-                Map.of("batchNo", batch.getBatchNo(), "hitCount", hits.size()));
+                Map.of("batchNo", batch.getBatchNo(), "hitCount", hits.size(),
+                        "dueDays", req.getDueDays()));
 
         return toDetail(batch, hits);
     }
 
-    /** 命中 retention_until 到期且未销毁的档案。 */
-    private List<Archive> findDueArchives(Integer categoryId, Integer yearStart, Integer yearEnd) {
+    /** 命中 retention_until <= 今天 + dueDays（含已过期未处理）且未销毁的档案。 */
+    private List<Archive> findDueArchives(Integer categoryId, Integer dueDays) {
         QueryWrapper<Archive> w = new QueryWrapper<>();
         w.isNotNull("retention_until");
-        w.apply("retention_until < CURRENT_DATE");
+        // dueDays 已校验非空且非负，参数化绑定避免注入
+        w.apply("retention_until <= CURRENT_DATE + INTERVAL '1 day' * {0}", dueDays);
         w.ne("lifecycle_status", "destroyed");
-        if (categoryId != null) {
+        if (categoryId != null && categoryId > 0) {
             w.eq("category_id", categoryId);
-        }
-        if (yearStart != null) {
-            w.ge("formed_year", yearStart);
-        }
-        if (yearEnd != null) {
-            w.le("formed_year", yearEnd);
         }
         w.orderByAsc("id");
         return archiveMapper.selectList(w);
+    }
+
+    // ==================== 14.1b 鉴定工作台顶部统计（真实聚合，替代前端硬编码假值） ====================
+
+    public AppraisalStatsResponse stats() {
+        AppraisalStatsResponse s = new AppraisalStatsResponse();
+        // 即将到期：retention_until 在 today+365 天内（含已过期未处理），未销毁
+        s.setExpiringCount(archiveMapper.selectCount(new QueryWrapper<Archive>()
+                .isNull("deleted_at")
+                .isNotNull("retention_until")
+                .apply("retention_until <= CURRENT_DATE + INTERVAL '365 days'")
+                .ne("lifecycle_status", "destroyed")));
+        // 待销毁：已鉴定为销毁、尚未走完销毁流程
+        s.setPendingDestructionCount(archiveMapper.selectCount(new QueryWrapper<Archive>()
+                .isNull("deleted_at").eq("lifecycle_status", "pending_destruction")));
+        // 已生成销毁清册数
+        s.setGeneratedListCount(destructionListMapper.selectCount(new QueryWrapper<DestructionList>()
+                .isNull("deleted_at")));
+        return s;
     }
 
     // ==================== 14.1 查询鉴定批次 ====================
@@ -155,6 +165,7 @@ public class AppraisalService {
         r.setCategoryName(resolveCategoryName(b.getCategoryId()));
         r.setFormedYearStart(b.getFormedYearStart());
         r.setFormedYearEnd(b.getFormedYearEnd());
+        r.setDueDays(b.getDueDays());
         r.setStatus(b.getStatus() != null ? b.getStatus().name() : null);
         r.setCompletedAt(b.getCompletedAt());
 
@@ -215,6 +226,24 @@ public class AppraisalService {
             }
         }
         return toDetailFromItems(batch, items, archiveMap);
+    }
+
+    // ==================== 14.3.1 删除未完成的鉴定批次 ====================
+
+    @Transactional
+    public void deleteBatch(Long batchId) {
+        AppraisalBatch batch = batchMapper.selectById(batchId);
+        if (batch == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "鉴定批次不存在");
+        }
+        if (batch.getStatus() == AppraisalBatchStatus.completed) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "已完成的鉴定批次不可删除（已生成销毁清册）");
+        }
+        // draft 未完成鉴定、未生成销毁清册，级联清理鉴定明细后物理删除批次
+        itemMapper.delete(new QueryWrapper<AppraisalItem>().eq("batch_id", batchId));
+        batchMapper.deleteById(batchId);
+        auditService.log("M10", "delete_appraisal_batch", "appraisal_batch", batchId,
+                Map.of("batchNo", batch.getBatchNo() != null ? batch.getBatchNo() : ""));
     }
 
     // ==================== 14.4 保存鉴定明细 ====================
@@ -440,6 +469,7 @@ public class AppraisalService {
         resp.setCategoryName(resolveCategoryName(batch.getCategoryId()));
         resp.setFormedYearStart(batch.getFormedYearStart());
         resp.setFormedYearEnd(batch.getFormedYearEnd());
+        resp.setDueDays(batch.getDueDays());
         resp.setStatus(batch.getStatus() != null ? batch.getStatus().name() : null);
         resp.setCompletedAt(batch.getCompletedAt());
         // 已完成批次回填销毁清册号

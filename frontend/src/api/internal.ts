@@ -24,7 +24,42 @@ export function getInternalDashboard(): Promise<InternalDashboardData> {
 /** 11.2 内部档案检索 */
 export function searchInternalArchives(params?: InternalSearchParams): Promise<InternalArchivePage> {
   if (USE_MOCK) return import('@/mock/modules/internal').then((m) => m.mockSearchInternalArchives(params))
-  return request.get('/internal/archives/search', { params })
+  // 后端 ArchiveSummaryResponse 返回 archiveId/tagNames/hasElectronicFile 等，
+  // 前端 InternalArchive 期望 id/tags/canPreview/canDownload，做一次字段映射 + 派生利用状态。
+  return request.get('/internal/archives/search', { params }).then((page) => {
+    if (page && Array.isArray(page.records)) {
+      page.records = page.records.map(normalizeInternalArchive)
+    }
+    return page
+  })
+}
+
+/** 后端检索摘要 → 前端 InternalArchive。
+ *  tagNames→tags；canPreview/canDownload 由 hasElectronicFile 派生（内部在密级+数据范围权限内可访问电子件，
+ *  已由 internalSearch 过滤保证）；后端摘要不含 loanStatus，canBorrow 暂置 false（利用状态只显预览/下载）。 */
+function normalizeInternalArchive(raw: Record<string, unknown>): InternalArchive {
+  const hasFile = raw.hasElectronicFile === true
+  const tagNames = (raw.tagNames as string[] | undefined) ?? (raw.tags as string[] | undefined)
+  return {
+    id: (raw.archiveId as number) ?? (raw.id as number) ?? 0,
+    archiveNo: (raw.archiveNo as string) ?? '',
+    title: (raw.title as string) ?? '',
+    categoryId: (raw.categoryId as number) ?? 0,
+    categoryName: (raw.categoryName as string) ?? '',
+    responsibleText: (raw.responsibleText as string) ?? '',
+    formedDate: (raw.formedDate as string) ?? '',
+    securityLevel: (raw.securityLevel as number) ?? 0,
+    openStatus: (raw.openStatus as InternalArchive['openStatus']) ?? 'open',
+    carrierStatus: (raw.carrierStatus as InternalArchive['carrierStatus']) ?? 'paper',
+    sourceType: (raw.sourceType as InternalArchive['sourceType']) ?? 'transfer',
+    tags: Array.isArray(tagNames) ? tagNames : [],
+    hasElectronicFile: hasFile,
+    canPreview: (raw.canPreview as boolean) ?? hasFile,
+    canDownload: (raw.canDownload as boolean) ?? hasFile,
+    canBorrow: (raw.canBorrow as boolean) ?? false,
+    borrowHint: (raw.borrowHint as string) ?? '',
+    archivedAt: (raw.archivedAt as string) ?? '',
+  }
 }
 
 /** 11.3 内部档案详情 */
@@ -42,13 +77,13 @@ export function getInternalArchiveDetail(archiveId: number): Promise<InternalArc
 /** 11.4 内部 AI 检索 JSON 生成 */
 export function generateInternalAiQuery(data: InternalAiQueryRequest): Promise<InternalAiQueryResult> {
   if (USE_MOCK) return import('@/mock/modules/internal').then((m) => m.mockGenerateInternalAiQuery(data))
-  return request.post('/internal/archives/ai-query', data)
+  return request.post('/internal/archives/ai-query', data, { timeout: 60000 })
 }
 
-/** 11.5 内部预览电子文件 */
-export function previewInternalFile(fileId: number): Promise<string> {
+/** 11.5 内部预览电子文件（返回 Blob，供 FilePreview 组件渲染） */
+export function previewInternalFile(fileId: number): Promise<Blob> {
   if (USE_MOCK) return import('@/mock/modules/internal').then((m) => m.mockPreviewInternalFile(fileId))
-  return request.get(`/internal/archive-files/${fileId}/preview`)
+  return request.get(`/internal/archive-files/${fileId}/preview`, { responseType: 'blob' }) as Promise<Blob>
 }
 
 /** 11.6 内部下载电子文件 */
@@ -114,4 +149,10 @@ function normalizeBorrowDetail(detail: BorrowRequestDetail): BorrowRequestDetail
 export function exportBorrowVoucher(requestId: number): Promise<Blob> {
   if (USE_MOCK) return import('@/mock/modules/internal').then((m) => m.mockExportBorrowVoucher(requestId))
   return request.get(`/internal/borrow-requests/${requestId}/voucher`, { responseType: 'blob' }) as Promise<Blob>
+}
+
+/** 11.11 撤回借阅申请（仅本人 + applied 状态，撤回即删除） */
+export function withdrawBorrowRequest(requestId: number): Promise<void> {
+  if (USE_MOCK) return Promise.resolve()
+  return request.post(`/internal/borrow-requests/${requestId}/withdraw`)
 }

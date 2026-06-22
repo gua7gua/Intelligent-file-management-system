@@ -87,6 +87,7 @@
                   <th>保管期限</th>
                   <th>载体状态</th>
                   <th>电子格式</th>
+                  <th>页数</th>
                   <th>保密级别</th>
                   <th>是否公开</th>
                   <th>档案文件名</th>
@@ -95,7 +96,7 @@
               </thead>
               <tbody>
                 <tr v-if="items.length === 0">
-                  <td colspan="9"><div class="empty">暂无条目，请拖拽文件或新增空白条目</div></td>
+                  <td colspan="10"><div class="empty">暂无条目，请拖拽文件或新增空白条目</div></td>
                 </tr>
                 <tr v-for="(item, index) in items" :key="index">
                   <td>{{ index + 1 }}</td>
@@ -124,6 +125,9 @@
                   </td>
                   <td>
                     <input v-model="item.electronicFormat" :readonly="submitted" />
+                  </td>
+                  <td>
+                    <input v-model.number="item.pageCount" type="number" min="0" :readonly="submitted" placeholder="页数" />
                   </td>
                   <td>
                     <select v-model.number="item.securityLevel" :disabled="submitted">
@@ -178,7 +182,9 @@
           <div class="actions" style="margin-top: 12px">
             <button class="button ghost" type="button" :disabled="submitted" @click="saveDraft">保存草稿</button>
             <button class="button" type="button" :disabled="submitted" @click="submitList">提交清单</button>
+            <button v-if="!submitted && batchId" class="button ghost" type="button" @click="deleteDraft">删除草稿</button>
             <button v-if="submitted" class="button secondary" type="button" @click="exportList">导出打印清单</button>
+            <button v-if="submitted" class="button" type="button" @click="startNewList">新建清单</button>
           </div>
           <p class="hint">提交后清单将不可再编辑。</p>
         </section>
@@ -199,7 +205,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 import { parseLocalFiles } from '@/utils/fileParser'
 import type { ParsedLocalFile } from '@/utils/fileParser'
 import { validateTransferDraft } from '@/utils/transferValidation'
@@ -209,10 +216,12 @@ import {
   submitTransferBatch,
   exportTransferBatch,
   getTransferBatchDetail,
+  deleteTransferBatch,
 } from '@/api/transfer'
 import type { TransferItem } from '@/types/transfer'
 
 const route = useRoute()
+const authStore = useAuthStore()
 
 const batch = reactive({
   title: '',
@@ -250,7 +259,16 @@ async function loadDraftForEdit(id: number) {
 
 onMounted(() => {
   const id = Number(route.query.batchId)
-  if (id > 0) loadDraftForEdit(id)
+  if (id > 0) {
+    loadDraftForEdit(id)
+  } else {
+    // 2.1/2.2：新建清单时预填当前账号的部门与电话，减少手工录入
+    const u = authStore.user
+    if (u) {
+      if (!batch.departmentName && u.departmentName) batch.departmentName = u.departmentName
+      if (!batch.contactPhone && u.phone) batch.contactPhone = u.phone
+    }
+  }
 })
 
 function addBlankItem() {
@@ -448,6 +466,50 @@ async function exportList() {
     URL.revokeObjectURL(url)
   } catch (e) {
     ElMessage.error((e as Error).message || '导出失败')
+  }
+}
+
+// 2.6：提交后清空表单开始编制新清单，无需刷新页面
+function startNewList() {
+  batchId.value = null
+  submitted.value = false
+  batch.title = ''
+  batch.archiveYear = undefined
+  batch.expectedTransferDate = ''
+  items.value = []
+  localFiles.value = []
+  validationErrors.value = []
+  // 复用 2.1/2.2 预填：部门/电话沿用当前账号
+  const u = authStore.user
+  batch.departmentName = u?.departmentName ?? ''
+  batch.contactPhone = u?.phone ?? ''
+  ElMessage.success('已开始新清单，请继续编制。')
+}
+
+// 删除当前草稿清单（仅未提交且有 id 时），删除后回到新建空清单状态
+async function deleteDraft() {
+  if (!batchId.value) return
+  try {
+    await ElMessageBox.confirm('删除后不可恢复，是否继续？', '删除草稿清单', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await deleteTransferBatch(batchId.value)
+    ElMessage.success('草稿清单已删除。')
+    batchId.value = null
+    submitted.value = false
+    batch.title = ''
+    batch.archiveYear = undefined
+    batch.expectedTransferDate = ''
+    items.value = []
+    localFiles.value = []
+    validationErrors.value = []
+    const u = authStore.user
+    batch.departmentName = u?.departmentName ?? ''
+    batch.contactPhone = u?.phone ?? ''
+  } catch (e) {
+    ElMessage.error((e as Error).message || '删除失败')
   }
 }
 </script>

@@ -19,6 +19,7 @@ import com.archive.enums.ApprovalStatus;
 import com.archive.enums.ApprovalType;
 import com.archive.enums.DestructionListStatus;
 import com.archive.enums.LifecycleStatus;
+import com.archive.enums.OpenStatus;
 import com.archive.exception.BusinessException;
 import com.archive.mapper.ArchiveChangeLogMapper;
 import com.archive.mapper.ArchiveMapper;
@@ -280,11 +281,23 @@ public class ApprovalService {
     private void applySecurityAdjust(ApprovalRequest ap, Long uid, OffsetDateTime now) {
         Archive a = loadEffectableArchive(ap);
         Integer oldLevel = a.getSecurityLevel();
-        a.setSecurityLevel(parseIntOrNull(ap.getNewValue()));
+        Integer newLevel = parseIntOrNull(ap.getNewValue());
+        String oldOpen = a.getOpenStatus();
+        // 密级上调且当前为公开 → 联动关闭公开，防止产生「公开的涉密档案」（公众检索口径 security_level=0 AND open_status=open）
+        boolean autoCloseOpen = newLevel != null && oldLevel != null
+                && newLevel > oldLevel && OpenStatus.open.name().equals(oldOpen);
+        a.setSecurityLevel(newLevel);
+        if (autoCloseOpen) {
+            a.setOpenStatus(OpenStatus.closed.name());
+        }
         archiveMapper.updateById(a);
         writeChangeLog(a.getId(), "security_level",
                 oldLevel != null ? String.valueOf(oldLevel) : null, ap.getNewValue(),
                 ap.getReason(), "approval", ap.getId(), uid, now);
+        if (autoCloseOpen) {
+            writeChangeLog(a.getId(), "open_status", oldOpen, OpenStatus.closed.name(),
+                    "密级上调自动联动关闭公开", "approval", ap.getId(), uid, now);
+        }
     }
 
     private void applyOpenAdjust(ApprovalRequest ap, Long uid, OffsetDateTime now) {

@@ -166,7 +166,10 @@ public class AdminDashboardService {
                 r.setOperator("未知");
             }
             r.setModule(l.getModuleName());
+            // 复用 AuditLogQueryService 的模块/操作类型中文映射，补富字段
+            r.setModuleLabel(AuditLogQueryService.moduleLabel(l.getModuleName()));
             r.setAction(l.getOperationType());
+            r.setActionLabel(AuditLogQueryService.operationLabel(l.getOperationType()));
             r.setOperatedAt(l.getOperatedAt());
             out.add(r);
         }

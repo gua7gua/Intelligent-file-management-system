@@ -29,7 +29,7 @@ public class AuditLogQueryService {
     private final ArchiveMapper archiveMapper;
 
     /** 审计日志模块代号 -> 中文标签（与各 Service auditService.log 第一参一致）。 */
-    private static final Map<String, String> MODULE_LABELS = Map.ofEntries(
+    public static final Map<String, String> MODULE_LABELS = Map.ofEntries(
             Map.entry("M01", "用户/密码"),
             Map.entry("M02", "登录认证"),
             Map.entry("M03", "电子文件上传"),
@@ -43,8 +43,101 @@ public class AuditLogQueryService {
             Map.entry("M11", "销毁管理"),
             Map.entry("M12", "盘点管理"),
             Map.entry("M13", "档案编研"),
-            Map.entry("M14", "系统配置")
+            Map.entry("M14", "系统配置"),
+            // V16 种子审计日志用裸英文模块名（运行时改用 M01-M14 代号），保留映射保证种子数据也能显示中文
+            Map.entry("transfer", "移交管理"),
+            Map.entry("transfer_reception", "移交接收"),
+            Map.entry("pending_archive", "待入库"),
+            Map.entry("borrow", "借阅管理"),
+            Map.entry("approval", "审批管理"),
+            Map.entry("system_config", "系统配置")
     );
+
+    /** 审计日志 operation_type -> 中文标签（覆盖各 Service auditService.log 第二参的全部取值）。 */
+    public static final Map<String, String> OPERATION_LABELS = Map.ofEntries(
+            Map.entry("apply", "申请"),
+            Map.entry("approve", "审批通过"),
+            Map.entry("reject", "审批驳回"),
+            Map.entry("register", "注册"),
+            Map.entry("reset_password", "重置密码"),
+            Map.entry("create_user", "创建用户"),
+            Map.entry("update_user", "更新用户"),
+            Map.entry("update_user_status", "更新用户状态"),
+            Map.entry("delete", "删除"),
+            Map.entry("upload", "上传"),
+            Map.entry("download", "下载"),
+            Map.entry("preview", "预览"),
+            Map.entry("delete_file", "删除文件"),
+            Map.entry("trigger_file_check", "触发文件校验"),
+            Map.entry("start_ai_completion", "启动 AI 补全"),
+            Map.entry("retry_ai_failed", "重试失败 AI 任务"),
+            Map.entry("confirm_fields", "确认字段"),
+            Map.entry("create_fonds", "创建全宗"),
+            Map.entry("update_fonds", "更新全宗"),
+            Map.entry("create_room", "创建库房"),
+            Map.entry("create_box", "创建盒"),
+            Map.entry("move_box", "移动盒"),
+            Map.entry("update_location_status", "更新位置状态"),
+            Map.entry("submit_security_adjustment", "提交密级调整"),
+            Map.entry("submit_open_adjustment", "提交开放调整"),
+            Map.entry("submit_destruction_approval", "提交销毁审批"),
+            Map.entry("checkout", "借阅出库"),
+            Map.entry("return", "归还"),
+            Map.entry("issue_voucher", "发放凭证"),
+            Map.entry("create_appraisal_batch", "创建鉴定批次"),
+            Map.entry("save_appraisal_items", "保存鉴定项"),
+            Map.entry("complete_appraisal", "完成鉴定"),
+            Map.entry("destroy", "销毁"),
+            Map.entry("upload_destruction_photo", "上传销毁照片"),
+            Map.entry("create_inventory_task", "创建盘点任务"),
+            Map.entry("start_inventory", "开始盘点"),
+            Map.entry("complete_inventory", "完成盘点"),
+            Map.entry("scan_failed", "扫描失败"),
+            Map.entry("scan_reject", "扫描驳回"),
+            Map.entry("shelve_batch", "批次上架"),
+            Map.entry("create_analysis_task", "创建研判任务"),
+            Map.entry("handle_analysis_item", "处理研判项"),
+            Map.entry("generate_compilation", "生成编研"),
+            Map.entry("archive_compilation", "编研入库"),
+            Map.entry("confirm_archive", "确认入库"),
+            Map.entry("create_backup", "创建备份"),
+            Map.entry("update_metadata", "更新元数据"),
+            Map.entry("create_organization", "创建组织"),
+            Map.entry("update_organization", "更新组织"),
+            Map.entry("delete_organization", "删除组织"),
+            Map.entry("update_config", "更新配置"),
+            Map.entry("delete_user", "删除用户"),
+            // V16 种子审计日志用裸英文操作名（与运行时 M-code 短词不同），单独补中文
+            Map.entry("submit_batch", "提交清单"),
+            Map.entry("accept_batch", "接收清单"),
+            Map.entry("archive_items", "条目入库"),
+            Map.entry("apply_borrow", "申请借阅"),
+            Map.entry("approve_destruction", "审批销毁"),
+            // P1-2 补全：删除类操作 + 取消借阅（全集核对后缺失项）
+            Map.entry("delete_fonds", "删除全宗"),
+            Map.entry("delete_box", "删除盒"),
+            Map.entry("delete_room", "删除库房"),
+            Map.entry("delete_inventory_task", "删除盘点任务"),
+            Map.entry("delete_appraisal_batch", "删除鉴定批次"),
+            Map.entry("delete_analysis_item", "删除研判项"),
+            Map.entry("cancel_borrow", "取消借阅")
+    );
+
+    /** 取模块中文标签，未知代号原样返回。 */
+    public static String moduleLabel(String moduleCode) {
+        if (moduleCode == null) {
+            return null;
+        }
+        return MODULE_LABELS.getOrDefault(moduleCode, moduleCode);
+    }
+
+    /** 取操作类型中文标签，未知类型原样返回。 */
+    public static String operationLabel(String operationType) {
+        if (operationType == null) {
+            return null;
+        }
+        return OPERATION_LABELS.getOrDefault(operationType, operationType);
+    }
 
     /** 23.1 查询审计日志（游标分页） */
     public CursorResult<AuditLogResponse> query(AuditLogQuery q) {
@@ -126,8 +219,9 @@ public class AuditLogQueryService {
         vo.setActorUserId(l.getActorUserId());
         vo.setActorType(l.getActorType());
         vo.setModuleName(l.getModuleName());
-        vo.setModuleLabel(MODULE_LABELS.get(l.getModuleName()));
+        vo.setModuleLabel(moduleLabel(l.getModuleName()));
         vo.setOperationType(l.getOperationType());
+        vo.setOperationLabel(operationLabel(l.getOperationType()));
         vo.setBusinessType(l.getBusinessType());
         vo.setBusinessId(l.getBusinessId());
         vo.setDetail(l.getDetail());

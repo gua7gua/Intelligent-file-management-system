@@ -33,6 +33,8 @@ const BusinessStatusLabel: Record<string, string> = {
   checked_out: '已出库',
   borrowed: '借出中',
   returned: '已归还',
+  voucher_issued: '凭证已生成',
+  abnormal_return: '异常归还',
   overdue: '逾期',
   // DestructionListStatus
   pending_destroy: '待销毁',

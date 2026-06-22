@@ -6,6 +6,7 @@ import com.archive.dto.request.AppraisalBatchCreateRequest;
 import com.archive.dto.request.AppraisalItemSaveRequest;
 import com.archive.dto.response.AppraisalBatchDetailResponse;
 import com.archive.dto.response.AppraisalBatchResponse;
+import com.archive.dto.response.AppraisalStatsResponse;
 import com.archive.service.AppraisalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -33,6 +34,12 @@ public class AppraisalController {
         return R.ok(appraisalService.listBatches(status, categoryId, formedYearStart, formedYearEnd, pageNo, pageSize));
     }
 
+    @GetMapping("/stats")
+    @Operation(summary = "鉴定工作台顶部统计（真实聚合）")
+    public R<AppraisalStatsResponse> stats() {
+        return R.ok(appraisalService.stats());
+    }
+
     @PostMapping
     @Operation(summary = "创建鉴定批次")
     public R<AppraisalBatchDetailResponse> create(@RequestBody @Valid AppraisalBatchCreateRequest req) {
@@ -56,5 +63,12 @@ public class AppraisalController {
     @Operation(summary = "完成鉴定")
     public R<AppraisalBatchDetailResponse> complete(@PathVariable Long batchId) {
         return R.ok(appraisalService.completeBatch(batchId));
+    }
+
+    @DeleteMapping("/{batchId}")
+    @Operation(summary = "删除未完成的鉴定批次")
+    public R<Void> deleteBatch(@PathVariable Long batchId) {
+        appraisalService.deleteBatch(batchId);
+        return R.ok();
     }
 }

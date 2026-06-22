@@ -2,6 +2,7 @@ package com.archive.controller;
 
 import com.archive.common.PageResult;
 import com.archive.common.R;
+import com.archive.dto.request.ArchivePlacementRequest;
 import com.archive.dto.request.ArchiveUpdateRequest;
 import com.archive.dto.request.OpenAdjustRequest;
 import com.archive.dto.request.SecurityAdjustRequest;
@@ -41,12 +42,24 @@ public class ArchiveController {
             @RequestParam(required = false) String lifecycleStatus,
             @RequestParam(required = false) String loanStatus,
             @RequestParam(required = false) String conditionStatus,
+            @RequestParam(required = false) String sourceType,
+            @RequestParam(required = false) Boolean hasElectronicFile,
+            @RequestParam(required = false) String retentionPeriod,
+            @RequestParam(required = false) Integer securityLevelMax,
+            @RequestParam(required = false) String fondsName,
+            @RequestParam(required = false) String organizationName,
+            @RequestParam(required = false) String fileExt,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String tagKeyword,
+            @RequestParam(defaultValue = "false") boolean includeDestroyed,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
         return R.ok(archiveService.listArchives(keyword, archiveNo, categoryId,
                 formedYearStart, formedYearEnd, organizationId, fondsId, securityLevel,
                 openStatus, carrierStatus, lifecycleStatus, loanStatus, conditionStatus,
-                pageNo, pageSize));
+                sourceType, hasElectronicFile,
+                retentionPeriod, securityLevelMax, fondsName, organizationName, fileExt, sortBy,
+                tagKeyword, includeDestroyed, pageNo, pageSize));
     }
 
     @GetMapping("/{archiveId}")
@@ -61,6 +74,14 @@ public class ArchiveController {
             @PathVariable Long archiveId,
             @RequestBody @Valid ArchiveUpdateRequest req) {
         return R.ok(archiveService.updateArchive(archiveId, req));
+    }
+
+    @PutMapping("/{archiveId}/placement")
+    @Operation(summary = "档案换盒（改所在档案盒）")
+    public R<Void> placeArchive(@PathVariable Long archiveId,
+                                @RequestBody @Valid ArchivePlacementRequest req) {
+        archiveService.placeArchive(archiveId, req);
+        return R.ok();
     }
 
     @PostMapping("/{archiveId}/security-adjustments")

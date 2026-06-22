@@ -112,6 +112,62 @@ class ApprovalServiceTest {
     }
 
     @Test
+    void approve_密级上调且当前公开_自动联动关闭公开() {
+        ApprovalRequest ap = pending(ApprovalType.security_adjust, "archive", 10L);
+        ap.setOldValue("1");
+        ap.setNewValue("2");
+        when(approvalMapper.selectById(7L)).thenReturn(ap);
+        Archive a = new Archive();
+        a.setId(10L);
+        a.setArchiveNo("ARC-000010");
+        a.setSecurityLevel(1);
+        a.setOpenStatus("open");
+        a.setLifecycleStatus(LifecycleStatus.normal);
+        when(archiveMapper.selectById(10L)).thenReturn(a);
+
+        ApprovalOpinionRequest req = new ApprovalOpinionRequest();
+        req.setOpinion("同意调整");
+        service.approve(7L, req);
+
+        ArgumentCaptor<Archive> archiveCap = ArgumentCaptor.forClass(Archive.class);
+        verify(archiveMapper).updateById(archiveCap.capture());
+        assertThat(archiveCap.getValue().getSecurityLevel()).isEqualTo(2);
+        // 联动：密级上调（1→2）且原本公开 → 自动改为不公开
+        assertThat(archiveCap.getValue().getOpenStatus()).isEqualTo("closed");
+        // 两条变更日志：security_level + open_status 联动
+        ArgumentCaptor<ArchiveChangeLog> logCap = ArgumentCaptor.forClass(ArchiveChangeLog.class);
+        verify(changeLogMapper, times(2)).insert(logCap.capture());
+        assertThat(logCap.getAllValues()).extracting(ArchiveChangeLog::getFieldName)
+                .containsExactlyInAnyOrder("security_level", "open_status");
+    }
+
+    @Test
+    void approve_密级下调_不联动公开() {
+        ApprovalRequest ap = pending(ApprovalType.security_adjust, "archive", 10L);
+        ap.setOldValue("2");
+        ap.setNewValue("1");
+        when(approvalMapper.selectById(7L)).thenReturn(ap);
+        Archive a = new Archive();
+        a.setId(10L);
+        a.setArchiveNo("ARC-000010");
+        a.setSecurityLevel(2);
+        a.setOpenStatus("open");
+        a.setLifecycleStatus(LifecycleStatus.normal);
+        when(archiveMapper.selectById(10L)).thenReturn(a);
+
+        ApprovalOpinionRequest req = new ApprovalOpinionRequest();
+        req.setOpinion("同意调整");
+        service.approve(7L, req);
+
+        ArgumentCaptor<Archive> archiveCap = ArgumentCaptor.forClass(Archive.class);
+        verify(archiveMapper).updateById(archiveCap.capture());
+        // 下调（2→1）不反向联动，公开状态保持不变
+        assertThat(archiveCap.getValue().getOpenStatus()).isEqualTo("open");
+        // 仅一条 security_level 变更日志，无 open_status 联动
+        verify(changeLogMapper, times(1)).insert(any(ArchiveChangeLog.class));
+    }
+
+    @Test
     void approve_非待审批抛冲突() {
         ApprovalRequest ap = new ApprovalRequest();
         ap.setId(7L);

@@ -287,7 +287,7 @@ INSERT INTO archives (
 ) VALUES
   (1, 'ARC-000001', '2025 年第一季度会计凭证', '克拉玛依市财政局财务处', DATE '2025-03-31', 2025, (SELECT id FROM categories WHERE category_code = 'accounting'), 'transfer', 1, 1, NULL, 2, 1, 'paper', '30y', DATE '2056-05-22', 1, 'closed', true, 'normal', 'on_loan', 'normal', TIMESTAMPTZ '2026-05-22 15:30:00+08', TIMESTAMPTZ '2026-05-23 09:30:00+08', 2),
   (2, 'ARC-000002', '2025 年度预算批复文件', '克拉玛依市财政局预算处', DATE '2025-01-15', 2025, (SELECT id FROM categories WHERE category_code = 'accounting'), 'transfer', 1, 2, NULL, 2, 1, 'paper', '30y', DATE '2056-05-22', 0, 'open', true, 'normal', 'available', 'normal', TIMESTAMPTZ '2026-05-22 15:35:00+08', TIMESTAMPTZ '2026-05-23 09:30:00+08', 2),
-  (3, 'ARC-000003', '2014 年度临时会计凭证', '克拉玛依市财政局财务处', DATE '2014-12-31', 2014, (SELECT id FROM categories WHERE category_code = 'accounting'), 'transfer', 1, 3, NULL, 2, 1, 'paper', '10y', DATE '2036-05-22', 0, 'closed', true, 'pending_destruction', 'available', 'normal', TIMESTAMPTZ '2026-05-22 15:45:00+08', TIMESTAMPTZ '2026-05-23 09:30:00+08', 2),
+  (3, 'ARC-000003', '2014 年度临时会计凭证', '克拉玛依市财政局财务处', DATE '2014-12-31', 2014, (SELECT id FROM categories WHERE category_code = 'accounting'), 'transfer', 1, 3, NULL, 2, 1, 'paper', '10y', DATE '2026-05-01', 0, 'closed', true, 'normal', 'available', 'normal', TIMESTAMPTZ '2026-05-22 15:45:00+08', TIMESTAMPTZ '2026-05-23 09:30:00+08', 2),
   (4, 'ARC-000004', '2003 年老城区改造照片档案', '小周', DATE '2003-09-20', 2003, (SELECT id FROM categories WHERE category_code = 'audio_video'), 'collection', 4, 7, NULL, NULL, 2, 'paper', 'permanent', NULL, 0, 'open', true, 'normal', 'available', 'normal', TIMESTAMPTZ '2026-05-15 16:00:00+08', TIMESTAMPTZ '2026-05-16 09:30:00+08', 2);
 
 -- 批量纸质档案：会计 6-15（财政局，30y）
@@ -312,6 +312,11 @@ SELECT
   'normal', 'available', 'normal',
   TIMESTAMPTZ '2026-04-02 15:00:00+08', TIMESTAMPTZ '2026-04-03 09:30:00+08', 2
 FROM generate_series(1, 10) AS gs;
+
+-- W-D 鉴定演示：把 ARC-000015 到期日提前到近期，与上方 ARC-000003（已改 normal + 2026-05-01）配合，
+-- 建鉴定批次时 dueDays=30 刚好命中这两条（其余 30y 档案到期日均在 2045+，不入选）：
+-- ARC-000015 演示「延长保管期限」、ARC-000003 演示「鉴定销毁」进入销毁流程。
+UPDATE archives SET retention_until = DATE '2026-06-01' WHERE id = 15;
 
 -- 文书 16-19（财政局，30y，公开）
 INSERT INTO archives (
@@ -668,7 +673,9 @@ SELECT setval('seq_analysis_task_no', 1, true);
 SELECT setval('seq_ai_task_no', 3, true);
 SELECT setval('seq_compilation_no', 1, true);
 -- 业务编号序列同步：种子插入了 APP-000001 / INV-000001，必须把对应序列推到种子最大值，
--- 否则首次 nextval 会生成已存在的编号，触发 uk_inventory_tasks_task_no 唯一约束冲突（500）。
+-- 否则首次 nextval 会生成已存在的编号，触发 uk 唯一约束冲突（500）。
+-- seq_appraisal_batch_no 在 V14 漏建、V17 才补；本迁移 setval 引用在前，先建避免干净库重跑 V16 失败。
+CREATE SEQUENCE IF NOT EXISTS seq_appraisal_batch_no START WITH 1;
 SELECT setval('seq_appraisal_batch_no', 1, true);
 SELECT setval('seq_inventory_task_no', 1, true);
 

@@ -213,7 +213,13 @@ export function getArchives(
       }
     })
   }
-  return request.get('/admin/archives', { params })
+  return request.get('/admin/archives', { params }).then((res: PageData<ArchiveRecord & { tagNames?: string[] }>) => {
+    // 后端 ArchiveResponse 返回 tagNames，前端列表模板绑定 tags —— 对齐字段，与详情映射一致
+    if (res?.records) {
+      res.records = res.records.map((r) => ({ ...r, tags: r.tagNames ?? r.tags ?? [] }))
+    }
+    return res
+  })
 }
 
 /** 获取档案详情 */
@@ -243,6 +249,12 @@ export function updateArchive(
   return request.put(`/admin/archives/${archiveId}`, data)
 }
 
+/** 档案换盒（P0-1，改所在档案盒，目标盒须同分类） */
+export function placeArchive(archiveId: number, boxId: number): Promise<void> {
+  if (USE_MOCK) return Promise.resolve()
+  return request.put(`/admin/archives/${archiveId}/placement`, { boxId })
+}
+
 /** 发起密级调整审批 */
 export function submitSecurityAdjust(
   archiveId: number,
@@ -265,12 +277,12 @@ export function submitOpenAdjust(
   return request.post(`/admin/archives/${archiveId}/open-adjustments`, data)
 }
 
-/** 档案文件预览 */
-export function previewArchiveFile(fileId: number): Promise<string> {
+/** 档案文件预览（返回 Blob，供 FilePreview 组件渲染） */
+export function previewArchiveFile(fileId: number): Promise<Blob> {
   if (USE_MOCK) {
-    return Promise.resolve('# 预览内容\n\n这是模拟的文件预览。')
+    return Promise.resolve(new Blob(['# 预览内容\n\n这是模拟的文件预览。'], { type: 'application/pdf' }))
   }
-  return request.get(`/admin/archive-files/${fileId}/preview`)
+  return request.get(`/admin/archive-files/${fileId}/preview`, { responseType: 'blob' }) as Promise<Blob>
 }
 
 /** 档案文件下载 */

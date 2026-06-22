@@ -157,6 +157,30 @@ public class WarehouseService {
         return toRoomResponse(room, countOccupiedSlots(roomId));
     }
 
+    /** 16.10 删除库房（物理删除；存在活动档案盒时拒绝）。 */
+    @Transactional
+    public void deleteRoom(Long roomId) {
+        WarehouseRoom room = warehouseRoomMapper.selectById(roomId);
+        if (room == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "库房不存在");
+        }
+        int activeBoxes = countOccupiedSlots(roomId);
+        if (activeBoxes > 0) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT,
+                    "该库房存在 " + activeBoxes + " 个活动档案盒，无法删除，请先移出档案盒");
+        }
+        // 残留历史盒（moved/destroyed）解除架位引用，保留盒记录
+        jdbcTemplate.update(
+                "UPDATE archive_boxes SET location_id = NULL WHERE location_id IN " +
+                "(SELECT id FROM storage_locations WHERE room_id = ?)", roomId);
+        // 物理删除该库房全部架位（建库房时批量生成，无业务数据）
+        jdbcTemplate.update("DELETE FROM storage_locations WHERE room_id = ?", roomId);
+        // 物理删除库房
+        warehouseRoomMapper.deleteById(roomId);
+        auditService.log("M07", "delete_room", "warehouse_room", roomId,
+                Map.of("roomNo", room.getRoomNo(), "roomName", room.getRoomName()));
+    }
+
     // ==================== 16.4 查询架位列表 ====================
 
     public PageResult<StorageLocationResponse> listLocations(
@@ -291,9 +315,6 @@ public class WarehouseService {
         box.setBoxNo(boxNoUtil.generate());
         box.setLocationId(req.getLocationId());
         box.setCategoryId(req.getCategoryId());
-        box.setFondsId(req.getFondsId());
-        box.setYearLabel(req.getYearLabel());
-        box.setSpineText(req.getSpineText());
         box.setCapacity(req.getCapacity());
         box.setUsedCount(0);
         box.setStatus("normal");
@@ -357,6 +378,25 @@ public class WarehouseService {
                         "reason", req.getReason() != null ? req.getReason() : ""));
 
         return toBoxResponse(box, target);
+    }
+
+    // ==================== 16.10 删除空档案盒（释放架位） ====================
+
+    @Transactional
+    public void deleteBox(Long boxId) {
+        ArchiveBox box = archiveBoxMapper.selectById(boxId);
+        if (box == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "档案盒不存在");
+        }
+        // 仅允许删除空盒：盒内仍有档案时需先迁出，避免误删在用档案的物理容器
+        if (box.getUsedCount() != null && box.getUsedCount() > 0) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT,
+                    "档案盒内仍有档案，请先迁出档案后再删除");
+        }
+        // 物理删除空盒：盒消失后其原架位自动释放（isLocationOccupied 仅认 normal/full 活动盒）
+        archiveBoxMapper.deleteById(boxId);
+        auditService.log("M07", "delete_box", "archive_box", boxId,
+                Map.of("boxNo", box.getBoxNo()));
     }
 
     // ==================== 16.6 查询档案盒列表 ====================

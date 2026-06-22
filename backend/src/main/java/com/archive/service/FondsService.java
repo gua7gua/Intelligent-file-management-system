@@ -76,7 +76,12 @@ public class FondsService {
     /** 17.2 新增全宗 */
     @Transactional
     public FondsResponse createFonds(FondsCreateRequest req) {
-        Fonds existing = fondsMapper.selectOne(new QueryWrapper<Fonds>().eq("fonds_no", req.getFondsNo()));
+        // 全宗号留空时自动按 F### 续编（取当前最大编号 +1），避免手填冲突
+        String fondsNo = req.getFondsNo();
+        if (fondsNo == null || fondsNo.isBlank()) {
+            fondsNo = nextFondsNo();
+        }
+        Fonds existing = fondsMapper.selectOne(new QueryWrapper<Fonds>().eq("fonds_no", fondsNo));
         if (existing != null) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "全宗号已存在");
         }
@@ -86,7 +91,7 @@ public class FondsService {
         }
 
         Fonds fonds = new Fonds();
-        fonds.setFondsNo(req.getFondsNo());
+        fonds.setFondsNo(fondsNo);
         fonds.setFondsName(req.getFondsName());
         fonds.setOrganizationId(req.getOrganizationId());
         fonds.setDescription(req.getDescription());
@@ -96,6 +101,23 @@ public class FondsService {
         auditService.log("M06", "create_fonds", "fonds", fonds.getId(),
                 Map.of("fondsNo", fonds.getFondsNo(), "fondsName", fonds.getFondsName()));
         return toResponse(fonds);
+    }
+
+    /** 查询当前最大 F### 编号 +1，格式 F%03d；无任何记录或解析失败时返回 F001。 */
+    private String nextFondsNo() {
+        String max = jdbcTemplate.queryForObject(
+                "SELECT fonds_no FROM fonds WHERE deleted_at IS NULL AND fonds_no ~ '^F[0-9]+$' " +
+                        "ORDER BY length(fonds_no) DESC, fonds_no DESC LIMIT 1",
+                String.class);
+        int next = 1;
+        if (max != null) {
+            try {
+                next = Integer.parseInt(max.substring(1)) + 1;
+            } catch (NumberFormatException ignored) {
+                next = 1;
+            }
+        }
+        return String.format("F%03d", next);
     }
 
     /** 17.3 更新全宗（fondsNo 不可改；有业务关联时仅更新状态） */
@@ -110,7 +132,10 @@ public class FondsService {
         boolean onlyStatus = assoc > 0L;
 
         if (onlyStatus) {
-            // 有档案/档案盒关联：仅允许停用，忽略其余业务字段
+            // 有档案/档案盒关联：仅 organizationId 受保护（避免破坏归属一致性），
+            // fondsName / description / status 均允许修改。
+            if (req.getFondsName() != null) fonds.setFondsName(req.getFondsName());
+            if (req.getDescription() != null) fonds.setDescription(req.getDescription());
             if (req.getStatus() != null && !req.getStatus().isBlank()) {
                 fonds.setStatus(req.getStatus());
             }
@@ -133,6 +158,22 @@ public class FondsService {
         if (req.getStatus() != null && !req.getStatus().isBlank()) fonds.setStatus(req.getStatus());
         fondsMapper.updateById(fonds);
         auditService.log("M06", "update_fonds", "fonds", id, Map.of());
+    }
+
+    /** 17.4 删除全宗（物理删除；关联档案/档案盒的 fonds_id 先置空）。 */
+    @Transactional
+    public void deleteFonds(Long id) {
+        Fonds fonds = fondsMapper.selectById(id);
+        if (fonds == null || fonds.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "全宗不存在");
+        }
+        long assoc = countAssoc(id);
+        // 外键 RESTRICT：必须先解除 archives / archive_boxes 对全宗的引用，再物理删除
+        jdbcTemplate.update("UPDATE archives SET fonds_id = NULL WHERE fonds_id = ?", id);
+        jdbcTemplate.update("UPDATE archive_boxes SET fonds_id = NULL WHERE fonds_id = ?", id);
+        fondsMapper.deleteById(id);
+        auditService.log("M06", "delete_fonds", "fonds", id,
+                Map.of("fondsName", fonds.getFondsName(), "assoc", assoc));
     }
 
     /** 详情 */

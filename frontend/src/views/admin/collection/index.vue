@@ -6,7 +6,7 @@
 
   <!-- 概览指标 -->
   <section class="grid four" aria-label="征集待办统计">
-    <div class="metric">
+    <div v-if="!isFrontArchivist" class="metric">
       <span class="label">待联系</span>
       <span class="value">{{ contactCount }}</span>
       <span class="note">后台判断征集方向</span>
@@ -212,6 +212,7 @@
             </table>
           </div>
           <div class="actions" style="margin-top: 12px;">
+            <button class="button secondary" type="button" @click="acceptAllPaper">批量纸质验收通过</button>
             <button class="button" type="button" @click="handleCompleteReceive">完成接收</button>
             <button class="button secondary" type="button" :disabled="pendingItemsCount > 0" @click="handleExportReceipt">导出回执</button>
           </div>
@@ -273,11 +274,21 @@ const isBackArchivist = computed(() => hasRole('back_archivist'))
 const isFrontArchivist = computed(() => hasRole('front_archivist'))
 
 // ── 筛选 ──
-const collectionTabs = [
-  { key: 'all', label: '全部' },
-  { key: 'pending_contact', label: '待联系' },
-  { key: 'pending_receive', label: '待接收' },
-] as const
+// R3-D4：前台无 pending_contact 处理权（filteredCollections 已过滤该状态），隐藏「待联系」tab 避免点进去空白
+const collectionTabs = computed(() =>
+  isFrontArchivist.value
+    ? [
+        { key: 'all', label: '全部' },
+        { key: 'pending_receive', label: '待接收' },
+        { key: 'received', label: '已接收' },
+      ]
+    : [
+        { key: 'all', label: '全部' },
+        { key: 'pending_contact', label: '待联系' },
+        { key: 'pending_receive', label: '待接收' },
+        { key: 'received', label: '已接收' },
+      ],
+)
 const activeTab = ref<string>('all')
 const loading = ref(false)
 
@@ -319,7 +330,10 @@ const agreementErrorCount = computed(() => 0)
 const filteredCollections = computed(() => {
   return batchList.value.filter((b) => {
     if (isFrontArchivist.value && (b.status === 'pending_contact' || b.status === 'rejected')) return false
-    if (activeTab.value !== 'all' && b.status !== activeTab.value) return false
+    if (activeTab.value === 'received') {
+      // 已接收（未入库）：received 与 partially_received 合并展示，便于补导出回执，避免接收后批次"消失"
+      if (b.status !== 'received' && b.status !== 'partially_received') return false
+    } else if (activeTab.value !== 'all' && b.status !== activeTab.value) return false
     return true
   })
 })
@@ -396,7 +410,10 @@ function fileScanHint(file: StagingFile): string {
 async function loadCollections() {
   loading.value = true
   try {
-    const res = await getCollections()
+    // 征集管理页一次性拉取较多批次：后端默认 pageSize=20，批次累积时会截断，
+    // 导致 tab 筛选（前端过滤）漏掉分页之外的新批次（如新提交的待联系批次）。
+    // 后端 pageSize 上限 100，取 100 容纳常规累积（完整分页/tab 后端筛选为后续优化）。
+    const res = await getCollections({ pageSize: 100 })
     batchList.value = res.records
   } catch {
     ElMessage.error('加载征集批次失败')
@@ -489,6 +506,16 @@ function handleFilePick(e: Event) {
   input.value = ''
 }
 
+// ── 批量纸质验收通过（P2-4：与移交接收页对称）──
+function acceptAllPaper() {
+  if (!batchDetail.value) return
+  batchDetail.value.items.forEach((item) => {
+    item.result = 'accepted'
+    if (!item.acceptanceNote) item.acceptanceNote = '纸质核对通过'
+  })
+  ElMessage.success('已批量标记纸质验收通过。')
+}
+
 // ── 前台完成接收 ──
 async function handleCompleteReceive() {
   if (!selectedBatch.value || !batchDetail.value) return
@@ -521,6 +548,8 @@ async function handleCompleteReceive() {
     // 刷新批次列表与详情，避免完成后卡片仍显示原状态（与 B12-1 同类问题）
     const completedId = selectedBatch.value.id
     await loadCollections()
+    // 接收完成后自动切到「已接收」tab，前台直观看到成果并支持补导出回执
+    activeTab.value = 'received'
     // 关键：从刷新后的 batchList 取最新对象再 selectBatch，
     // 否则 selectedBatch 仍指向旧对象（status=pending_receive），头部状态不会更新
     const refreshed = batchList.value.find((b) => b.id === completedId)

@@ -38,7 +38,16 @@ export function getPublicHome(): Promise<PublicHomeData> {
 
 export function searchPublicArchives(params?: PublicSearchParams): Promise<PublicArchivePage> {
   if (USE_MOCK) return import('@/mock/modules/public').then((m) => m.mockSearchPublicArchives(params))
-  return request.get('/public/archives/search', { params })
+  // 后端 ArchiveSummaryResponse 返回 tagNames，前端 PublicArchive.tags，做一次映射（与档案管理 F5 一致）
+  return request.get('/public/archives/search', { params }).then((page) => {
+    if (page && Array.isArray(page.records)) {
+      page.records = page.records.map((r) => {
+        const raw = r as PublicArchive & { tagNames?: string[] }
+        return { ...r, tags: raw.tagNames ?? r.tags ?? [] }
+      })
+    }
+    return page
+  })
 }
 
 export function getPublicArchiveDetail(archiveId: number): Promise<PublicArchiveDetail> {
@@ -72,7 +81,13 @@ export function getPublicArchiveDetail(archiveId: number): Promise<PublicArchive
 
 export function generatePublicSearchQuery(data: PublicAiQueryRequest): Promise<PublicAiQueryResult> {
   if (USE_MOCK) return import('@/mock/modules/public').then((m) => m.mockGeneratePublicSearchQuery(data))
-  return request.post('/public/archives/ai-query', data)
+  return request.post('/public/archives/ai-query', data, { timeout: 60000 })
+}
+
+/** 公众端电子文件预览（返回 Blob，供 FilePreview 组件渲染） */
+export function previewPublicArchiveFile(fileId: number): Promise<Blob> {
+  if (USE_MOCK) return Promise.resolve(new Blob(['公众预览内容'], { type: 'application/pdf' }))
+  return request.get(`/public/archive-files/${fileId}/preview`, { responseType: 'blob' }) as Promise<Blob>
 }
 
 export function downloadPublicArchiveFile(fileId: number): Promise<Blob> {

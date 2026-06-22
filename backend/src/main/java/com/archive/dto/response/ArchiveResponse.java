@@ -62,6 +62,8 @@ public class ArchiveResponse {
 
     private List<String> tagNames;
 
+    private Long boxId;
+
     private String boxNo;
 
     private String locationCode;

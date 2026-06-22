@@ -13,6 +13,8 @@ public class AuditLogResponse {
     /** 模块代号对应的中文标签（如 M14 -> 系统配置），未命中返回 null。 */
     private String moduleLabel;
     private String operationType;
+    /** 操作类型对应的中文标签（如 approve -> 审批通过），未命中返回 null。 */
+    private String operationLabel;
     private String businessType;
     private Long businessId;
     private Map<String, Object> detail;

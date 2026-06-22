@@ -59,7 +59,7 @@ ai:
   api-key: ${DEEPSEEK_API_KEY:}
   model: ${AI_MODEL:deepseek-chat}
   connect-timeout: 5
-  read-timeout: 15
+  read-timeout: 60
   search-max-retries: 3
   batch-size: 50
 

@@ -176,7 +176,8 @@ public class AnalysisService {
 
     private List<Long> scopedArchiveIds(AnalysisRule rule) {
         StringBuilder sql = new StringBuilder(
-                "SELECT id FROM archives WHERE deleted_at IS NULL AND lifecycle_status<>'destroyed'");
+                "SELECT id FROM archives WHERE deleted_at IS NULL AND lifecycle_status<>'destroyed'" +
+                        " AND analysis_ignored_at IS NULL");
         List<Object> args = new ArrayList<>();
         if (rule.getCategoryIds() != null && !rule.getCategoryIds().isEmpty()) {
             sql.append(" AND category_id IN (");
@@ -251,13 +252,63 @@ public class AnalysisService {
         if (it.getStatus() != AnalysisItemStatus.pending) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "研判项已处理");
         }
-        it.setStatus("adopted".equals(req.getAction()) ? AnalysisItemStatus.adopted : AnalysisItemStatus.rejected);
+        boolean rejected = "rejected".equals(req.getAction());
+        it.setStatus(rejected ? AnalysisItemStatus.rejected : AnalysisItemStatus.adopted);
         it.setHandledBy(AuthContext.getCurrentUserId());
         it.setHandledAt(OffsetDateTime.now());
         itemMapper.updateById(it);
+        // 不采纳=该档案无问题：打永久跳过标记，下次扫描不再纳入候选；
+        // （删除则不走这里，仅软删当前异常项，下次扫描仍可再次发现。）
+        if (rejected && it.getArchiveId() != null) {
+            jdbcTemplate.update("UPDATE archives SET analysis_ignored_at = ? WHERE id = ?",
+                    OffsetDateTime.now(), it.getArchiveId());
+        }
         auditService.log("M14", "handle_analysis_item", "analysis_item", itemId,
                 Map.of("action", req.getAction()));
         return toItemResponse(it);
+    }
+
+    /** 20.9 删除研判异常项（软删置 deleted_at，保留数据；与任务级联软删一致策略）。 */
+    @Transactional
+    public void deleteItem(Long itemId) {
+        requireRole();
+        AnalysisItem it = itemMapper.selectById(itemId);
+        if (it == null || it.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "研判项不存在");
+        }
+        it.setDeletedAt(OffsetDateTime.now());
+        itemMapper.updateById(it);
+        auditService.log("M14", "delete_analysis_item", "analysis_item", itemId, Map.of());
+    }
+
+    /** 20.8 删除研判任务（仅 completed/failed 可删；级联软删 analysis_items）。 */
+    @Transactional
+    public void delete(Long taskId) {
+        requireRole();
+        AnalysisTask t = taskMapper.selectById(taskId);
+        if (t == null || t.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "研判任务不存在");
+        }
+        if (t.getStatus() == AnalysisTaskStatus.running) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "运行中的研判任务不可删除");
+        }
+        // 允许删除的终态：completed / partial_completed / failed（running 之外的都视为可清理）
+        if (t.getStatus() != AnalysisTaskStatus.completed
+                && t.getStatus() != AnalysisTaskStatus.partial_completed
+                && t.getStatus() != AnalysisTaskStatus.failed) {
+            throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "当前状态不允许删除");
+        }
+        // 级联软删 analysis_items（保留数据，置 deleted_at）
+        List<AnalysisItem> items = itemMapper.selectList(new QueryWrapper<AnalysisItem>()
+                .eq("task_id", taskId).isNull("deleted_at"));
+        OffsetDateTime now = OffsetDateTime.now();
+        for (AnalysisItem it : items) {
+            it.setDeletedAt(now);
+            itemMapper.updateById(it);
+        }
+        t.setDeletedAt(now);
+        taskMapper.updateById(t);
+        auditService.log("M14", "delete", "analysis_task", taskId, Map.of());
     }
 
     private void copy(AnalysisTask t, AnalysisTaskResponse r) {
@@ -276,6 +327,51 @@ public class AnalysisService {
             default -> t.getLatestAiTaskId() != null ? 0.5 : 1.0;
         });
         r.setScopeText(buildScopeText(t));
+        fillAiStatus(t, r);
+    }
+
+    /** 回填 AI 建议执行状态：从 latestAiTaskId 关联的 ai_tasks/ai_task_batches 统计批次成败。 */
+    private void fillAiStatus(AnalysisTask t, AnalysisTaskResponse r) {
+        Long aiId = t.getLatestAiTaskId();
+        if (aiId == null) {
+            r.setAiStatus("skipped");
+            r.setAiTotalBatches(0);
+            r.setAiFailedBatches(0);
+            return;
+        }
+        String aiStatus;
+        try {
+            aiStatus = jdbcTemplate.queryForObject(
+                    "SELECT status FROM ai_tasks WHERE id = ?", String.class, aiId);
+        } catch (Exception e) {
+            aiStatus = null;
+        }
+        Long totalRaw = null, failedRaw = null;
+        try {
+            totalRaw = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM ai_task_batches WHERE task_id = ?", Long.class, aiId);
+            failedRaw = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM ai_task_batches WHERE task_id = ? AND status = 'failed'", Long.class, aiId);
+        } catch (Exception ignored) {
+            // 查询异常时按未知处理，不影响主流程
+        }
+        long total = totalRaw != null ? totalRaw : 0L;
+        long failed = failedRaw != null ? failedRaw : 0L;
+        r.setAiTotalBatches(total);
+        r.setAiFailedBatches(failed);
+        String s;
+        if ("failed".equals(aiStatus)) {
+            s = "failed";
+        } else if (total == 0) {
+            s = "skipped";
+        } else if (failed == 0) {
+            s = "success";
+        } else if (failed >= total) {
+            s = "failed";
+        } else {
+            s = "partial";
+        }
+        r.setAiStatus(s);
     }
 
     /** 范围摘要：解析 rule_snapshot，例如「科技档案 / 文书档案 2010~2026」。 */
@@ -405,13 +501,17 @@ public class AnalysisService {
                 Object reason = d == null ? null : d.get("reason");
                 return reason == null ? "可补充标签建议" : String.valueOf(reason);
             }
+            case tag_wrong -> {
+                Object reason = d == null ? null : d.get("wrongReason");
+                return reason == null ? "档案标签与门类明显冲突（标签错配）" : ("标签错配：" + String.valueOf(reason));
+            }
             default -> {
                 return "—";
             }
         }
     }
 
-    /** 按 issueType 派生建议动作。 */
+    /** 按 issueType 派生建议动作；tag_suggestion 附带具体建议标签值，便于直接采纳。 */
     private String buildSuggestedAction(AnalysisItem it) {
         if (it.getIssueType() == null) {
             return "—";
@@ -419,8 +519,42 @@ public class AnalysisService {
         return switch (it.getIssueType()) {
             case missing_field -> "在档案详情页补全缺失字段后人工确认";
             case category_conflict -> "复核公开状态与密级，调整其中一项";
-            case tag_suggestion -> "采纳建议标签，后续在档案管理页人工维护";
+            case tag_suggestion -> buildTagSuggestionAction(it);
+            case tag_wrong -> "核对档案门类，移除或修正与门类冲突的标签";
         };
+    }
+
+    /** 标签建议：从 suggestion.candidates[].suggestedValue（兼容旧 suggestedTags）抽取具体标签值。 */
+    private String buildTagSuggestionAction(AnalysisItem it) {
+        Map<String, Object> s = it.getSuggestion();
+        if (s == null) {
+            return "采纳建议标签，后续在档案管理页人工维护";
+        }
+        List<String> values = new ArrayList<>();
+        Object cands = s.get("candidates");
+        if (cands instanceof List<?> list) {
+            for (Object c : list) {
+                if (c instanceof Map<?, ?> m && m.get("suggestedValue") instanceof List<?> sv) {
+                    for (Object v : sv) {
+                        values.add(String.valueOf(v));
+                    }
+                }
+            }
+        }
+        if (values.isEmpty() && s.get("suggestedTags") instanceof List<?> tags) {
+            for (Object t : tags) {
+                values.add(String.valueOf(t));
+            }
+        }
+        if (values.isEmpty() && s.get("addTags") instanceof List<?> addTags) {
+            for (Object t : addTags) {
+                values.add(String.valueOf(t));
+            }
+        }
+        if (values.isEmpty()) {
+            return "采纳建议标签，后续在档案管理页人工维护";
+        }
+        return "建议补充标签：" + String.join("、", values) + "（可在档案管理页采纳）";
     }
 
     private boolean isBlank(String s) {

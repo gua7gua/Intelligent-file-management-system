@@ -12,7 +12,7 @@
       <div class="form-grid">
         <div class="field">
           <label>状态</label>
-          <select v-model="filter.status" @change="loadList">
+          <select v-model="filter.status" @change="searchFromFirstPage">
             <option value="">全部</option>
             <option value="applied">待审批</option>
             <option value="approved">已批准</option>
@@ -25,11 +25,11 @@
         </div>
         <div class="field">
           <label>关键词</label>
-          <input v-model="filter.keyword" placeholder="申请号、档号、题名" @keyup.enter="loadList">
+          <input v-model="filter.keyword" placeholder="申请号、档号、题名" @keyup.enter="searchFromFirstPage">
         </div>
         <div class="field">
           <label>&nbsp;</label>
-          <button class="button" type="button" @click="loadList">查询</button>
+          <button class="button" type="button" @click="searchFromFirstPage">查询</button>
         </div>
       </div>
     </div>
@@ -54,11 +54,23 @@
               </td>
               <td>
                 <button class="button ghost" type="button" @click="openDetail(req.id)">查看详情</button>
+                <button v-if="req.status === 'applied'" class="button ghost" type="button" @click="handleWithdraw(req.id)">撤回</button>
                 <button v-if="canExportVoucher(req.status)" class="button secondary" type="button" @click="handleExport(req.id)">导出凭证</button>
               </td>
             </tr>
           </tbody>
         </table>
+      </div>
+      <div style="display: flex; justify-content: flex-end; margin-top: 12px">
+        <el-pagination
+          v-model:current-page="pageNo"
+          v-model:page-size="pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="loadList"
+          @current-change="loadList"
+        />
       </div>
     </div>
 
@@ -95,8 +107,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { exportBorrowVoucher, getBorrowRequestDetail, getMyBorrowRequests } from '@/api/internal'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { exportBorrowVoucher, getBorrowRequestDetail, getMyBorrowRequests, withdrawBorrowRequest } from '@/api/internal'
 import { BorrowStatusLabel } from '@/types/enums'
 import type { BorrowRequest, BorrowRequestDetail } from '@/types/internal'
 
@@ -106,6 +118,9 @@ const filter = reactive<{ status: string; keyword: string }>({ status: '', keywo
 const loading = ref(false)
 const error = ref('')
 const records = ref<BorrowRequest[]>([])
+const pageNo = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
 const drawerVisible = ref(false)
 const detailLoading = ref(false)
@@ -128,7 +143,8 @@ function statusClass(status: string): string {
   return map[status] ?? 'info'
 }
 function canExportVoucher(status: string): boolean {
-  return status === 'approved' || status === 'voucher_issued'
+  // returned 后亦允许补打凭证（R3-D1，归还后作历史/报销凭据），与后端 exportVoucher 允许状态一致
+  return status === 'approved' || status === 'voucher_issued' || status === 'returned'
 }
 function formatDate(iso?: string | null): string {
   return iso ? iso.slice(0, 10) : '—'
@@ -141,13 +157,22 @@ async function loadList() {
     const page = await getMyBorrowRequests({
       status: (filter.status || undefined) as BorrowRequest['status'] | undefined,
       keyword: filter.keyword || undefined,
+      pageNo: pageNo.value,
+      pageSize: pageSize.value,
     })
     records.value = page.records
+    total.value = page.total
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : '加载借阅申请失败'
   } finally {
     loading.value = false
   }
+}
+
+// 用户主动触发查询（状态切换/关键词/查询按钮）回到第一页；分页器翻页直接走 loadList 保留当前页
+function searchFromFirstPage() {
+  pageNo.value = 1
+  return loadList()
 }
 
 async function openDetail(id: number) {
@@ -176,6 +201,21 @@ async function handleExport(id: number) {
     ElMessage.success('借阅凭证已导出')
   } catch {
     ElMessage.error('导出凭证失败')
+  }
+}
+
+async function handleWithdraw(id: number) {
+  try {
+    await ElMessageBox.confirm('撤回后该申请将被删除，是否继续？', '撤回借阅申请', { type: 'warning' })
+  } catch {
+    return
+  }
+  try {
+    await withdrawBorrowRequest(id)
+    ElMessage.success('借阅申请已撤回。')
+    await searchFromFirstPage()
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '撤回失败')
   }
 }
 

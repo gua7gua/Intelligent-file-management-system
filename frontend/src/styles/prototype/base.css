@@ -28,7 +28,7 @@
   --shadow: 0 14px 34px rgba(23, 33, 43, 0.08);
   --radius: 8px;
   --radius-sm: 6px;
-  --font: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+  --font: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Source Han Sans SC", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
 }
 
 html {
