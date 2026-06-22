@@ -195,7 +195,13 @@ public class UserService {
         if (user == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
-        user.setPasswordHash(passwordEncoder.encode(newPassword != null ? newPassword : "123456"));
+        if (newPassword == null || newPassword.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "新密码不能为空");
+        }
+        if (newPassword.length() < 6) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "密码至少 6 位");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
         userMapper.updateById(user);
         auditService.log("M14", "reset_password", "user", id, Map.of());
     }

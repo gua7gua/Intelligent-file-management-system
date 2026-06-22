@@ -195,7 +195,7 @@ public class PdfGenerator {
             borrowerTab.setWidthPercentage(100);
             borrowerTab.setWidths(new float[]{1.5f, 3f, 1.5f, 3f});
             addInfoRow(borrowerTab, "姓名", borrower != null ? nullSafe(borrower.getRealName()) : "",
-                    "工号", borrower != null ? nullSafe(borrower.getEmployeeNo()) : "", normalFont);
+                    "账号", borrower != null ? nullSafe(borrower.getLoginName()) : "", normalFont);
             addInfoRow(borrowerTab, "联系电话", borrower != null ? nullSafe(borrower.getPhone()) : "",
                     "部门", borrower != null ? nullSafe(borrower.getDepartmentName()) : "", normalFont);
             addInfoRow(borrowerTab, "所在单位", org != null ? nullSafe(org.getOrgName()) : "",
