@@ -461,7 +461,6 @@ async function handleArchive() {
   if (!activeItem.value) return
   const required: Record<string, string> = {
     title: '正式题名',
-    responsible: '责任者',
     formedDate: '形成日期',
   }
   for (const [key, label] of Object.entries(required)) {

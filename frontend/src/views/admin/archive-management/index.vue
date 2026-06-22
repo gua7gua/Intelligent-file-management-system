@@ -25,8 +25,11 @@
 
       <!-- 中栏：筛选 + 列表 -->
       <section class="grid">
-        <div class="card panel">
-          <h2 class="section-title">筛选条件</h2>
+        <details class="card panel collapsible-card" open>
+          <summary>
+            <span class="section-title">筛选条件</span>
+            <span class="status info">点击折叠/展开</span>
+          </summary>
           <div class="form-grid">
             <div class="field">
               <label>关键词</label>
@@ -58,13 +61,77 @@
                 <option v-for="(label, val) in CarrierStatusLabel" :key="val" :value="val">{{ label }}</option>
               </select>
             </div>
+            <div class="field">
+              <label>标签关键词</label>
+              <input v-model="query.tagKeyword" placeholder="按标签名模糊匹配" />
+            </div>
+            <div class="field">
+              <label>档号</label>
+              <input v-model="query.archiveNo" placeholder="档号模糊匹配" />
+            </div>
+            <div class="field">
+              <label>所属全宗</label>
+              <input v-model="query.fondsName" placeholder="全宗名称" />
+            </div>
+            <div class="field">
+              <label>形成/移交单位</label>
+              <input v-model="query.organizationName" placeholder="单位名称" />
+            </div>
+            <div class="field">
+              <label>借阅状态</label>
+              <select v-model="query.loanStatus">
+                <option value="">全部</option>
+                <option value="available">可借阅</option>
+                <option value="on_loan">借出中</option>
+                <option value="not_on_shelf">未上架</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>保管期限</label>
+              <select v-model="query.retentionPeriod">
+                <option value="">全部</option>
+                <option value="permanent">永久</option>
+                <option value="30y">30年</option>
+                <option value="10y">10年</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>文件格式</label>
+              <input v-model="query.fileExt" placeholder="PDF / JPG..." />
+            </div>
+            <div class="field">
+              <label>排序</label>
+              <select v-model="query.sortBy">
+                <option value="">入库时间倒序</option>
+                <option value="formed_desc">形成日期倒序</option>
+                <option value="formed_asc">形成日期升序</option>
+                <option value="archiveNo_asc">档号升序</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>档案来源</label>
+              <select v-model="query.sourceType">
+                <option value="">全部</option>
+                <option value="transfer">移交</option>
+                <option value="collection">征集</option>
+                <option value="compilation">编研</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>电子文件</label>
+              <select v-model="query.hasFile">
+                <option value="">全部</option>
+                <option value="yes">有电子件</option>
+                <option value="no">无电子件</option>
+              </select>
+            </div>
           </div>
           <div class="actions" style="margin-top:12px">
             <el-button type="primary" @click="handleSearch">查询</el-button>
             <el-button @click="handleReset">重置</el-button>
             <label class="inline-toggle"><input type="checkbox" v-model="showDestroyed" @change="handleSearch" /><span>显示已销毁</span></label>
           </div>
-        </div>
+        </details>
 
         <div class="card panel">
           <h2 class="section-title">档案列表</h2>
@@ -76,6 +143,7 @@
                 <tr>
                   <th>档号</th>
                   <th>题名</th>
+                  <th>责任者</th>
                   <th>年度</th>
                   <th>分类</th>
                   <th>所属全宗</th>
@@ -83,6 +151,7 @@
                   <th>开放</th>
                   <th>载体</th>
                   <th>状态</th>
+                  <th>借阅</th>
                   <th>标签</th>
                 </tr>
               </thead>
@@ -96,6 +165,7 @@
                 >
                   <td>{{ a.archiveNo }}</td>
                   <td>{{ a.title }}</td>
+                  <td>{{ a.responsibleText || '—' }}</td>
                   <td>{{ a.formedYear ?? '—' }}</td>
                   <td>{{ a.categoryName }}</td>
                   <td>{{ a.fondsName || '无' }}</td>
@@ -106,6 +176,9 @@
                     <span class="status" :class="lifeClass(a.lifecycleStatus)">
                       {{ ArchiveStatusLabel[a.lifecycleStatus] || a.lifecycleStatus }}
                     </span>
+                  </td>
+                  <td>
+                    <span class="status" :class="loanClass(a.loanStatus)">{{ loanLabel(a.loanStatus) }}</span>
                   </td>
                   <td>{{ a.tags?.join('、') || '—' }}</td>
                 </tr>
@@ -264,10 +337,20 @@ const selectedCategoryId = ref(0)
 // ── 查询状态 ──
 const query = reactive({
   keyword: '',
+  archiveNo: '',
   year: undefined as number | undefined,
   securityLevel: '' as string | number,
   openStatus: '',
   carrierStatus: '',
+  loanStatus: '',
+  retentionPeriod: '',
+  fondsName: '',
+  organizationName: '',
+  fileExt: '',
+  sortBy: '',
+  sourceType: '',
+  hasFile: '',
+  tagKeyword: '',
 })
 // D2：已销毁档案默认隐藏，勾选后携带 includeDestroyed=true 拉取
 const showDestroyed = ref(false)
@@ -323,13 +406,22 @@ function lifeClass(s: string): string {
   const map: Record<string, string> = { normal: 'success', pending_shelf: 'warning', pending_destruction: 'danger', destroyed: 'info' }
   return map[s] || ''
 }
+function loanLabel(s?: string): string {
+  const map: Record<string, string> = { available: '可借阅', on_loan: '借出中', not_on_shelf: '未上架' }
+  return (s && map[s]) || '—'
+}
+function loanClass(s?: string): string {
+  const map: Record<string, string> = { available: 'success', on_loan: 'warning', not_on_shelf: 'info' }
+  return (s && map[s]) || ''
+}
 
 function syncEditForm(d: ArchiveDetail) {
   editForm.title = d.title
   editForm.responsibleText = d.responsibleText
   editForm.formedDate = d.formedDate
   editForm.categoryId = d.categoryId
-  editForm.tagsStr = d.tags.join(',')
+  // 后端 detail 返回 tagNames（非 tags），需兼容否则 join 抛异常、跳过 loadBoxOptions 致换盒下拉为空
+  editForm.tagsStr = ((d as any).tagNames ?? d.tags ?? []).join(',')
 }
 
 // ── 数据加载 ──
@@ -342,6 +434,17 @@ async function loadArchives() {
     if (query.securityLevel !== '') params.securityLevel = Number(query.securityLevel)
     if (query.openStatus) params.openStatus = query.openStatus
     if (query.carrierStatus) params.carrierStatus = query.carrierStatus
+    if (query.tagKeyword) params.tagKeyword = query.tagKeyword
+    if (query.archiveNo) params.archiveNo = query.archiveNo
+    if (query.loanStatus) params.loanStatus = query.loanStatus
+    if (query.retentionPeriod) params.retentionPeriod = query.retentionPeriod
+    if (query.fondsName) params.fondsName = query.fondsName
+    if (query.organizationName) params.organizationName = query.organizationName
+    if (query.fileExt) params.fileExt = query.fileExt
+    if (query.sortBy) params.sortBy = query.sortBy
+    if (query.sourceType) params.sourceType = query.sourceType
+    if (query.hasFile === 'yes') params.hasElectronicFile = true
+    else if (query.hasFile === 'no') params.hasElectronicFile = false
     if (selectedCategoryId.value > 0) params.categoryId = selectedCategoryId.value
     if (showDestroyed.value) params.includeDestroyed = true
     const res = await getArchives(params)
@@ -378,10 +481,20 @@ function handleSearch() {
 
 function handleReset() {
   query.keyword = ''
+  query.archiveNo = ''
   query.year = undefined
   query.securityLevel = ''
   query.openStatus = ''
   query.carrierStatus = ''
+  query.loanStatus = ''
+  query.retentionPeriod = ''
+  query.fondsName = ''
+  query.organizationName = ''
+  query.fileExt = ''
+  query.sortBy = ''
+  query.sourceType = ''
+  query.hasFile = ''
+  query.tagKeyword = ''
   showDestroyed.value = false
   pageNo.value = 1
   loadArchives()
@@ -491,6 +604,12 @@ onMounted(loadArchives)
 </script>
 
 <style scoped>
+.collapsible-card > summary {
+  display: flex; min-height: 34px; cursor: pointer; list-style: none;
+  align-items: center; justify-content: space-between; gap: 12px;
+}
+.collapsible-card > summary::-webkit-details-marker { display: none; }
+.collapsible-card[open] > summary { padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 .archive-management {
   padding: 0;
 }

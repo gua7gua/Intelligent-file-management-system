@@ -139,6 +139,7 @@ export interface ArchiveRecord {
   boxNo?: string
   createdAt: string
   updatedAt: string
+  loanStatus?: string
 }
 
 /** 档案文件 */

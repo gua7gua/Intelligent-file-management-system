@@ -61,13 +61,15 @@ async function load() {
   }
 }
 
-// running 任务轮询：完成后自动刷新详情并停止（解决「AI 研判完成后不自动刷新」）
+// running 任务轮询：完成后自动刷新详情并停止，并根据 AI 执行状态分级提示
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let pollRetry = 0
 function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
 }
 function startPolling(taskId: number) {
   stopPolling()
+  pollRetry = 0
   pollTimer = setInterval(async () => {
     if (!current.value) { stopPolling(); return }
     try {
@@ -75,12 +77,40 @@ function startPolling(taskId: number) {
       current.value = fresh
       if (fresh.status !== 'running') {
         stopPolling()
-        ElMessage.success('研判任务已完成，结果已刷新。')
+        notifyTaskDone(fresh)
+        // 完成后刷新任务列表，让列表状态徽标同步
+        refreshTaskList()
+      } else {
+        pollRetry = 0
       }
     } catch {
-      stopPolling()
+      // 单次失败不立即停止，退避重试几次（避免网络抖动导致永久停止需手动刷新）
+      pollRetry++
+      if (pollRetry > 3) stopPolling()
     }
   }, 3000)
+}
+
+// 按 AI 执行状态分级提示：失败/部分失败时 warning，避免伪装成完全成功
+function notifyTaskDone(t: AnalysisTaskDetail) {
+  const ai = t.aiStatus
+  if (ai === 'failed') {
+    ElMessage.warning('AI 建议获取失败，仅展示规则结果。')
+  } else if (ai === 'partial') {
+    ElMessage.warning('部分 AI 建议获取失败，结果可能不完整。')
+  } else {
+    ElMessage.success('研判任务已完成，结果已刷新。')
+  }
+}
+
+async function refreshTaskList() {
+  try {
+    const page = await getAnalysisTasks({ pageNo: pageNo.value, pageSize: pageSize.value })
+    tasks.value = page.records
+    total.value = page.total
+  } catch {
+    // 列表刷新失败不影响已展示的详情
+  }
 }
 
 async function selectTask(id: number) {

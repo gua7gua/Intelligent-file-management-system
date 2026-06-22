@@ -189,7 +189,6 @@ async function saveDraft() {
 async function generateAndArchive() {
   if (!currentDetail.value) { ElMessage.warning('请先保存草稿'); return }
   if (selectedMaterials.value.length === 0) { ElMessage.warning('请添加至少一个素材后再入库'); return }
-  if (archiveForm.fondsId === 0) { ElMessage.warning('请选择所属全宗后再入库'); return }
   if (!archiveForm.formedDate) { ElMessage.warning('请填写形成日期后再入库'); return }
   try {
     await ElMessageBox.confirm('将生成正文文件并确认纯电子入库，入库后生成正式档号且不可再编辑。', '生成正文并入库', { type: 'warning' })
@@ -204,7 +203,7 @@ async function generateAndArchive() {
       fillForm(g)
     }
     const d = await archiveCompilation(currentDetail.value.id, {
-      fondsId: archiveForm.fondsId,
+      fondsId: archiveForm.fondsId || null,
       categoryId: archiveForm.categoryId,
       formedDate: archiveForm.formedDate,
       retentionPeriod: archiveForm.retentionPeriod,
@@ -406,7 +405,7 @@ onMounted(() => {
             <div class="field">
               <label>所属全宗</label>
               <select v-model="archiveForm.fondsId" :disabled="isReadonly">
-                <option :value="0">请选择</option>
+                <option :value="0">暂不归属（可留空）</option>
                 <option v-for="f in fondsOptions" :key="f.id" :value="f.id">{{ f.fondsNo }} · {{ f.fondsName }}</option>
               </select>
             </div>

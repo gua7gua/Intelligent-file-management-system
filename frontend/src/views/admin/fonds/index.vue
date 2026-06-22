@@ -70,7 +70,8 @@
                   <td>
                     <div class="actions" @click.stop>
                       <el-button size="small" @click="selectRow(f)">编辑</el-button>
-                      <el-button size="small" :type="f.status === 'active' ? 'warning' : 'danger'" :disabled="f.status === 'disabled'" @click="removeOrDisable(f)">{{ f.status === 'disabled' ? '已停用' : '停用' }}</el-button>
+                      <el-button v-if="f.status === 'active'" size="small" type="warning" @click="removeOrDisable(f)">停用</el-button>
+                      <el-button v-else size="small" type="success" @click="enableFonds(f)">启用</el-button>
                       <el-button size="small" type="danger" @click="onDelete(f)">删除</el-button>
                     </div>
                   </td>
@@ -292,6 +293,16 @@ async function removeOrDisable(f: FondsItem) {
     await loadAll()
   } catch (e) {
     ElMessage.error((e as Error).message || '操作失败')
+  }
+}
+
+async function enableFonds(f: FondsItem) {
+  try {
+    await updateFonds(f.id, { status: 'active' })
+    ElMessage.success('全宗已启用')
+    await loadAll()
+  } catch (e) {
+    ElMessage.error((e as Error).message || '启用失败')
   }
 }
 
