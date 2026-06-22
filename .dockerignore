@@ -1,0 +1,40 @@
+# =============================================================================
+# Docker 构建上下文忽略表（Dockerfile 的标准配套）
+# 排除依赖/构建产物（镜像内重新构建，避免宿主污染）、文档、临时内容，
+# 让构建上下文保持小而干净。
+# =============================================================================
+
+# 版本控制
+.git
+.gitignore
+.gitattributes
+
+# 依赖与构建产物（镜像内重新安装/构建）
+**/node_modules
+**/dist
+**/target
+**/build
+**/*.tsbuildinfo
+
+# 测试产物
+test-results
+**/test-results
+**/coverage
+**/.nyc_output
+
+# 文档与临时内容（镜像运行不需要）
+tmp-doc
+doc
+docs
+**/*.md
+
+# 本地环境变量 / 工具配置（生产构建在 Dockerfile 内显式生成 .env.production）
+.env
+.env.*
+.mcp.json
+CLAUDE.md
+
+# IDE / 系统
+.vscode
+.idea
+.DS_Store
