@@ -2,7 +2,7 @@ name: Build and Push Multi-Arch Docker Images
 
 on:
   push:
-    branches: [ main, master ]     # 推送 commit 到 main/master 时自动构建（使用短 SHA）
+    branches: [ main, master, develop ]   # 推送到 main/master/develop 时自动构建（短 SHA）；联调阶段 develop 也触发以实测镜像
     tags:
       - 'v*'
   workflow_dispatch:
