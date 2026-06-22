@@ -7,7 +7,8 @@ import lombok.Getter;
 public enum AnalysisIssueType {
     missing_field("缺字段"),
     category_conflict("门类冲突"),
-    tag_suggestion("标签建议");
+    tag_suggestion("标签建议"),
+    tag_wrong("标签错配");
 
     private final String displayName;
 

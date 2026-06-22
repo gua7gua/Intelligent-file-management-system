@@ -327,6 +327,51 @@ public class AnalysisService {
             default -> t.getLatestAiTaskId() != null ? 0.5 : 1.0;
         });
         r.setScopeText(buildScopeText(t));
+        fillAiStatus(t, r);
+    }
+
+    /** 回填 AI 建议执行状态：从 latestAiTaskId 关联的 ai_tasks/ai_task_batches 统计批次成败。 */
+    private void fillAiStatus(AnalysisTask t, AnalysisTaskResponse r) {
+        Long aiId = t.getLatestAiTaskId();
+        if (aiId == null) {
+            r.setAiStatus("skipped");
+            r.setAiTotalBatches(0);
+            r.setAiFailedBatches(0);
+            return;
+        }
+        String aiStatus;
+        try {
+            aiStatus = jdbcTemplate.queryForObject(
+                    "SELECT status FROM ai_tasks WHERE id = ?", String.class, aiId);
+        } catch (Exception e) {
+            aiStatus = null;
+        }
+        Long totalRaw = null, failedRaw = null;
+        try {
+            totalRaw = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM ai_task_batches WHERE task_id = ?", Long.class, aiId);
+            failedRaw = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM ai_task_batches WHERE task_id = ? AND status = 'failed'", Long.class, aiId);
+        } catch (Exception ignored) {
+            // 查询异常时按未知处理，不影响主流程
+        }
+        long total = totalRaw != null ? totalRaw : 0L;
+        long failed = failedRaw != null ? failedRaw : 0L;
+        r.setAiTotalBatches(total);
+        r.setAiFailedBatches(failed);
+        String s;
+        if ("failed".equals(aiStatus)) {
+            s = "failed";
+        } else if (total == 0) {
+            s = "skipped";
+        } else if (failed == 0) {
+            s = "success";
+        } else if (failed >= total) {
+            s = "failed";
+        } else {
+            s = "partial";
+        }
+        r.setAiStatus(s);
     }
 
     /** 范围摘要：解析 rule_snapshot，例如「科技档案 / 文书档案 2010~2026」。 */
@@ -456,6 +501,10 @@ public class AnalysisService {
                 Object reason = d == null ? null : d.get("reason");
                 return reason == null ? "可补充标签建议" : String.valueOf(reason);
             }
+            case tag_wrong -> {
+                Object reason = d == null ? null : d.get("wrongReason");
+                return reason == null ? "档案标签与门类明显冲突（标签错配）" : ("标签错配：" + String.valueOf(reason));
+            }
             default -> {
                 return "—";
             }
@@ -471,6 +520,7 @@ public class AnalysisService {
             case missing_field -> "在档案详情页补全缺失字段后人工确认";
             case category_conflict -> "复核公开状态与密级，调整其中一项";
             case tag_suggestion -> buildTagSuggestionAction(it);
+            case tag_wrong -> "核对档案门类，移除或修正与门类冲突的标签";
         };
     }
 
