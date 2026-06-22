@@ -100,19 +100,25 @@ class FondsServiceTest {
     }
 
     @Test
-    void updateFonds_有业务关联时仅更新状态() {
+    void updateFonds_有业务关联时保护organizationId其余可改() {
         Fonds f = newFonds(10L, "F001", "旧名", 2L);
         when(fondsMapper.selectById(10L)).thenReturn(f);
         when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), eq(10L))).thenReturn(5L);
 
         FondsUpdateRequest req = new FondsUpdateRequest();
         req.setFondsName("新名");
+        req.setDescription("新说明");
         req.setStatus("disabled");
+        // organizationId 即便传入也应被忽略（受保护）
 
         service.updateFonds(10L, req);
 
-        assertThat(f.getFondsName()).isEqualTo("旧名");
+        // 名称、说明、状态都应更新
+        assertThat(f.getFondsName()).isEqualTo("新名");
+        assertThat(f.getDescription()).isEqualTo("新说明");
         assertThat(f.getStatus()).isEqualTo("disabled");
+        // organizationId 保持不变
+        assertThat(f.getOrganizationId()).isEqualTo(2L);
         verify(fondsMapper).updateById(any(Fonds.class));
         verify(auditService).log(eq("M06"), eq("update_fonds"), eq("fonds"), eq(10L), any());
     }

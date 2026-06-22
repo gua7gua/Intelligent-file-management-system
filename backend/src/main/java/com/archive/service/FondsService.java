@@ -132,7 +132,10 @@ public class FondsService {
         boolean onlyStatus = assoc > 0L;
 
         if (onlyStatus) {
-            // 有档案/档案盒关联：仅允许停用，忽略其余业务字段
+            // 有档案/档案盒关联：仅 organizationId 受保护（避免破坏归属一致性），
+            // fondsName / description / status 均允许修改。
+            if (req.getFondsName() != null) fonds.setFondsName(req.getFondsName());
+            if (req.getDescription() != null) fonds.setDescription(req.getDescription());
             if (req.getStatus() != null && !req.getStatus().isBlank()) {
                 fonds.setStatus(req.getStatus());
             }

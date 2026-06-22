@@ -10,7 +10,7 @@ import java.util.List;
 @Data
 public class CompilationArchiveRequest {
 
-    @NotNull(message = "全宗不能为空")
+    /** 全宗可留空（编研成果允许暂不归属全宗） */
     private Long fondsId;
 
     @NotNull(message = "门类不能为空")
