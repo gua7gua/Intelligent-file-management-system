@@ -77,7 +77,7 @@ export function getInternalArchiveDetail(archiveId: number): Promise<InternalArc
 /** 11.4 内部 AI 检索 JSON 生成 */
 export function generateInternalAiQuery(data: InternalAiQueryRequest): Promise<InternalAiQueryResult> {
   if (USE_MOCK) return import('@/mock/modules/internal').then((m) => m.mockGenerateInternalAiQuery(data))
-  return request.post('/internal/archives/ai-query', data)
+  return request.post('/internal/archives/ai-query', data, { timeout: 60000 })
 }
 
 /** 11.5 内部预览电子文件（返回 Blob，供 FilePreview 组件渲染） */

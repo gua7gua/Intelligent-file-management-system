@@ -81,7 +81,7 @@ export function getPublicArchiveDetail(archiveId: number): Promise<PublicArchive
 
 export function generatePublicSearchQuery(data: PublicAiQueryRequest): Promise<PublicAiQueryResult> {
   if (USE_MOCK) return import('@/mock/modules/public').then((m) => m.mockGeneratePublicSearchQuery(data))
-  return request.post('/public/archives/ai-query', data)
+  return request.post('/public/archives/ai-query', data, { timeout: 60000 })
 }
 
 /** 公众端电子文件预览（返回 Blob，供 FilePreview 组件渲染） */

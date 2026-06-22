@@ -17,23 +17,21 @@
             <button class="button" type="button" :disabled="aiLoading" @click="handleAiQuery">
               {{ aiLoading ? '生成中…' : '生成查询条件' }}
             </button>
-            <button class="button ghost" type="button" @click="clearAi">清空</button>
           </div>
           <div v-if="aiError" class="notice danger">{{ aiError }}</div>
           <pre v-if="aiResult" class="ai-box">{{ JSON.stringify(aiResult.conditions, null, 2) }}</pre>
           <div v-if="aiResult" class="json-actions">
             <button class="button secondary" type="button" @click="applyAiConditions">应用条件并检索</button>
-            <button class="button ghost" type="button" @click="copyJson">复制 JSON</button>
           </div>
         </div>
       </details>
 
       <!-- 结构化检索条件 -->
-      <div class="card panel">
-        <div class="toolbar" style="margin: 0">
-          <h2 class="section-title" style="margin: 0">结构化检索条件</h2>
-          <span class="status info">系统将自动限定在您的权限范围内</span>
-        </div>
+      <details class="card panel collapsible-card" open>
+        <summary>
+          <span class="section-title">结构化检索条件</span>
+          <span class="status info">系统将自动限定在您的权限范围内 · 点击折叠/展开</span>
+        </summary>
         <div class="filter-sections">
           <section class="filter-group">
             <div class="filter-group-head"><strong>核心元数据</strong></div>
@@ -110,7 +108,7 @@
                   <option value="">全部</option>
                   <option value="available">可借阅</option>
                   <option value="on_loan">借出中</option>
-                  <option value="inventory_paused">盘点暂停</option>
+                  <option value="not_on_shelf">未上架</option>
                 </select>
               </div>
             </div>
@@ -146,7 +144,7 @@
           </button>
           <button class="button ghost" type="button" @click="resetSearch">重置</button>
         </div>
-      </div>
+      </details>
 
       <!-- 检索结果 -->
       <div class="card panel">
@@ -163,17 +161,21 @@
           <table>
             <thead>
               <tr>
-                <th>档号</th><th>题名</th><th>分类</th><th>密级</th><th>载体</th><th>利用状态</th><th>标签</th><th>操作</th>
+                <th>档号</th><th>题名</th><th>责任者</th><th>全宗</th><th>单位</th><th>分类</th><th>年度</th><th>密级</th><th>载体</th><th>利用状态</th><th>标签</th><th>操作</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="searched && results.records.length === 0">
-                <td colspan="8"><div class="empty">没有符合条件的档案</div></td>
+                <td colspan="12"><div class="empty">没有符合条件的档案</div></td>
               </tr>
               <tr v-for="record in results.records" :key="record.id" class="result-row" @click="selectArchive(record.id)">
                 <td class="mono">{{ record.archiveNo }}</td>
                 <td>{{ record.title }}</td>
+                <td>{{ record.responsibleText || '—' }}</td>
+                <td>{{ record.fondsName || '—' }}</td>
+                <td>{{ record.organizationName || '—' }}</td>
                 <td>{{ record.categoryName }}</td>
+                <td>{{ record.formedDate?.slice(0, 4) || '—' }}</td>
                 <td><span :class="['status', record.securityLevel > 0 ? 'warning' : 'success']">{{ securityLabel(record.securityLevel) }}</span></td>
                 <td>{{ carrierLabel(record.carrierStatus) }}</td>
                 <td><span class="status success">{{ usageHint(record) }}</span></td>
@@ -289,14 +291,14 @@ function applyAiConditions() {
   // 先清空旧条件，避免上一次的手动筛选混入
   Object.keys(params).forEach((key) => delete (params as Record<string, unknown>)[key])
 
-  // keywords 数组 → 取首个填入关键词框（满足"应用条件后表单填充"的视觉反馈）。
-  // 与公众端策略一致：首次检索不下发 keyword，后端 keyword 是单字段 SQL like 连续子串匹配，
-  // AI 抽取的"克拉玛依"在数据中可能写作"克拉玛依市"，强制过滤会漏掉本应命中的档案。
-  // 结构化条件（门类/年度/责任者/密级/开放状态）更可靠，由它们兜底命中；关键词保留在表单框
-  // 供用户看见 AI 的抽词结果，用户若想用关键词缩小范围可自行点"检索"重新过滤。
+  // keywords 数组 → 取首个填入关键词框并随检索下发（与公众端一致：应用条件与手动检索结果一致）。
   const kws = Array.isArray(c.keywords) ? (c.keywords as unknown[]).filter((x): x is string => typeof x === 'string' && x.trim() !== '') : []
   if (kws.length > 0) {
     params.keyword = kws[0]
+  }
+  if (Array.isArray(c.tags)) {
+    const tagNames = (c.tags as unknown[]).filter((x): x is string => typeof x === 'string' && x.trim() !== '')
+    if (tagNames.length > 0) params.tagIds = tagNames.join(',')
   }
   // category code → categoryId（通过门类字典反查；查不到则忽略，避免下发后端无法识别的字符串）
   if (typeof c.category === 'string' && c.category) {
@@ -323,29 +325,9 @@ function applyAiConditions() {
   if (typeof c.openStatus === 'string' && c.openStatus) {
     params.openStatus = c.openStatus as InternalSearchParams['openStatus']
   }
-  // 首次检索暂不下发 keyword（见上方注释），临时摘出后调 handleSearch，完成后再放回表单框显示。
-  const keywordToShow = params.keyword
-  delete params.keyword
+  // 下发完整条件（含 keyword），保证 AI 应用条件与手动检索结果一致（与公众端一致）。
   pageNo.value = 1
-  handleSearch().finally(() => {
-    if (keywordToShow) params.keyword = keywordToShow
-  })
-}
-
-function clearAi() {
-  aiText.value = ''
-  aiResult.value = null
-  aiError.value = ''
-}
-
-async function copyJson() {
-  if (!aiResult.value) return
-  try {
-    await navigator.clipboard.writeText(JSON.stringify(aiResult.value.conditions, null, 2))
-    ElMessage.success('JSON 已复制')
-  } catch {
-    ElMessage.warning('复制失败，请手动选择')
-  }
+  handleSearch()
 }
 
 // 用户主动点「确认检索」/应用 AI 条件时回到第一页；分页器切换页码时直接走 handleSearch 保留当前页
@@ -359,9 +341,11 @@ async function handleSearch() {
   searchError.value = ''
   selectedArchiveId.value = null
   try {
-    const query: InternalSearchParams = { ...params, pageNo: pageNo.value, pageSize: pageSize.value }
-    if (hasFileSelect.value === 'yes') query.hasElectronicFile = true
-    else if (hasFileSelect.value === 'no') query.hasElectronicFile = false
+    const raw: InternalSearchParams = { ...params, pageNo: pageNo.value, pageSize: pageSize.value }
+    if (hasFileSelect.value === 'yes') raw.hasElectronicFile = true
+    else if (hasFileSelect.value === 'no') raw.hasElectronicFile = false
+    if (fondsInput.value.trim()) raw.fondsName = fondsInput.value.trim()
+    const query = cleanParams(raw)
     const page = await searchInternalArchives(query)
     results.value = { records: page.records, total: page.total }
     total.value = page.total
@@ -371,6 +355,16 @@ async function handleSearch() {
   } finally {
     searching.value = false
   }
+}
+
+// 剔除空值，避免把空字符串/undefined 作为查询参数下发
+function cleanParams(src: InternalSearchParams): InternalSearchParams {
+  const out: InternalSearchParams = {}
+  for (const [k, v] of Object.entries(src)) {
+    if (v === undefined || v === null || v === '') continue
+    ;(out as Record<string, unknown>)[k] = v
+  }
+  return out
 }
 
 function selectArchive(id: number) {
@@ -433,6 +427,12 @@ onMounted(async () => {
 .collapsible-body {
   display: grid; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
 }
+.collapsible-card > summary {
+  display: flex; min-height: 34px; cursor: pointer; list-style: none;
+  align-items: center; justify-content: space-between; gap: 12px;
+}
+.collapsible-card > summary::-webkit-details-marker { display: none; }
+.collapsible-card[open] > summary { padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
 .json-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .result-row { cursor: pointer; transition: background 0.16s ease; }
 .result-row:hover { background: #f8fbfc; }

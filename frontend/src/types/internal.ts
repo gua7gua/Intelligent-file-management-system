@@ -13,6 +13,8 @@ export interface InternalSearchParams extends PageParams {
   responsibleText?: string
   categoryId?: number
   fondsId?: number
+  /** 所属全宗名称（模糊匹配，后端转 id） */
+  fondsName?: string
   organizationName?: string
   tagIds?: string
   formedYearStart?: number
@@ -31,6 +33,8 @@ export interface InternalSearchParams extends PageParams {
   fileExt?: string
   fileRole?: string
   fileCheckStatus?: string
+  /** 排序：relevance / formed_desc / archived_desc / archiveNo_asc */
+  sortBy?: string
 }
 
 /** 内部档案文件 */
@@ -65,6 +69,8 @@ export interface InternalArchive {
   canBorrow: boolean
   borrowHint: string
   archivedAt: string
+  fondsName?: string
+  organizationName?: string
 }
 
 /** 内部档案详情：兼容旧 mock 数据与后端 ArchiveSearchDetailResponse 真实返回 */

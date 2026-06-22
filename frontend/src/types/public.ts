@@ -18,6 +18,8 @@ export interface PublicArchive {
   hasElectronicFile: boolean
   canPreview?: boolean
   canDownload?: boolean
+  fondsName?: string
+  organizationName?: string
 }
 
 export interface PublicArchiveFile {
@@ -101,6 +103,11 @@ export interface PublicSearchParams extends PageParams {
   sourceType?: string
   carrierStatus?: string
   hasElectronicFile?: boolean
+  fondsName?: string
+  organizationName?: string
+  retentionPeriod?: string
+  fileExt?: string
+  sortBy?: string
 }
 
 export interface PublicAiQueryRequest {
