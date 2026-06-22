@@ -59,6 +59,10 @@ public class ArchiveService {
             Long organizationId, Long fondsId, Integer securityLevel,
             String openStatus, String carrierStatus, String lifecycleStatus,
             String loanStatus, String conditionStatus,
+            String sourceType, Boolean hasElectronicFile,
+            String retentionPeriod, Integer securityLevelMax, String fondsName,
+            String organizationName, String fileExt, String sortBy,
+            String tagKeyword,
             boolean includeDestroyed,
             int pageNo, int pageSize) {
 
@@ -110,7 +114,53 @@ public class ArchiveService {
         if (conditionStatus != null && !conditionStatus.isBlank()) {
             w.eq("condition_status", conditionStatus);
         }
-        w.orderByDesc("archived_at");
+        if (sourceType != null && !sourceType.isBlank()) {
+            w.eq("source_type", sourceType);
+        }
+        if (Boolean.TRUE.equals(hasElectronicFile)) {
+            w.inSql("id", "SELECT archive_id FROM archive_files WHERE file_status = 'normal'");
+        }
+        if (tagKeyword != null && !tagKeyword.isBlank()) {
+            // 按标签名模糊匹配：JOIN archive_tags + tags，转义单引号防注入
+            String escaped = tagKeyword.replace("'", "''");
+            w.inSql("id",
+                    "SELECT at.archive_id FROM archive_tags at " +
+                    "JOIN tags t ON t.id = at.tag_id " +
+                    "WHERE t.tag_name LIKE '%" + escaped + "%'");
+        }
+        if (retentionPeriod != null && !retentionPeriod.isBlank()) {
+            w.eq("retention_period", retentionPeriod);
+        }
+        if (securityLevelMax != null) {
+            w.le("security_level", securityLevelMax);
+        }
+        if (fondsName != null && !fondsName.isBlank()) {
+            String kw = fondsName.replace("'", "''");
+            w.inSql("fonds_id",
+                    "SELECT id FROM fonds WHERE deleted_at IS NULL AND fonds_name LIKE '%" + kw + "%'");
+        }
+        if (organizationName != null && !organizationName.isBlank()) {
+            String kw = organizationName.replace("'", "''");
+            w.inSql("organization_id",
+                    "SELECT id FROM organizations WHERE deleted_at IS NULL AND org_name LIKE '%" + kw + "%'");
+        }
+        if (fileExt != null && !fileExt.isBlank()) {
+            String kw = fileExt.replace("'", "''");
+            w.inSql("id",
+                    "SELECT archive_id FROM archive_files WHERE deleted_at IS NULL " +
+                    "AND (file_ext LIKE '%" + kw + "%' OR original_filename LIKE '%" + kw + "%')");
+        }
+        // 排序：默认入库时间倒序
+        if (sortBy == null || sortBy.isBlank() || "archived_desc".equals(sortBy)) {
+            w.orderByDesc("archived_at");
+        } else {
+            switch (sortBy) {
+                case "formed_desc" -> w.orderByDesc("formed_date");
+                case "formed_asc" -> w.orderByAsc("formed_date");
+                case "archiveNo_asc" -> w.orderByAsc("archive_no");
+                default -> w.orderByDesc("archived_at");
+            }
+        }
 
         Page<Archive> page = archiveMapper.selectPage(new Page<>(pageNo, pageSize), w);
         List<ArchiveResponse> records = page.getRecords().stream()

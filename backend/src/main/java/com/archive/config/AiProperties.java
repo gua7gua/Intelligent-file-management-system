@@ -39,9 +39,9 @@ public class AiProperties {
     private int connectTimeout = 5;
 
     /**
-     * 读取超时（秒）。
+     * 读取超时（秒）。DeepSeek 偶发慢响应，放宽到 60s 避免检索/研判超时。
      */
-    private int readTimeout = 15;
+    private int readTimeout = 60;
 
     /**
      * 检索类 JSON 校验失败时最大重试次数。

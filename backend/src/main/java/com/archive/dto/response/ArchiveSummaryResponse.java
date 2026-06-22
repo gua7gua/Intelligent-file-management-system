@@ -27,4 +27,8 @@ public class ArchiveSummaryResponse {
      * 直接展示其自身标签不会泄露非公开档案的标签（仅出现在非公开档案上的标签永远不会进入公众结果）。
      */
     private List<String> tagNames;
+    /** 所属全宗名称（检索列表"全宗"列展示，便于用户从结果发现值后缩小搜索） */
+    private String fondsName;
+    /** 形成/移交单位名称（检索列表"单位"列展示） */
+    private String organizationName;
 }
