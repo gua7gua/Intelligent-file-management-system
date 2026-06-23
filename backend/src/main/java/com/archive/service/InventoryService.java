@@ -177,7 +177,7 @@ public class InventoryService {
         if (task == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "盘点任务不存在");
         }
-        if (!InventoryTaskStatus.draft.name().equals(task.getStatus())) {
+        if (task.getStatus() != InventoryTaskStatus.draft) {
             throw new BusinessException(ErrorCode.BUSINESS_CONFLICT, "仅草稿状态的盘点任务可删除");
         }
         // 草稿未实际盘点，级联清理应盘明细后物理删除任务
