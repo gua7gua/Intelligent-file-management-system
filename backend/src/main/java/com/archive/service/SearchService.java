@@ -56,7 +56,6 @@ public class SearchService {
     private final CategoryMapper categoryMapper;
     private final TagMapper tagMapper;
     private final JdbcTemplate jdbcTemplate;
-    private final MinioService minioService;
     private final AiClient aiClient;
     private final BorrowService borrowService;
 
@@ -370,33 +369,33 @@ public class SearchService {
 
     // ==================== 5.4 / 5.5 / 11.5 / 11.6 预览/下载 ====================
 
-    public String publicPreview(Long fileId, Long userId, String userType, HttpServletRequest req) {
+    public ArchiveFile publicPreview(Long fileId, Long userId, String userType, HttpServletRequest req) {
         ArchiveFile file = loadVisiblePublicFile(fileId);
         logAccess(file.getArchiveId(), fileId, "preview", userId, userType, req);
-        return minioService.getPresignedUrl(file.getBucketName(), file.getObjectKey());
+        return file;
     }
 
-    public String publicDownload(Long fileId, Long userId, String userType, HttpServletRequest req) {
+    public ArchiveFile publicDownload(Long fileId, Long userId, String userType, HttpServletRequest req) {
         if (userId == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "下载需要登录");
         }
         ArchiveFile file = loadVisiblePublicFile(fileId);
         logAccess(file.getArchiveId(), fileId, "download", userId, userType, req);
-        return minioService.getPresignedUrl(file.getBucketName(), file.getObjectKey());
+        return file;
     }
 
-    public String internalPreview(Long fileId, int maxSecurityLevel, DataScope dataScope,
+    public ArchiveFile internalPreview(Long fileId, int maxSecurityLevel, DataScope dataScope,
                                   Long organizationId, Long userId, HttpServletRequest req) {
         ArchiveFile file = loadVisibleInternalFile(fileId, maxSecurityLevel, dataScope, organizationId);
         logAccess(file.getArchiveId(), fileId, "preview", userId, "internal", req);
-        return minioService.getPresignedUrl(file.getBucketName(), file.getObjectKey());
+        return file;
     }
 
-    public String internalDownload(Long fileId, int maxSecurityLevel, DataScope dataScope,
+    public ArchiveFile internalDownload(Long fileId, int maxSecurityLevel, DataScope dataScope,
                                    Long organizationId, Long userId, HttpServletRequest req) {
         ArchiveFile file = loadVisibleInternalFile(fileId, maxSecurityLevel, dataScope, organizationId);
         logAccess(file.getArchiveId(), fileId, "download", userId, "internal", req);
-        return minioService.getPresignedUrl(file.getBucketName(), file.getObjectKey());
+        return file;
     }
 
     /** 加载公众可见文件：文件存在 + 所属档案非密公开正常 + file_status=normal。 */

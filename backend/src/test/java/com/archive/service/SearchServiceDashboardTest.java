@@ -26,7 +26,7 @@ class SearchServiceDashboardTest {
         when(borrowService.dashboardOverdue(4L, 5)).thenReturn(List.of());
 
         SearchService service = new SearchService(null, null, accessLogMapper,
-                null, null, null, null, null, borrowService);
+                null, null, null, null, borrowService);
 
         InternalDashboardResponse resp = service.getInternalDashboard(4L);
         assertThat(resp.getMyBorrowRequests()).hasSize(1);

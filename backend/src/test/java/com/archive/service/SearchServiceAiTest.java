@@ -47,7 +47,7 @@ class SearchServiceAiTest {
         when(borrowService.dashboardCurrent(anyLong(), anyInt())).thenReturn(List.of());
         when(borrowService.dashboardOverdue(anyLong(), anyInt())).thenReturn(List.of());
         service = new SearchService(archiveMapper, mock(ArchiveFileMapper.class), accessLogMapper,
-                mock(CategoryMapper.class), mock(TagMapper.class), jdbcTemplate, null, aiClient, borrowService);
+                mock(CategoryMapper.class), mock(TagMapper.class), jdbcTemplate, aiClient, borrowService);
         service.setObjectMapper(om);
     }
 

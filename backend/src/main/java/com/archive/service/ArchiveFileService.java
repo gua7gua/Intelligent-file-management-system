@@ -97,9 +97,9 @@ public class ArchiveFileService {
     }
 
     /**
-     * 生成预签名预览 URL。
+     * 取得可预览的档案文件（校验状态 + 写访问日志），供 controller 代理流返回。
      */
-    public String getPreviewUrl(Long fileId) {
+    public ArchiveFile getFileForPreview(Long fileId) {
         ArchiveFile file = findById(fileId);
         if (file.getFileStatus() == FileStatus.deleted) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "文件已作废，无法预览");
@@ -107,21 +107,20 @@ public class ArchiveFileService {
         // 写入访问日志
         auditService.log("M05", "preview", "archive_file", fileId,
                 Map.of("archiveId", file.getArchiveId(), "fileName", file.getOriginalFilename()));
-        // 返回预签名 URL
-        return minioService.getPresignedUrl(file.getBucketName(), file.getObjectKey());
+        return file;
     }
 
     /**
-     * 生成预签名下载 URL。
+     * 取得可下载的档案文件（校验状态 + 写访问日志），供 controller 代理流返回。
      */
-    public String getDownloadUrl(Long fileId) {
+    public ArchiveFile getFileForDownload(Long fileId) {
         ArchiveFile file = findById(fileId);
         if (file.getFileStatus() == FileStatus.deleted) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "文件已作废，无法下载");
         }
         auditService.log("M05", "download", "archive_file", fileId,
                 Map.of("archiveId", file.getArchiveId(), "fileName", file.getOriginalFilename()));
-        return minioService.getPresignedUrl(file.getBucketName(), file.getObjectKey());
+        return file;
     }
 
     /**

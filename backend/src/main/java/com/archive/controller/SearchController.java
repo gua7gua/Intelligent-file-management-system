@@ -1,6 +1,7 @@
 package com.archive.controller;
 
 import com.archive.common.AuthContext;
+import com.archive.common.FileResponseHelper;
 import com.archive.common.PageResult;
 import com.archive.common.R;
 import com.archive.dto.request.AiQueryRequest;
@@ -9,22 +10,23 @@ import com.archive.dto.response.AiQueryResponse;
 import com.archive.dto.response.ArchiveSearchDetailResponse;
 import com.archive.dto.response.ArchiveSummaryResponse;
 import com.archive.dto.response.InternalDashboardResponse;
+import com.archive.entity.ArchiveFile;
+import com.archive.service.MinioService;
 import com.archive.service.SearchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.net.URI;
 
 /**
  * 内部查阅者检索接口（11.1-11.6）。
  * /api/internal/** 需登录（SaTokenConfig 默认拦截 /api/**）。
+ * <p>
+ * 预览/下载走后端代理流（minio 对象流以 Blob 返回），不暴露预签名 URL。
  */
 @RestController
 @RequestMapping("/api/internal")
@@ -33,6 +35,7 @@ import java.net.URI;
 public class SearchController {
 
     private final SearchService searchService;
+    private final MinioService minioService;
 
     @GetMapping("/dashboard")
     @Operation(summary = "内部工作台")
@@ -57,20 +60,20 @@ public class SearchController {
 
     @GetMapping("/archive-files/{fileId}/preview")
     @Operation(summary = "内部预览电子文件")
-    public ResponseEntity<Void> preview(@PathVariable Long fileId, HttpServletRequest req) {
-        String url = searchService.internalPreview(fileId,
+    public ResponseEntity<InputStreamResource> preview(@PathVariable Long fileId, HttpServletRequest req) {
+        ArchiveFile file = searchService.internalPreview(fileId,
                 AuthContext.getMaxSecurityLevel(), AuthContext.getDataScope(),
                 AuthContext.getOrganizationId(), AuthContext.getCurrentUserId(), req);
-        return redirect(url);
+        return FileResponseHelper.stream(minioService, file, true);
     }
 
     @GetMapping("/archive-files/{fileId}/download")
     @Operation(summary = "内部下载电子文件")
-    public ResponseEntity<Void> download(@PathVariable Long fileId, HttpServletRequest req) {
-        String url = searchService.internalDownload(fileId,
+    public ResponseEntity<InputStreamResource> download(@PathVariable Long fileId, HttpServletRequest req) {
+        ArchiveFile file = searchService.internalDownload(fileId,
                 AuthContext.getMaxSecurityLevel(), AuthContext.getDataScope(),
                 AuthContext.getOrganizationId(), AuthContext.getCurrentUserId(), req);
-        return redirect(url);
+        return FileResponseHelper.stream(minioService, file, false);
     }
 
     @PostMapping("/archives/ai-query")
@@ -79,11 +82,5 @@ public class SearchController {
         return R.ok(searchService.internalAiQuery(req.getText(),
                 AuthContext.getMaxSecurityLevel(), AuthContext.getDataScope(),
                 AuthContext.getOrganizationId()));
-    }
-
-    private ResponseEntity<Void> redirect(String url) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setLocation(URI.create(url));
-        return new ResponseEntity<>(headers, HttpStatus.FOUND);
     }
 }

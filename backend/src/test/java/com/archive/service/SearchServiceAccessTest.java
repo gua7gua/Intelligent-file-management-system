@@ -33,7 +33,6 @@ class SearchServiceAccessTest {
     private ArchiveFileMapper archiveFileMapper;
     private ArchiveAccessLogMapper accessLogMapper;
     private CategoryMapper categoryMapper;
-    private MinioService minioService;
     private HttpServletRequest req;
 
     @BeforeEach
@@ -42,11 +41,10 @@ class SearchServiceAccessTest {
         archiveFileMapper = mock(ArchiveFileMapper.class);
         accessLogMapper = mock(ArchiveAccessLogMapper.class);
         categoryMapper = mock(CategoryMapper.class);
-        minioService = mock(MinioService.class);
         req = mock(HttpServletRequest.class);
         when(req.getRemoteAddr()).thenReturn("192.168.1.1");
         service = new SearchService(archiveMapper, archiveFileMapper, accessLogMapper,
-                categoryMapper, mock(TagMapper.class), mock(JdbcTemplate.class), minioService, null,
+                categoryMapper, mock(TagMapper.class), mock(JdbcTemplate.class), null,
                 mock(BorrowService.class));
     }
 
@@ -107,7 +105,7 @@ class SearchServiceAccessTest {
     }
 
     @Test
-    void publicPreview_正常返回预签名URL并写日志() {
+    void publicPreview_正常返回档案文件并写日志() {
         ArchiveFile file = new ArchiveFile();
         file.setId(1L);
         file.setArchiveId(7L);
@@ -116,12 +114,11 @@ class SearchServiceAccessTest {
         file.setObjectKey("archive-files/ARC-1/1/a.pdf");
         when(archiveFileMapper.selectById(1L)).thenReturn(file);
         when(archiveMapper.selectOne(any())).thenReturn(new Archive());
-        when(minioService.getPresignedUrl("archive-files", "archive-files/ARC-1/1/a.pdf"))
-                .thenReturn("https://minio/presigned");
 
-        String url = service.publicPreview(1L, 5L, "public", req);
+        // 预览改走后端代理流，service 只负责校验 + 写日志后返回 ArchiveFile（供 controller 读流）
+        ArchiveFile result = service.publicPreview(1L, 5L, "public", req);
 
-        assertThat(url).isEqualTo("https://minio/presigned");
+        assertThat(result).isSameAs(file);
         verify(accessLogMapper).insertAccessLog(eq(5L), eq("public"), eq(7L), eq(1L),
                 eq("preview"), anyString(), any(OffsetDateTime.class));
     }
@@ -131,7 +128,6 @@ class SearchServiceAccessTest {
         assertThatThrownBy(() -> service.publicDownload(1L, null, "anonymous", req))
                 .isInstanceOf(BusinessException.class)
                 .matches(e -> ((BusinessException) e).getErrorCode().getCode().equals(ErrorCode.UNAUTHORIZED.getCode()));
-        verifyNoInteractions(minioService);
     }
 
     @Test
