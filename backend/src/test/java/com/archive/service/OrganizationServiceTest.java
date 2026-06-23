@@ -13,6 +13,7 @@ import com.archive.mapper.UserMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 
@@ -29,6 +30,7 @@ class OrganizationServiceTest {
     private FondsMapper fondsMapper;
     private UserMapper userMapper;
     private AuditService auditService;
+    private JdbcTemplate jdbcTemplate;
 
     @BeforeEach
     void setup() {
@@ -36,7 +38,8 @@ class OrganizationServiceTest {
         fondsMapper = mock(FondsMapper.class);
         userMapper = mock(UserMapper.class);
         auditService = mock(AuditService.class);
-        service = new OrganizationService(organizationMapper, fondsMapper, userMapper, auditService);
+        jdbcTemplate = mock(JdbcTemplate.class);
+        service = new OrganizationService(organizationMapper, fondsMapper, userMapper, auditService, jdbcTemplate);
     }
 
     @Test
