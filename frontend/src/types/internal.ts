@@ -58,6 +58,7 @@ export interface InternalArchive {
   categoryName: string
   responsibleText: string
   formedDate: string
+  formedYear?: number
   securityLevel: number
   openStatus: OpenStatusValue
   carrierStatus: CarrierStatusValue

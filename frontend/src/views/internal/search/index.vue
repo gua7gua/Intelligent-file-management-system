@@ -175,7 +175,7 @@
                 <td>{{ record.fondsName || '—' }}</td>
                 <td>{{ record.organizationName || '—' }}</td>
                 <td>{{ record.categoryName }}</td>
-                <td>{{ record.formedDate?.slice(0, 4) || '—' }}</td>
+                <td>{{ record.formedYear || '—' }}</td>
                 <td><span :class="['status', record.securityLevel > 0 ? 'warning' : 'success']">{{ securityLabel(record.securityLevel) }}</span></td>
                 <td>{{ carrierLabel(record.carrierStatus) }}</td>
                 <td><span class="status success">{{ usageHint(record) }}</span></td>
