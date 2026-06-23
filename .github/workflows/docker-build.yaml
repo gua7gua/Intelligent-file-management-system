@@ -27,9 +27,6 @@ jobs:
           - platform: linux/amd64
             runner: ubuntu-latest
             arch: amd64
-          - platform: linux/arm64
-            runner: ubuntu-22.04-arm
-            arch: arm64
 
     steps:
       - name: Checkout
@@ -125,18 +122,16 @@ jobs:
 
           # 创建版本 manifest
           docker manifest create ${IMAGE}:${VERSION} \
-            ${IMAGE}:${VERSION}-amd64 \
-            ${IMAGE}:${VERSION}-arm64
+            ${IMAGE}:${VERSION}-amd64
           docker manifest push ${IMAGE}:${VERSION}
 
           # 只有 tag 或手动触发时才更新 :latest
           if [[ "${{ github.ref_type }}" == "tag" ]] || [[ -n "${{ github.event.inputs.version }}" ]]; then
             docker manifest create ${IMAGE}:latest \
-              ${IMAGE}:${VERSION}-amd64 \
-              ${IMAGE}:${VERSION}-arm64
+              ${IMAGE}:${VERSION}-amd64
             docker manifest push ${IMAGE}:latest
             echo "✅ Also updated :latest"
           fi
 
           echo "🎉 Success!"
-          echo "   Image: ${IMAGE}:${VERSION} (amd64 + arm64)"
+          echo "   Image: ${IMAGE}:${VERSION} (amd64)"
