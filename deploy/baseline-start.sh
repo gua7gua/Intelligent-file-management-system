@@ -3,8 +3,8 @@
 # 智能档案管理系统 — 基线启动脚本（演示/测试）
 # -----------------------------------------------------------------------------
 # 用法：
-#   ./deploy/baseline-start.sh up       构建镜像 + 启动整套栈，等待基线就绪并校验（默认）
-#   ./deploy/baseline-start.sh pull     用 GHCR 上的预构建镜像启动（不本地构建）
+#   ./deploy/baseline-start.sh up       拉取 GHCR :baseline 镜像并启动，等待基线就绪并校验（默认）
+#   ./deploy/baseline-start.sh pull     显式拉取镜像后启动（与 up 行为一致）
 #   ./deploy/baseline-start.sh status   查看各容器与健康状态
 #   ./deploy/baseline-start.sh logs     跟随后端日志
 #   ./deploy/baseline-start.sh verify   仅校验基线数据库（不重启）
@@ -19,15 +19,18 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.baseline.yml"
+ENV_FILE="$SCRIPT_DIR/.env"
 PROJECT_NAME="archive-baseline"
 HOST_PORT="${ARCHIVE_HOST_PORT:-8081}"
 
-# 兼容 docker compose / docker-compose
+# 兼容 docker compose / docker-compose；存在 .env 时显式加载（否则 compose 会从
+# 当前工作目录查找 .env，位置不确定）。未提供 .env 时各项走 compose 内默认值。
 if docker compose version >/dev/null 2>&1; then
   DC=(docker compose)
 else
   DC=(docker-compose)
 fi
+[ -f "$ENV_FILE" ] && DC+=(--env-file "$ENV_FILE")
 
 cd "$SCRIPT_DIR/.."
 
@@ -57,10 +60,8 @@ wait_container_healthy() {
 }
 
 cmd_up() {
-  local build_flag=("--build")
-  [ "${1:-}" = "--no-build" ] && build_flag=()
-  log "构建并启动基线栈（postgres + minio + app）..."
-  "${DC[@]}" -p "$PROJECT_NAME" -f "$COMPOSE_FILE" up -d "${build_flag[@]}"
+  log "拉取镜像并启动基线栈（postgres + minio + app，镜像来自 GHCR :baseline）..."
+  "${DC[@]}" -p "$PROJECT_NAME" -f "$COMPOSE_FILE" up -d
 
   log "等待 postgres 就绪..."
   wait_container_healthy archive-baseline-db 60 || die "postgres 未就绪"

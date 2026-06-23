@@ -12,10 +12,11 @@
 #   2. app 启动后，后端 Flyway 自动执行 V1~V30 迁移得到完整基线
 #      （schema + 角色/字典/配置 + 演示档案/档案盒等种子数据）。
 #   3. minio-init 一次性创建业务所需 bucket。
-# 外部依赖（AI/ClamAV/短信）默认关闭，保证零配置开机即用：
-#   - AI（DeepSeek）：AI_ENABLED=false，调用走应用内降级
-#   - 病毒扫描：FILE_SCAN_ENABLED=false，跳过 ClamAV
-#   - 短信：ALIYUN_SMS_ENABLED=false，走 fallback 固定验证码
+# 外部依赖（AI/ClamAV/短信）默认关闭，保证零配置开机即用。
+# 如需启用某项，复制 deploy/.env.example 为 deploy/.env 并填入对应 token：
+#   - AI（DeepSeek）：AI_ENABLED=true + DEEPSEEK_API_KEY=sk-xxx
+#   - 病毒扫描：FILE_SCAN_ENABLED=true + CLAMAV_HOST=...
+#   - 短信：       ALIYUN_SMS_ENABLED=true + ALIYUN_SMS_ACCESS_KEY/SECRET
 # =============================================================================
 
 name: archive-baseline
@@ -90,9 +91,8 @@ services:
     image: ghcr.io/gua7gua/intelligent-file-management-system:baseline
     container_name: archive-baseline-app
     restart: unless-stopped
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile
+    # 镜像由 .github/workflows/docker-build.yaml 推送到 GHCR 的 :baseline 标签，
+    # 此处只拉取、不本地构建（baseline-start.sh up 会自动拉取）。
     depends_on:
       db:
         condition: service_healthy
@@ -111,10 +111,20 @@ services:
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin123
-      # 关闭外部依赖，零配置可用
-      AI_ENABLED: "false"
-      FILE_SCAN_ENABLED: "false"
-      ALIYUN_SMS_ENABLED: "false"
+      # 外部依赖开关与 token：默认关闭/空，保证零配置可用；可在 deploy/.env 覆盖启用
+      #   - AI（DeepSeek）：AI_ENABLED + DEEPSEEK_API_KEY
+      #   - 病毒扫描（ClamAV）：FILE_SCAN_ENABLED + CLAMAV_HOST/PORT
+      #   - 阿里云短信：ALIYUN_SMS_ENABLED + ALIYUN_SMS_ACCESS_KEY/SECRET
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-deepseek-chat}
+      FILE_SCAN_ENABLED: ${FILE_SCAN_ENABLED:-false}
+      CLAMAV_HOST: ${CLAMAV_HOST:-localhost}
+      CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+      ALIYUN_SMS_ENABLED: ${ALIYUN_SMS_ENABLED:-false}
+      ALIYUN_SMS_ACCESS_KEY: ${ALIYUN_SMS_ACCESS_KEY:-}
+      ALIYUN_SMS_SECRET: ${ALIYUN_SMS_SECRET:-}
     ports:
       # 宿主 8081 -> 容器 80（避开宿主已占用的 80/8080）
       - "8081:80"

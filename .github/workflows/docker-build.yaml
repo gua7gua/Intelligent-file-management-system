@@ -1,16 +1,13 @@
 name: Build and Push Multi-Arch Docker Images
 
+# 本 workflow 专为构建 baseline 演示镜像而存在：
+#   - 推送 develop 分支时自动构建，标签恒为 :baseline
+#   - 也支持 workflow_dispatch 手动触发（同样产出 :baseline）
+# 版本不再随 commit SHA / git tag 变化，baseline 即稳定可复现的演示镜像。
 on:
   push:
-    branches: [ main, master, develop ]   # 推送到 main/master/develop 时自动构建（短 SHA）；联调阶段 develop 也触发以实测镜像
-    tags:
-      - 'v*'
+    branches: [ develop ]
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version tag (e.g. v1.0.0 或自定义版本)'
-        required: true
-        default: 'latest'
 
 permissions:
   contents: read
@@ -34,21 +31,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      # === 关键修复：统一处理小写 + 版本逻辑 ===
       - name: Prepare variables
         id: prep
         run: |
           OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           REPO_LC=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
-          
-          # 版本优先级：手动输入 > tag > commit SHA（短7位）
-          if [[ -n "${{ github.event.inputs.version }}" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
-            VERSION="${{ github.ref_name }}"
-          else
-            VERSION=$(git rev-parse --short HEAD)   # 短 commit SHA，如 c20bc77
-          fi
+          # 版本恒为 baseline（本 workflow 不再产出 commit SHA / tag 镜像）
+          VERSION="baseline"
 
           echo "OWNER_LC=${OWNER_LC}" >> $GITHUB_ENV
           echo "REPO_LC=${REPO_LC}" >> $GITHUB_ENV
@@ -92,14 +81,7 @@ jobs:
         run: |
           OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           REPO_LC=$(echo "${{ github.event.repository.name }}" | tr '[:upper:]' '[:lower:]')
-          
-          if [[ -n "${{ github.event.inputs.version }}" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
-            VERSION="${{ github.ref_name }}"
-          else
-            VERSION=$(echo "${{ github.sha }}" | cut -c1-7)
-          fi
+          VERSION="baseline"
 
           echo "OWNER_LC=${OWNER_LC}" >> $GITHUB_ENV
           echo "REPO_LC=${REPO_LC}" >> $GITHUB_ENV
@@ -120,18 +102,16 @@ jobs:
 
           echo "🚀 Creating multi-arch manifest for ${IMAGE}:${VERSION}"
 
-          # 创建版本 manifest
+          # 创建 baseline manifest
           docker manifest create ${IMAGE}:${VERSION} \
             ${IMAGE}:${VERSION}-amd64
           docker manifest push ${IMAGE}:${VERSION}
 
-          # 只有 tag 或手动触发时才更新 :latest
-          if [[ "${{ github.ref_type }}" == "tag" ]] || [[ -n "${{ github.event.inputs.version }}" ]]; then
-            docker manifest create ${IMAGE}:latest \
-              ${IMAGE}:${VERSION}-amd64
-            docker manifest push ${IMAGE}:latest
-            echo "✅ Also updated :latest"
-          fi
+          # baseline 是本仓库唯一构建的镜像，同步更新 :latest 指向它
+          docker manifest create ${IMAGE}:latest \
+            ${IMAGE}:${VERSION}-amd64
+          docker manifest push ${IMAGE}:latest
+          echo "✅ Also updated :latest"
 
           echo "🎉 Success!"
           echo "   Image: ${IMAGE}:${VERSION} (amd64)"
