@@ -47,11 +47,33 @@
         <div class="form-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr))">
           <div class="field">
             <label for="password">设置密码</label>
-            <input id="password" v-model="form.password" type="password" required />
+            <div class="input-pwd">
+              <input id="password" v-model="form.password" :type="showPassword ? 'text' : 'password'" required />
+              <button
+                type="button"
+                class="pwd-toggle"
+                :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+                tabindex="-1"
+                @click="showPassword = !showPassword"
+              >
+                <el-icon><View v-if="!showPassword" /><Hide v-else /></el-icon>
+              </button>
+            </div>
           </div>
           <div class="field">
             <label for="confirmPassword">确认密码</label>
-            <input id="confirmPassword" v-model="form.confirmPassword" type="password" required />
+            <div class="input-pwd">
+              <input id="confirmPassword" v-model="form.confirmPassword" :type="showConfirm ? 'text' : 'password'" required />
+              <button
+                type="button"
+                class="pwd-toggle"
+                :aria-label="showConfirm ? '隐藏密码' : '显示密码'"
+                tabindex="-1"
+                @click="showConfirm = !showConfirm"
+              >
+                <el-icon><View v-if="!showConfirm" /><Hide v-else /></el-icon>
+              </button>
+            </div>
           </div>
         </div>
         <label class="check-row">
@@ -75,6 +97,7 @@
 <script setup lang="ts">
 import { ref, reactive, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { View, Hide } from '@element-plus/icons-vue'
 import { validatePublicRegister } from '@/utils/publicValidation'
 import { sendPublicSmsCode, registerPublicUser } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
@@ -95,6 +118,8 @@ const countdown = ref(0)
 let smsTimer: ReturnType<typeof setInterval> | null = null
 const resultMessage = ref('')
 const resultType = ref('')
+const showPassword = ref(false)
+const showConfirm = ref(false)
 
 const phonePattern = /^1[3-9]\d{9}$/
 
@@ -183,6 +208,38 @@ async function handleSubmit() {
   width: 18px;
   height: 18px;
   margin-top: 3px;
+}
+
+/* 密码框明文切换按钮（眼睛图标，同登录 el-input__suffix-inner 交互）；
+   保留裸 input（与同页其他字段外观一致），仅在右侧叠加眼睛按钮 */
+.input-pwd {
+  position: relative;
+}
+.field .input-pwd input {
+  padding-right: 34px;
+}
+.pwd-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.pwd-toggle:hover {
+  color: var(--primary);
+  background: #eef3f6;
+}
+.pwd-toggle .el-icon {
+  font-size: 16px;
 }
 
 @media (max-width: 900px) {
