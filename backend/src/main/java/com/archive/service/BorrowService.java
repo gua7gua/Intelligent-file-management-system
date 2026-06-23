@@ -217,13 +217,18 @@ public class BorrowService {
         // 凭证号在审批通过时已生成；此处为首次打印凭证 PDF：把状态从 approved 推进到 voucher_issued
         boolean firstIssue = b.getStatus() == BorrowStatus.approved;
         if (firstIssue) {
+            // 防御：审批通过时正常已生成凭证号；若历史/异常数据缺失则在此补生成，避免下游 Map.of 遇 null 抛 NPE
+            if (b.getVoucherNo() == null) {
+                b.setVoucherNo(borrowNoUtil.nextVoucherNo());
+                b.setVoucherIssuedAt(OffsetDateTime.now());
+            }
             b.setStatus(BorrowStatus.voucher_issued);
             borrowRequestMapper.updateById(b);
             auditService.log("M09", "issue_voucher", "borrow_request", b.getId(),
                     Map.of("voucherNo", b.getVoucherNo(), "firstIssue", true));
         } else {
             auditService.log("M09", "issue_voucher", "borrow_request", b.getId(),
-                    Map.of("voucherNo", b.getVoucherNo(), "firstIssue", false));
+                    Map.of("voucherNo", b.getVoucherNo() != null ? b.getVoucherNo() : "", "firstIssue", false));
         }
 
         Archive archive = archiveMapper.selectById(b.getArchiveId());
