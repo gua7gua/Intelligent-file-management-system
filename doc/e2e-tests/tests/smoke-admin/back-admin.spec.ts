@@ -13,6 +13,9 @@ test.describe('全宗管理 /admin/fonds', () => {
   test('A-FONDS 全宗 新建→编辑→停用 全生命周期', async ({ page }) => {
     await page.goto('/admin/fonds')
     await expect(page.getByRole('heading', { name: '全宗管理', exact: true })).toBeVisible()
+    // 等列表加载完成（loadAll 的 Promise.all 同时取 fonds+orgs）：orgs 到位后点「新建全宗」，
+    // newFonds 才能正确把所属单位默认为 orgs[0]，避免「请选择所属单位」校验失败。
+    await expect(page.locator('.fonds-row').first()).toBeVisible({ timeout: 10_000 })
 
     const fondsNo = uniqueTitle('FONS') // 唯一全宗号（后端仅校验唯一+非空，无格式约束）
     const drawer = page.locator('aside.drawer')
@@ -40,15 +43,18 @@ test.describe('全宗管理 /admin/fonds', () => {
     // ── 停用（无关联数据时直接 status=disabled，无确认弹窗）──
     await page.locator('.fonds-row').filter({ hasText: `已改名${fondsNo}` }).getByRole('button', { name: '停用', exact: true }).click()
     await expect(page.locator('.el-message').filter({ hasText: '已停用' })).toBeVisible({ timeout: 10_000 })
-    // 状态置灰 + 操作按钮变「已停用」且禁用
+    // 停用后：行状态变「停用」，操作按钮由「停用」切换为「启用」（前端对 disabled 全宗渲染「启用」按钮以允许重新启用）
     const row = page.locator('.fonds-row').filter({ hasText: `已改名${fondsNo}` })
-    await expect(row.getByRole('button', { name: '已停用' })).toBeDisabled()
+    await expect(row.locator('.status')).toContainText('停用')
+    await expect(row.getByRole('button', { name: '启用', exact: true })).toBeVisible()
   })
 
   test('A-FONDS-DELETE 新建全宗→删除（无关联物理删除）', async ({ page }) => {
     await page.goto('/admin/fonds')
     const fondsNo = uniqueTitle('FDEL')
     const drawer = page.locator('aside.drawer')
+    // 等列表加载完成（orgs 到位），避免点「新建全宗」时所属单位未默认（同 A-FONDS）
+    await expect(page.locator('.fonds-row').first()).toBeVisible({ timeout: 10_000 })
 
     // 新建一个无关联全宗（误建场景）
     await page.getByRole('button', { name: '新建全宗', exact: true }).first().click()
@@ -76,6 +82,8 @@ test.describe('库房管理 /admin/warehouse', () => {
 
     // 库房号取运行戳数字部分（基线 401/402 为纯数字，沿用数字格式规避后端格式校验）
     const roomNo = uniqueTitle('R').replace(/\D/g, '')
+    // 等库房列表加载完成（指标随列表一起就绪），再读 beforeActive，避免读到加载前的 0
+    await expect(page.locator('.room-item').first()).toBeVisible({ timeout: 10_000 })
     const beforeActive = Number((await page.locator('.metric-row .metric').first().locator('.metric-num').textContent()) ?? '0')
 
     await page.getByRole('button', { name: /添加库房/ }).click()

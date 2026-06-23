@@ -29,14 +29,15 @@ test.describe('W-C-1 小刘发起密级调整', () => {
     const row = page.locator('tbody tr').filter({ hasText: TARGET_NO })
     await expect(row).toBeVisible({ timeout: 10_000 })
 
-    // 读当前密级（第 6 列=密级），取反作为调整目标（0↔1），保证幂等且「有变化」
-    const currentLabel = (await row.locator('td').nth(5).textContent()) ?? ''
-    const newLevel = currentLabel.includes('非密') ? 1 : 0
-    wf('W-C').newLevel = newLevel
-
     // 点行进详情弹窗
     await row.click()
     await expect(page.locator('.el-dialog')).toBeVisible({ timeout: 10_000 })
+
+    // 读详情弹窗「当前密级」（受保护字段只读 input），取反作为调整目标（0↔1），保证幂等且「有变化」。
+    // 不再依赖列表列下标（列顺序变化会错位），改为读详情弹窗的权威值。
+    const currentLabel = (await page.locator('.field').filter({ hasText: '当前密级' }).locator('input').inputValue()) ?? ''
+    const newLevel = currentLabel.includes('非密') ? 1 : 0
+    wf('W-C').newLevel = newLevel
 
     // 发起审批：凭证档号（同全宗）+ 调整后密级 + 理由；监听 POST 拿审批单 id
     const respPromise = page.waitForResponse(
@@ -86,7 +87,9 @@ test.describe('W-C-3 小刘回查密级生效', () => {
     const row = page.locator('tbody tr').filter({ hasText: TARGET_NO })
     await expect(row).toBeVisible({ timeout: 10_000 })
 
-    const levelLabel = (await row.locator('td').nth(5).textContent()) ?? ''
+    // 列表列序：档号(0) 题名(1) 责任者(2) 年度(3) 分类(4) 所属全宗(5) 密级(6)；
+    // 密级在第 7 列（index 6），勿用 index 5（所属全宗）。
+    const levelLabel = (await row.locator('td').nth(6).textContent()) ?? ''
     const expected = wf('W-C').newLevel === 0 ? '非密' : '内部'
     expect(levelLabel).toContain(expected)
   })
