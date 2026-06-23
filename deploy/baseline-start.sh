@@ -9,7 +9,7 @@
 #   ./deploy/baseline-start.sh logs     跟随后端日志
 #   ./deploy/baseline-start.sh verify   仅校验基线数据库（不重启）
 #   ./deploy/baseline-start.sh down     停止（保留数据卷）
-#   ./deploy/baseline-start.sh reset    停止并删除数据卷（恢复初始基线）
+#   ./deploy/baseline-start.sh reset    删除所有数据卷(db/minio/clamav,完全恢复初始基线)
 #
 # 访问：
 #   前台 http://localhost:8081   MinIO 控制台 http://localhost:9001（仅容器内网，
@@ -20,6 +20,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.baseline.yml"
 ENV_FILE="$SCRIPT_DIR/.env"
+# 加载 .env 到脚本 shell（供 HOST_PORT 等读取）；compose 另由 --env-file 加载同一份
+[ -f "$ENV_FILE" ] && set -a && . "$ENV_FILE" && set +a
 PROJECT_NAME="archive-baseline"
 HOST_PORT="${ARCHIVE_HOST_PORT:-8081}"
 
@@ -73,6 +75,9 @@ cmd_up() {
     die "应用未就绪，请用 'logs' 排查"
   }
 
+  log "等待 ClamAV 就绪（病毒扫描；复用病毒库卷通常 1 分钟内）..."
+  wait_container_healthy archive-baseline-clamav 120 || warn "ClamAV 未就绪，上传扫描暂不可用（不影响基线启动）"
+
   cmd_verify
   print_access
 }
@@ -105,15 +110,31 @@ cmd_verify() {
   log "Flyway 历史: ${fly_cnt} 条 | 最高版本: ${max_ver}"
   log "基线数据量: archives=${archives} archive_boxes=${boxes} fonds=${fonds} users=${users} organizations=${orgs}"
 
-  # 真实 API 联通性：命中后端公开字典接口（鉴权白名单）
+  # 真实 API 联通性：命中后端公开字典接口（鉴权白名单）。
+  # app actuator healthy 后 nginx:80 对外仍可能延迟数秒，重试避免假阴性(HTTP 000)
   log "校验前端->Nginx->后端 API 链路..."
-  local code
-  code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:${HOST_PORT}/api/dictionaries" || true)"
+  local code tries=0
+  code=000
+  while [ "$tries" -lt 15 ]; do
+    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://localhost:${HOST_PORT}/api/dictionaries" || true)"
+    case "${code:-000}" in 200|404) break;; esac
+    tries=$((tries+1)); sleep 2
+  done
   if [ "${code:-000}" = "200" ] || [ "${code:-000}" = "404" ]; then
     # 200 = 接口存在并返回；404 = 路径不同但链路通；二者都证明请求到达了后端
     if [ "${code}" = "200" ]; then ok "$code GET /api/dictionaries -> 链路正常"; else warn "$code GET /api/dictionaries（路径可能不同，但请求已到达后端）"; fi
   else
     warn "API 链路异常（HTTP $code），请用浏览器或 logs 排查"; ok=0
+  fi
+
+  # ClamAV 病毒扫描（baseline 自带）：未就绪只告警，不影响基线核心可用
+  log "校验 ClamAV 病毒扫描..."
+  local cav
+  cav="$(docker inspect --format '{{.State.Health.Status}}' archive-baseline-clamav 2>/dev/null || echo missing)"
+  if [ "$cav" = "healthy" ]; then
+    ok "ClamAV healthy → 上传病毒扫描可用"
+  else
+    warn "ClamAV 状态: ${cav}（上传扫描暂不可用，等病毒库加载完成后自行恢复）"
   fi
 
   if [ "$ok" -eq 1 ]; then
@@ -134,14 +155,19 @@ print_access() {
   ok "   前台入口:   http://localhost:${HOST_PORT}"
   [ -n "${admin:-}" ] && ok "   管理员账号: ${admin} / 密码: 123456（基线统一密码）"
   ok "   MinIO:      容器内 http://minio:9000 | 控制台需在 compose 暴露端口"
-  ok "   停止:       $0 down     重置基线: $0 reset"
+  ok "   ClamAV:     容器内 clamav:3310（上传病毒扫描）"
+  ok "   停止:       $0 down     完全重置: $0 reset"
   ok "═══════════════════════════════════════════════════════════"
 }
 
 cmd_status() { "${DC[@]}" -p "$PROJECT_NAME" -f "$COMPOSE_FILE" ps; }
 cmd_logs()   { "${DC[@]}" -p "$PROJECT_NAME" -f "$COMPOSE_FILE" logs -f --tail=100 app; }
 cmd_down()   { log "停止..."; "${DC[@]}" -p "$PROJECT_NAME" -f "$COMPOSE_FILE" down; }
-cmd_reset()  { warn "将删除 db/minio 数据卷，恢复初始基线"; "${DC[@]}" -p "$PROJECT_NAME" -f "$COMPOSE_FILE" down -v; ok "已重置"; }
+cmd_reset()  {
+  warn "将删除所有数据卷(db/minio/clamav)，完全恢复初始基线"
+  "${DC[@]}" -p "$PROJECT_NAME" -f "$COMPOSE_FILE" down -v
+  ok "已完全重置；运行 '$0 up' 重新启动基线（首次 ClamAV 需下载病毒库，可能数分钟）"
+}
 
 case "${1:-up}" in
   up)      shift; cmd_up "${1:-}";;

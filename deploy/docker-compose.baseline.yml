@@ -87,6 +87,26 @@ services:
     networks:
       - archive-net
 
+  # 病毒扫描（ClamAV）：baseline 自带，扫描 app 上传的文件。
+  # 复用 archive-clamav-data 卷，病毒库已缓存（首次启动仍需加载到内存，约 1 分钟）。
+  clamav:
+    image: clamav/clamav:1.4
+    container_name: archive-baseline-clamav
+    restart: unless-stopped
+    environment:
+      CLAMD_STARTUP_TIMEOUT: ${CLAMD_STARTUP_TIMEOUT:-1800}
+      FRESHCLAM_CHECKS: ${FRESHCLAM_CHECKS:-24}
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 6m
+    networks:
+      - archive-net
+
   app:
     image: ghcr.io/gua7gua/intelligent-file-management-system:baseline
     container_name: archive-baseline-app
@@ -120,14 +140,14 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       AI_MODEL: ${AI_MODEL:-deepseek-chat}
       FILE_SCAN_ENABLED: ${FILE_SCAN_ENABLED:-false}
-      CLAMAV_HOST: ${CLAMAV_HOST:-localhost}
+      CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
       ALIYUN_SMS_ENABLED: ${ALIYUN_SMS_ENABLED:-false}
       ALIYUN_SMS_ACCESS_KEY: ${ALIYUN_SMS_ACCESS_KEY:-}
       ALIYUN_SMS_SECRET: ${ALIYUN_SMS_SECRET:-}
     ports:
-      # 宿主 8081 -> 容器 80（避开宿主已占用的 80/8080）
-      - "8081:80"
+      # 宿主端口由 deploy/.env 的 ARCHIVE_HOST_PORT 控制（默认 8081），容器内固定 80
+      - "${ARCHIVE_HOST_PORT:-8081}:80"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
       interval: 10s
@@ -153,6 +173,8 @@ volumes:
     name: archive-baseline-db-data
   minio_data:
     name: archive-baseline-minio-data
+  clamav_data:
+    name: archive-clamav-data
 
 networks:
   archive-net:
