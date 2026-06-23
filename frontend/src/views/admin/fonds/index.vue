@@ -171,7 +171,7 @@ const total = ref(0)
 const filters = reactive({ keyword: '', orgFilter: '' as number | '', relation: '' as '' | 'linked' | 'empty' | 'disabled' })
 const applied = reactive({ keyword: '', orgFilter: '' as number | '', relation: '' as '' | 'linked' | 'empty' | 'disabled' })
 
-const isCreate = ref(true)
+const isCreate = ref(false)
 const selectedId = ref<number | null>(null)
 const form = reactive({ fondsNo: '', fondsName: '', organizationId: undefined as number | undefined, description: '' })
 
@@ -207,7 +207,8 @@ async function loadAll() {
     list.value = f.records
     total.value = f.total
     orgs.value = o.records
-    if (!selectedId.value && list.value.length) selectRow(list.value[0])
+    // 仅在非「显式新建」且未选中时自动选中首条；避免迟到的 loadAll 覆盖用户已点「新建全宗」的 isCreate=true 状态
+    if (!isCreate.value && !selectedId.value && list.value.length) selectRow(list.value[0])
   } catch {
     loadError.value = true
     ElMessage.error('全宗数据加载失败')
